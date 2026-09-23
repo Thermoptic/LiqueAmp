@@ -3,17 +3,39 @@ import type { MediaItem, PlaybackMode, ProviderId } from '../types/media';
 
 export type PlaybackStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'buffering' | 'error';
 
+export type PlaybackErrorCode =
+  | 'STREAM_UNAVAILABLE'
+  | 'NETWORK_ERROR'
+  | 'MEDIA_FORMAT_NOT_SUPPORTED'
+  | 'PLAYBACK_BLOCKED'
+  | 'MIXED_CONTENT'
+  | 'PROVIDER_NOT_SUPPORTED'
+  | 'INVALID_SOURCE';
+
 export interface PlaybackError {
-  code: string;
+  code: PlaybackErrorCode;
+  /** Short uppercase headline, e.g. STREAM UNAVAILABLE. */
+  title: string;
   message: string;
   provider?: ProviderId;
   recoverable: boolean;
 }
 
 /**
+ * Whether real audio analysis (Web Audio) is possible for the current source.
+ * - available: routed through the Web Audio graph
+ * - cors-blocked: playing, but the server does not allow browser access to samples
+ * - unsupported: Web Audio is not available in this browser
+ * - inactive: nothing native is playing
+ */
+export type AnalysisAvailability = 'inactive' | 'available' | 'cors-blocked' | 'unsupported';
+
+export type AudioEngineState = 'not-started' | 'running' | 'suspended' | 'unavailable';
+
+/**
  * Global playback session state (ARCH §6). Written only by the playback
- * engine (Phase 3); the UI reads it through selectors. Volume, mute, shuffle
- * and repeat are user settings and live in the settings store.
+ * engine; the UI reads it through selectors. Volume, mute, shuffle and repeat
+ * are user settings and live in the settings store.
  */
 export interface PlaybackState {
   currentItem: MediaItem | null;
@@ -22,13 +44,34 @@ export interface PlaybackState {
   isLive: boolean;
   canSeek: boolean;
   error: PlaybackError | null;
+  analysis: AnalysisAvailability;
+  audioEngine: AudioEngineState;
 }
 
-export const usePlayback = create<PlaybackState>(() => ({
+export const INITIAL_PLAYBACK: PlaybackState = {
   currentItem: null,
   status: 'idle',
   mode: null,
   isLive: false,
   canSeek: false,
   error: null,
-}));
+  analysis: 'inactive',
+  audioEngine: 'not-started',
+};
+
+export const usePlayback = create<PlaybackState>(() => ({ ...INITIAL_PLAYBACK }));
+
+/**
+ * High-frequency position data, kept in its own store so that only the
+ * components that show time re-render (~4×/s from `timeupdate`), not the
+ * whole dashboard (ARCH §41).
+ */
+export interface PlaybackClock {
+  currentTime: number;
+  /** Seconds; Infinity for live streams, NaN when unknown. */
+  duration: number;
+  /** Seconds buffered ahead of the playhead, measured from the media element. */
+  bufferedAhead: number;
+}
+
+export const usePlaybackClock = create<PlaybackClock>(() => ({ currentTime: 0, duration: Number.NaN, bufferedAhead: 0 }));

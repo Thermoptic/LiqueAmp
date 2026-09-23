@@ -1,7 +1,10 @@
 import { getDb } from '../services/storage/db';
+import { getEngine } from '../services/playback/engine';
 import { LIQUEAMP_DEFAULT } from '../services/themes/builtin';
 import { applyTheme } from '../services/themes/theme';
 import { useLibrary } from '../stores/libraryStore';
+import { usePlayback } from '../stores/playbackStore';
+import { useQueue } from '../stores/queueStore';
 import { useSettings } from '../stores/settingsStore';
 import { useThemes } from '../stores/themeStore';
 import { wireSystemListeners } from '../stores/systemStore';
@@ -17,7 +20,7 @@ function syncAppearance() {
 
 async function hydrateAll() {
   await getDb();
-  await Promise.all([useSettings.getState().hydrate(), useThemes.getState().hydrate(), useLibrary.getState().hydrate()]);
+  await Promise.all([useSettings.getState().hydrate(), useThemes.getState().hydrate(), useLibrary.getState().hydrate(), useQueue.getState().hydrate()]);
 }
 
 /**
@@ -29,6 +32,11 @@ export async function bootstrap(): Promise<void> {
   wireSystemListeners();
   await Promise.race([hydrateAll(), new Promise((resolve) => setTimeout(resolve, 2000))]);
   syncAppearance();
+  getEngine(); // after hydration, so the saved volume applies from the start
+  if (import.meta.env.DEV) {
+    // Dev-only diagnostics handle; never part of a production build.
+    Object.assign(window, { __liqueamp: { getEngine, usePlayback, useQueue, useSettings } });
+  }
   useSettings.subscribe(syncAppearance);
   useThemes.subscribe(syncAppearance);
 }

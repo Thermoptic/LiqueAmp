@@ -1,6 +1,6 @@
 # LIQUEAMP — Implementation Plan (Phase 1 audit)
 
-Status: Approved 2026-09-23. Phase 2 complete.
+Status: Approved 2026-09-23. Phases 2–3 complete.
 Date: 2026-09-22
 
 This file records the Phase 1 audit required by `LIQUEAMP_MASTER_BUILD_PROMPT.md`
@@ -161,7 +161,7 @@ Each phase ends with typecheck, tests, build and a look at the running app
 |---|---|---|
 | 1 | Audit | This document. |
 | 2 ✅ | Shell | Vite/React/TS scaffold, theme tokens + default theme, responsive grid shell with all panels (empty states), navigation, `/control` route, storage layer. |
-| 3 | Playback engine | Central engine and store, queue transitions, error model, dual audio element + Web Audio graph. |
+| 3 ✅ | Playback engine | Central engine and store, queue transitions, error model, dual audio element + Web Audio graph. |
 | 4 | Direct streams | URL detection/normalization, M3U/PLS parsing, HLS, live vs seekable. |
 | 5 | Radio | Radio Browser client, tabs (radio/genres/locations/mood), search/filter/sort, station info. |
 | 6 | Library | Categories, favorites, history recording, playlists, queue UI incl. reorder. |

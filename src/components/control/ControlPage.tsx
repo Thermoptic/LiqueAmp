@@ -5,6 +5,7 @@ import { PendingTag } from '../ui/controls';
 import { SystemSection } from './SystemSection';
 import { CategoriesSection } from './CategoriesSection';
 import { ThemesSection } from './ThemesSection';
+import { MediaSection } from './MediaSection';
 
 const SECTIONS = [
   { id: 'system', label: 'System' },
@@ -18,7 +19,6 @@ const SECTIONS = [
 ] as const;
 
 const PENDING_TEXT: Record<string, string> = {
-  media: 'Media management (add, edit, test sources) arrives with the library and URL import.',
   providers: 'Provider status and configuration arrive with the provider adapters.',
   visualizers: 'Visualizer configuration arrives with the audio analysis engine.',
   'import-export': 'Data export and validated import are not implemented yet.',
@@ -55,6 +55,7 @@ export function ControlPage() {
           {current.id === 'system' && <SystemSection />}
           {current.id === 'categories' && <CategoriesSection />}
           {current.id === 'themes' && <ThemesSection />}
+          {current.id === 'media' && <MediaSection />}
           {current.id in PENDING_TEXT && (
             <section className="panel">
               <header className="panel__header">
