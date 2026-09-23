@@ -1,0 +1,88 @@
+/*
+ * Design tokens. Color values here are the LiqueAmp Default theme and only
+ * exist so the first paint is correct; at runtime applyTheme() overwrites
+ * every color variable. Components must use these variables, never raw colors.
+ */
+:root {
+  /* colors — mirrored from services/themes/builtin.ts LIQUEAMP_DEFAULT */
+  --la-bg: #0b100e;
+  --la-surface: #101815;
+  --la-surface-2: #15201b;
+  --la-surface-3: #1b2923;
+  --la-border: #2a3b33;
+  --la-border-subtle: #1d2a24;
+  --la-border-strong: #3f5749;
+  --la-text: #efe5d5;
+  --la-text-secondary: #c3b9a7;
+  --la-text-muted: #8a978d;
+  --la-text-disabled: #56635a;
+  --la-primary: #ff7a3d;
+  --la-secondary: #8fcfa9;
+  --la-accent: #ff8a4c;
+  --la-accent-bright: #ffb07a;
+  --la-success: #7fd49a;
+  --la-warning: #f2b544;
+  --la-danger: #ff5a4f;
+  --la-info: #72b9d6;
+  --la-live: #ff5a3c;
+  --la-visualizer: #ff7a3d;
+  --la-visualizer-secondary: #d6d86a;
+  --la-glow: #ff7a3d;
+  --la-glow-strong: #ffa066;
+  --la-focus: #ffb07a;
+
+  /* effects (theme-controlled) */
+  --la-glow-amount: 0.6;
+  --la-radius-sm: 2px;
+
+  /* derived glow — scales to zero when glow is disabled */
+  --la-glow-text: 0 0 calc(10px * var(--la-glow-amount))
+    color-mix(in srgb, var(--la-glow) calc(70% * var(--la-glow-amount)), transparent);
+  --la-glow-box: 0 0 calc(14px * var(--la-glow-amount))
+    color-mix(in srgb, var(--la-glow) calc(45% * var(--la-glow-amount)), transparent);
+
+  /* typography */
+  --la-font-display: 'Doto', 'JetBrains Mono', ui-monospace, monospace;
+  --la-font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --la-text-xs: 0.6875rem;
+  --la-text-sm: 0.75rem;
+  --la-text-md: 0.8125rem;
+  --la-text-lg: 0.9375rem;
+  --la-text-xl: 1.25rem;
+  --la-text-2xl: 1.75rem;
+  --la-text-3xl: 2.25rem;
+
+  /* spacing scale (DESIGN §88) */
+  --la-space-1: 4px;
+  --la-space-2: 8px;
+  --la-space-3: 12px;
+  --la-space-4: 16px;
+  --la-space-5: 24px;
+  --la-space-6: 32px;
+  --la-gap: 10px;
+
+  /* borders */
+  --la-border-width: 1px;
+
+  /* motion */
+  --la-transition-fast: 120ms ease;
+  --la-transition-normal: 200ms ease;
+
+  /* sizes */
+  --la-control-h: 30px;
+  --la-touch: 44px;
+  --la-bottom-nav-h: 60px;
+  --la-mini-player-h: 64px;
+}
+
+:root[data-motion='reduced'] {
+  --la-transition-fast: 0ms linear;
+  --la-transition-normal: 0ms linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) {
+    --la-transition-fast: 0ms linear;
+    --la-transition-normal: 0ms linear;
+  }
+}

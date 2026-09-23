@@ -1,0 +1,189 @@
+/*
+ * Dashboard grid (DESIGN §47). Every region is a grid area; nothing in the
+ * primary layout is absolutely positioned, so panels cannot overlap.
+ *
+ *   ≥1200px  3 columns — sidebar | now playing | radio
+ *   768–1199 2 columns — radio moves under now playing
+ *   <768     1 column  — the route's section decides which regions show
+ */
+.app-frame {
+  min-height: 100dvh;
+}
+
+.dashboard {
+  display: grid;
+  gap: var(--la-gap);
+  padding: var(--la-gap) max(var(--la-gap), env(safe-area-inset-right)) var(--la-gap) max(var(--la-gap), env(safe-area-inset-left));
+  max-width: 1920px;
+  margin: 0 auto;
+  grid-template-columns: minmax(200px, 250px) minmax(0, 1fr) minmax(340px, 440px);
+  grid-template-rows: auto minmax(380px, 1fr) minmax(230px, 0.6fr) auto auto;
+  grid-template-areas:
+    'header header header'
+    'side main radio'
+    'side lower lower'
+    'controls controls controls'
+    'status status status';
+}
+
+/* Fit the whole workstation into the viewport when there is room for it. */
+@media (min-width: 1200px) and (min-height: 820px) {
+  .dashboard {
+    height: 100dvh;
+  }
+}
+
+.app-header {
+  grid-area: header;
+}
+.area-side {
+  grid-area: side;
+}
+.area-main,
+.area-settings {
+  grid-area: main;
+}
+.area-radio {
+  grid-area: radio;
+}
+.area-controls {
+  grid-area: controls;
+}
+.area-status {
+  grid-area: status;
+}
+
+.area-lower {
+  grid-area: lower;
+  display: grid;
+  gap: var(--la-gap);
+  min-height: 0;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1.2fr) minmax(190px, 0.75fr);
+}
+
+.control-strip {
+  display: grid;
+  gap: var(--la-gap);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.bottom-nav,
+.mobile-only {
+  display: none;
+}
+
+/* ---------- Tablet / small desktop ---------- */
+@media (max-width: 1199px) {
+  .dashboard {
+    grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+    grid-template-rows: auto;
+    grid-template-areas:
+      'header header'
+      'side main'
+      'side radio'
+      'lower lower'
+      'controls controls'
+      'status status';
+  }
+
+  .area-main,
+  .area-settings {
+    min-height: 420px;
+  }
+
+  .area-radio {
+    height: 440px;
+  }
+
+  .area-lower {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .area-lower > * {
+    min-height: 230px;
+  }
+
+  .control-strip {
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  }
+}
+
+/* ---------- Mobile ---------- */
+@media (max-width: 767px) {
+  .dashboard {
+    display: flex;
+    flex-direction: column;
+    padding-top: max(var(--la-gap), env(safe-area-inset-top));
+    padding-bottom: calc(var(--la-bottom-nav-h) + env(safe-area-inset-bottom) + var(--la-gap));
+  }
+
+  .app-frame:has(.mobile-mini .mini-player) .dashboard {
+    padding-bottom: calc(var(--la-bottom-nav-h) + var(--la-mini-player-h) + env(safe-area-inset-bottom) + var(--la-gap));
+  }
+
+  /* lower panels flow directly in the column */
+  .area-lower {
+    display: contents;
+  }
+
+  /* .app-frame prefix: must beat component display rules loaded later */
+  .app-frame :is(.area-side, .area-main, .area-settings, .area-radio, .area-library, .area-queue, .area-station, .area-actions, .area-controls, .area-status) {
+    display: none;
+  }
+
+  .app-frame[data-section='now-playing'] :is(.area-main, .area-queue, .area-station, .area-actions) {
+    display: flex;
+  }
+
+  .app-frame[data-section='browse'] .area-radio {
+    display: flex;
+    height: auto;
+    min-height: calc(100dvh - 200px);
+  }
+
+  .app-frame:is([data-section='playlists'], [data-section='favourites'], [data-section='history']) :is(.area-library, .area-side) {
+    display: flex;
+  }
+
+  .app-frame:is([data-section='playlists'], [data-section='favourites'], [data-section='history']) .area-library {
+    min-height: 260px;
+  }
+
+  .sidebar__nav,
+  .sidebar__motto {
+    display: none;
+  }
+
+  .app-frame[data-section='settings'] .area-settings,
+  .app-frame[data-section='settings'] .area-status {
+    display: flex;
+  }
+
+  .app-frame[data-section='settings'] .area-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .area-main,
+  .area-settings {
+    min-height: 0;
+  }
+
+  .area-queue,
+  .area-station {
+    min-height: 180px;
+  }
+
+  /* the page scrolls on mobile, not individual panels (DESIGN §50) */
+  .app-frame .panel__body {
+    overflow: visible;
+  }
+
+  .bottom-nav {
+    display: grid;
+  }
+
+  .mobile-only {
+    display: block;
+  }
+}
