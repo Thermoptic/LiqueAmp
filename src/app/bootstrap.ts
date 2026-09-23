@@ -11,6 +11,7 @@ import { useHistory } from '../stores/historyStore';
 import { startHistoryRecorder } from '../services/playback/historyRecorder';
 import { startMediaSession } from '../services/playback/mediaSession';
 import { startKeyboardShortcuts } from '../services/input/keyboard';
+import { startPwa } from '../services/pwa/pwa';
 import { useSettings } from '../stores/settingsStore';
 import { useThemes } from '../stores/themeStore';
 import { wireSystemListeners } from '../stores/systemStore';
@@ -22,6 +23,9 @@ function syncAppearance() {
   const root = document.documentElement;
   if (settings.motion === 'system') delete root.dataset.motion;
   else root.dataset.motion = settings.motion;
+  // browser/OS chrome (installed app title bar, mobile toolbar) follows the theme
+  const bg = getComputedStyle(root).getPropertyValue('--la-bg').trim();
+  if (bg) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg);
 }
 
 async function hydrateAll() {
@@ -43,6 +47,7 @@ export async function bootstrap(): Promise<void> {
   // Lock screen, media keys and keyboard all drive the same engine (MASTER §73).
   startMediaSession(getEngine());
   startKeyboardShortcuts(getEngine());
+  startPwa();
   if (import.meta.env.DEV) {
     // Dev-only diagnostics handle; never part of a production build.
     Object.assign(window, { __liqueamp: { getEngine, usePlayback, useQueue, useSettings, useLibrary, usePlaylists, useFavorites, useHistory } });

@@ -7,6 +7,7 @@ import { CategoriesSection } from './CategoriesSection';
 import { ThemesSection } from './ThemesSection';
 import { MediaSection } from './MediaSection';
 import { VisualizersSection } from './VisualizersSection';
+import { PwaSection } from '../pwa/PwaControls';
 
 const SECTIONS = [
   { id: 'system', label: 'System' },
@@ -22,7 +23,6 @@ const SECTIONS = [
 const PENDING_TEXT: Record<string, string> = {
   providers: 'Provider status and configuration arrive with the provider adapters.',
   'import-export': 'Data export and validated import are not implemented yet.',
-  pwa: 'Installability and offline configuration are not implemented yet.',
 };
 
 /** Private configuration area (SPEC §34). Separate from user Settings. */
@@ -57,6 +57,7 @@ export function ControlPage() {
           {current.id === 'themes' && <ThemesSection />}
           {current.id === 'media' && <MediaSection />}
           {current.id === 'visualizers' && <VisualizersSection />}
+          {current.id === 'pwa' && <PwaSection />}
           {current.id in PENDING_TEXT && (
             <section className="panel">
               <header className="panel__header">

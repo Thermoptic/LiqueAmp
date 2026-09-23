@@ -6,6 +6,7 @@ import { useRadio, type RadioTab } from '../../stores/radioStore';
 import { EmptyState, onTablistKeyDown, Status, Toggle } from '../ui/controls';
 import { StationRow } from './StationRow';
 import { RowList } from '../ui/RowList';
+import { useSystem } from '../../stores/systemStore';
 
 const TABS: ReadonlyArray<{ id: RadioTab; label: string }> = [
   { id: 'radio', label: 'Radio' },
@@ -64,6 +65,12 @@ function StationsView({ focusSearch }: { focusSearch: boolean }) {
     if (useRadio.getState().stationsState === 'idle') void searchStations();
   }, [searchStations]);
 
+  // When the connection comes back, retry a search that failed while offline.
+  const online = useSystem((s) => s.online);
+  useEffect(() => {
+    if (online && useRadio.getState().stationsState === 'error') void searchStations();
+  }, [online, searchStations]);
+
   useEffect(() => {
     if (focusSearch) searchRef.current?.focus({ preventScroll: true });
   }, [focusSearch]);
@@ -107,8 +114,14 @@ function StationsView({ focusSearch }: { focusSearch: boolean }) {
         </span>
       </div>
       <div className="panel__body panel__body--flush radio-browser__list" aria-busy={stationsState === 'loading'}>
+        {!online && (
+          <div className="radio-browser__offline" role="status">
+            <Status tone="error">EXTERNAL SOURCE OFFLINE</Status>
+            <p>The radio directory and streams need a network. Your library, playlists, favourites and history are stored on this device and still work.</p>
+          </div>
+        )}
         {stationsState === 'loading' && stations.length === 0 && <p className="radio-browser__state">LOADING STATIONS…</p>}
-        {stationsState === 'error' && error && (
+        {stationsState === 'error' && error && online && (
           <div className="now-playing__error radio-browser__error" role="alert">
             <Status tone="error">{error.title}</Status>
             <p>{error.message}</p>

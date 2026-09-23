@@ -1869,3 +1869,32 @@ kbd {
   border-radius: var(--la-radius-sm);
   white-space: nowrap;
 }
+
+/* ---------- install / offline ---------- */
+.pwa {
+  display: grid;
+  gap: var(--la-space-2);
+  justify-items: start;
+}
+
+.pwa__update,
+.pwa__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--la-space-2);
+}
+
+.radio-browser__offline {
+  display: grid;
+  gap: var(--la-space-1);
+  margin: var(--la-space-3);
+  padding: var(--la-space-2) var(--la-space-3);
+  border: var(--la-border-width) dashed var(--la-border-strong);
+  font-size: var(--la-text-xs);
+  color: var(--la-text-secondary);
+}
+
+.radio-browser__offline p {
+  margin: 0;
+}

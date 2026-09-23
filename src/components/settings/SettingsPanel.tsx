@@ -2,8 +2,9 @@ import { Link } from 'react-router';
 import { useSettings } from '../../stores/settingsStore';
 import { useSystem } from '../../stores/systemStore';
 import type { MotionPreference } from '../../types/settings';
-import { PendingTag, Segmented, Status, Toggle } from '../ui/controls';
+import { Segmented, Status, Toggle } from '../ui/controls';
 import { SHORTCUTS } from '../../services/input/keyboard';
+import { PwaSettings } from '../pwa/PwaControls';
 import { MiniPlayer } from '../player/MiniPlayer';
 
 const MOTION_OPTIONS = [
@@ -68,7 +69,7 @@ export function SettingsPanel() {
           <h3 id="set-pwa" className="settings-group__title">
             Install / PWA
           </h3>
-          <PendingTag>Not yet implemented</PendingTag>
+          <PwaSettings />
         </section>
 
         <section className="settings-group" aria-labelledby="set-data">
