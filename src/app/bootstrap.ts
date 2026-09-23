@@ -9,6 +9,8 @@ import { useFavorites } from '../stores/favoritesStore';
 import { usePlaylists } from '../stores/playlistStore';
 import { useHistory } from '../stores/historyStore';
 import { startHistoryRecorder } from '../services/playback/historyRecorder';
+import { startMediaSession } from '../services/playback/mediaSession';
+import { startKeyboardShortcuts } from '../services/input/keyboard';
 import { useSettings } from '../stores/settingsStore';
 import { useThemes } from '../stores/themeStore';
 import { wireSystemListeners } from '../stores/systemStore';
@@ -38,6 +40,9 @@ export async function bootstrap(): Promise<void> {
   syncAppearance();
   getEngine(); // after hydration, so the saved volume applies from the start
   startHistoryRecorder();
+  // Lock screen, media keys and keyboard all drive the same engine (MASTER §73).
+  startMediaSession(getEngine());
+  startKeyboardShortcuts(getEngine());
   if (import.meta.env.DEV) {
     // Dev-only diagnostics handle; never part of a production build.
     Object.assign(window, { __liqueamp: { getEngine, usePlayback, useQueue, useSettings, useLibrary, usePlaylists, useFavorites, useHistory } });

@@ -2,7 +2,8 @@ import { Link } from 'react-router';
 import { useSettings } from '../../stores/settingsStore';
 import { useSystem } from '../../stores/systemStore';
 import type { MotionPreference } from '../../types/settings';
-import { PendingTag, Segmented, Status } from '../ui/controls';
+import { PendingTag, Segmented, Status, Toggle } from '../ui/controls';
+import { SHORTCUTS } from '../../services/input/keyboard';
 import { MiniPlayer } from '../player/MiniPlayer';
 
 const MOTION_OPTIONS = [
@@ -18,6 +19,7 @@ const MOTION_OPTIONS = [
  */
 export function SettingsPanel() {
   const motion = useSettings((s) => s.motion);
+  const shortcuts = useSettings((s) => s.shortcuts);
   const update = useSettings((s) => s.update);
   const storage = useSystem((s) => s.storage);
 
@@ -45,7 +47,21 @@ export function SettingsPanel() {
           <h3 id="set-keys" className="settings-group__title">
             Keyboard
           </h3>
-          <PendingTag>Shortcuts not yet implemented</PendingTag>
+          <div className="field">
+            <span className="field__label">Shortcuts</span>
+            <Toggle checked={shortcuts} onChange={(v) => update({ shortcuts: v })} label="Keyboard shortcuts" />
+          </div>
+          <dl className={`shortcut-list ${shortcuts ? '' : 'shortcut-list--off'}`}>
+            {SHORTCUTS.map((s) => (
+              <div key={s.keys} className="shortcut-list__row">
+                <dt>
+                  <kbd>{s.keys}</kbd>
+                </dt>
+                <dd>{s.action}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="settings-group__note">Not active while typing in a field or when a dialog is open.</p>
         </section>
 
         <section className="settings-group" aria-labelledby="set-pwa">

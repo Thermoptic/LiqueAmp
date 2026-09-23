@@ -204,3 +204,31 @@
     display: block;
   }
 }
+
+/* The <main> landmark takes no box of its own: its panels stay grid items. */
+.dashboard__main {
+  display: contents;
+}
+
+/* Skip link: hidden until focused, then the first thing on screen. */
+.skip-link {
+  position: fixed;
+  top: var(--la-space-2);
+  left: var(--la-space-2);
+  z-index: 100;
+  padding: var(--la-space-2) var(--la-space-3);
+  background: var(--la-surface);
+  color: var(--la-text);
+  border: var(--la-border-width) solid var(--la-focus);
+  transform: translateY(calc(-100% - var(--la-space-4)));
+}
+
+.skip-link:focus-visible {
+  transform: none;
+}
+
+/* Panels focused by the skip link show focus like any control. */
+.panel:focus-visible {
+  outline: 2px solid var(--la-focus);
+  outline-offset: -2px;
+}

@@ -15,6 +15,7 @@ import { LibraryPanel } from '../components/library/LibraryPanel';
 import { QueuePanel } from '../components/queue/QueuePanel';
 import { ControlStrip } from '../components/settings/ControlModules';
 import { SettingsPanel } from '../components/settings/SettingsPanel';
+import { SkipLink } from '../components/layout/SkipLink';
 
 /**
  * One layout for every screen size (ARCH §37). The route only chooses which
@@ -33,18 +34,23 @@ export function Dashboard() {
 
   return (
     <div className="app-frame" data-section={section}>
+      <SkipLink targetId="main-content" />
       <div className="dashboard">
         <Header />
         <Sidebar />
-        {section === 'settings' ? <SettingsPanel /> : <NowPlayingPanel />}
-        <RadioBrowserPanel focusSearch={section === 'browse'} />
-        <div className="lower area-lower">
-          <LibraryPanel />
-          <QueuePanel />
-          <StationInfoPanel />
-          <QuickActionsPanel />
-        </div>
-        <ControlStrip />
+        {/* display: contents — a landmark without changing the dashboard grid */}
+        <main id="main-content" className="dashboard__main">
+          <h1 className="sr-only">LIQUEAMP player</h1>
+          {section === 'settings' ? <SettingsPanel /> : <NowPlayingPanel />}
+          <RadioBrowserPanel focusSearch={section === 'browse'} />
+          <div className="lower area-lower">
+            <LibraryPanel />
+            <QueuePanel />
+            <StationInfoPanel />
+            <QuickActionsPanel />
+          </div>
+          <ControlStrip />
+        </main>
         <StatusBar />
       </div>
       {section !== 'now-playing' && section !== 'settings' && (

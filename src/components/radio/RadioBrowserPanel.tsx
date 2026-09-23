@@ -3,8 +3,9 @@ import { RotateCcw, Search, X } from 'lucide-react';
 import { MOODS } from '../../services/radio/moods';
 import type { StationOrder } from '../../services/radio/radioBrowser';
 import { useRadio, type RadioTab } from '../../stores/radioStore';
-import { EmptyState, Status, Toggle } from '../ui/controls';
+import { EmptyState, onTablistKeyDown, Status, Toggle } from '../ui/controls';
 import { StationRow } from './StationRow';
+import { RowList } from '../ui/RowList';
 
 const TABS: ReadonlyArray<{ id: RadioTab; label: string }> = [
   { id: 'radio', label: 'Radio' },
@@ -26,7 +27,7 @@ export function RadioBrowserPanel({ focusSearch }: { focusSearch: boolean }) {
 
   return (
     <section className="panel radio-browser area-radio" aria-label="Radio browser">
-      <div className="tabs radio-browser__tabs" role="tablist" aria-label="Radio browser views">
+      <div className="tabs radio-browser__tabs" role="tablist" aria-label="Radio browser views" onKeyDown={onTablistKeyDown}>
         {TABS.map((t) => (
           <button
             key={t.id}
@@ -34,6 +35,7 @@ export function RadioBrowserPanel({ focusSearch }: { focusSearch: boolean }) {
             role="tab"
             id={`radio-tab-${t.id}`}
             aria-selected={tab === t.id}
+            tabIndex={tab === t.id ? 0 : -1}
             aria-controls="radio-tabpanel"
             className="tab"
             onClick={() => setTab(t.id)}
@@ -117,11 +119,11 @@ function StationsView({ focusSearch }: { focusSearch: boolean }) {
         )}
         {stationsState === 'ready' && stations.length === 0 && <EmptyState title="NO STATIONS FOUND">Try another name, genre or location.</EmptyState>}
         {stations.length > 0 && (
-          <ol className="row-list" aria-label="Stations">
+          <RowList aria-label="Stations">
             {stations.map((s, i) => (
               <StationRow key={s.id} station={s} index={i} />
             ))}
-          </ol>
+          </RowList>
         )}
       </div>
     </>
@@ -178,7 +180,7 @@ function GenresView() {
             void useRadio.getState().loadTags();
           }}
         />
-        <ol className="row-list" aria-label="Genres">
+        <RowList aria-label="Genres">
           {shown.map((t, i) => (
             <li key={t.name} className="count-row">
               <span className="row__index">{String(i + 1).padStart(2, '0')}</span>
@@ -190,7 +192,7 @@ function GenresView() {
               </span>
             </li>
           ))}
-        </ol>
+        </RowList>
       </div>
     </>
   );
@@ -214,7 +216,7 @@ function LocationsView() {
             void useRadio.getState().loadCountries();
           }}
         />
-        <ol className="row-list" aria-label="Countries">
+        <RowList aria-label="Countries">
           {shown.map((c, i) => (
             <li key={c.code} className="count-row">
               <span className="row__index">{String(i + 1).padStart(2, '0')}</span>
@@ -227,7 +229,7 @@ function LocationsView() {
               </span>
             </li>
           ))}
-        </ol>
+        </RowList>
       </div>
     </>
   );

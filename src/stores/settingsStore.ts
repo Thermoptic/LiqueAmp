@@ -42,6 +42,7 @@ function sanitize(input: Partial<Settings> | undefined): Partial<Settings> {
   if (typeof input.volume === 'number') out.volume = clamp01(input.volume);
   if (typeof input.muted === 'boolean') out.muted = input.muted;
   if (typeof input.shuffle === 'boolean') out.shuffle = input.shuffle;
+  if (typeof input.shortcuts === 'boolean') out.shortcuts = input.shortcuts;
   if (input.repeat === 'off' || input.repeat === 'all' || input.repeat === 'one') out.repeat = input.repeat;
   if (input.eq && typeof input.eq === 'object') out.eq = sanitizeEq(input.eq);
   if (input.visualizer && typeof input.visualizer === 'object') out.visualizer = sanitizeVisualizer(input.visualizer);

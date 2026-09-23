@@ -49,7 +49,7 @@ export function LibraryCategories() {
   }
 
   return (
-    <section className="panel sidebar__library" aria-labelledby="library-heading">
+    <section className="panel sidebar__library" aria-label="Library categories">
       <header className="panel__header">
         <h2 className="panel__title panel__title--small" id="library-heading">
           Library

@@ -131,3 +131,21 @@ export function Field({ label, children }: FieldProps) {
     </div>
   );
 }
+
+/**
+ * WAI-ARIA tabs keyboard pattern for a role="tablist": ←/→ (wrapping),
+ * Home and End move to a tab and activate it. The tabs themselves use a
+ * roving tabIndex so the whole tab bar is one Tab stop.
+ */
+export function onTablistKeyDown(e: KeyboardEvent<HTMLElement>) {
+  const keys = ['ArrowLeft', 'ArrowRight', 'Home', 'End'];
+  if (!keys.includes(e.key) || e.altKey || e.ctrlKey || e.metaKey) return;
+  const tabs = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[role="tab"]:not(:disabled)'));
+  const from = tabs.indexOf(e.target as HTMLElement);
+  if (from < 0) return;
+  e.preventDefault();
+  const n = tabs.length;
+  const to = e.key === 'Home' ? 0 : e.key === 'End' ? n - 1 : (from + (e.key === 'ArrowRight' ? 1 : -1) + n) % n;
+  tabs[to]!.focus();
+  tabs[to]!.click();
+}

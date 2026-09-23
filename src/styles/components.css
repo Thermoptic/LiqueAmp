@@ -611,6 +611,8 @@
 
 .radio-browser__search:focus-within {
   border-color: var(--la-focus);
+  /* same 2px focus ring as other inputs (ui.css) */
+  box-shadow: 0 0 0 1px var(--la-focus);
 }
 
 .radio-browser__search .input:focus-visible {
@@ -1831,4 +1833,39 @@ button.category-item[aria-pressed='true'] {
 .control-module__link:hover,
 .control-module__link:focus-visible {
   color: var(--la-accent);
+}
+
+/* ---------- keyboard shortcuts list ---------- */
+.shortcut-list {
+  display: grid;
+  gap: var(--la-space-1);
+  margin: 0;
+  font-size: var(--la-text-xs);
+}
+
+.shortcut-list__row {
+  display: grid;
+  grid-template-columns: 9ch minmax(0, 1fr);
+  gap: var(--la-space-2);
+  align-items: baseline;
+}
+
+.shortcut-list dd {
+  margin: 0;
+  color: var(--la-text-secondary);
+}
+
+.shortcut-list--off {
+  opacity: 0.55;
+}
+
+kbd {
+  display: inline-block;
+  padding: 0 var(--la-space-1);
+  font-family: var(--la-font-mono);
+  font-size: var(--la-text-xs);
+  color: var(--la-text);
+  border: var(--la-border-width) solid var(--la-border-strong);
+  border-radius: var(--la-radius-sm);
+  white-space: nowrap;
 }

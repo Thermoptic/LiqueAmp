@@ -11,6 +11,7 @@ import { NameDialog } from '../ui/NameDialog';
 import { EmptyState } from '../ui/controls';
 import { DragHandle, ReorderButtons, useDragReorder } from '../ui/reorder';
 import { MediaRow } from './MediaRow';
+import { RowList } from '../ui/RowList';
 
 export function shuffled<T>(list: T[], random: () => number = Math.random): T[] {
   const copy = [...list];
@@ -52,7 +53,7 @@ function PlaylistList() {
       {playlists.length === 0 ? (
         <EmptyState title="NO PLAYLISTS">Create your first playlist to begin.</EmptyState>
       ) : (
-        <ol className="row-list" aria-label="Playlists">
+        <RowList aria-label="Playlists">
           {playlists.map((p, i) => (
             <li key={p.id} className="media-row">
               <span className="row__index">{String(i + 1).padStart(2, '0')}</span>
@@ -69,7 +70,7 @@ function PlaylistList() {
               </span>
             </li>
           ))}
-        </ol>
+        </RowList>
       )}
       <NameDialog
         open={creating}
@@ -142,7 +143,7 @@ function PlaylistDetail({ playlist }: { playlist: Playlist }) {
       {rows.length === 0 ? (
         <EmptyState title="PLAYLIST EMPTY">Use Add to Playlist in Quick Actions to add stations or tracks.</EmptyState>
       ) : (
-        <ol className="row-list" aria-label={`Items in ${playlist.name}`}>
+        <RowList aria-label={`Items in ${playlist.name}`}>
           {rows.map(({ item, position }, i) => (
             <MediaRow
               key={`${item.id}-${position}`}
@@ -166,7 +167,7 @@ function PlaylistDetail({ playlist }: { playlist: Playlist }) {
               }
             />
           ))}
-        </ol>
+        </RowList>
       )}
       <NameDialog
         open={renaming}

@@ -7,6 +7,7 @@ import type { MediaItem } from '../../types/media';
 import { Dialog } from '../ui/Dialog';
 import { EmptyState } from '../ui/controls';
 import { MediaRow } from './MediaRow';
+import { RowList } from '../ui/RowList';
 
 /** Saved library media, all or one category (SPEC §16 library categories). */
 export function MediaLibraryView({ view }: { view: string }) {
@@ -43,7 +44,7 @@ export function MediaLibraryView({ view }: { view: string }) {
           Use Import in the Library header to add streams and files.
         </EmptyState>
       ) : (
-        <ol className="row-list" aria-label={title}>
+        <RowList aria-label={title}>
           {items.map((item, i) => (
             <MediaRow
               key={item.id}
@@ -86,7 +87,7 @@ export function MediaLibraryView({ view }: { view: string }) {
               }
             />
           ))}
-        </ol>
+        </RowList>
       )}
       <Dialog
         open={removing !== null}

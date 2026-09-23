@@ -5,6 +5,7 @@ import { usePlayback } from '../../stores/playbackStore';
 import { useQueue } from '../../stores/queueStore';
 import { EmptyState } from '../ui/controls';
 import { DragHandle, ReorderButtons, useDragReorder } from '../ui/reorder';
+import { RowList } from '../ui/RowList';
 
 export function QueuePanel() {
   const entries = useQueue((s) => s.entries);
@@ -41,7 +42,7 @@ export function QueuePanel() {
         {entries.length === 0 ? (
           <EmptyState title="QUEUE EMPTY">Add something to start building the queue.</EmptyState>
         ) : (
-          <ol className="row-list" aria-label="Queue">
+          <RowList aria-label="Queue">
             {entries.map((entry, i) => {
               const isCurrent = entry.entryId === currentId;
               const { item } = entry;
@@ -73,7 +74,7 @@ export function QueuePanel() {
                 </li>
               );
             })}
-          </ol>
+          </RowList>
         )}
       </div>
     </section>

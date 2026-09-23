@@ -4,6 +4,7 @@ import { FavouritesView } from './FavouritesView';
 import { HistoryView } from './HistoryView';
 import { PlaylistsView } from './PlaylistsView';
 import { MediaLibraryView } from './MediaLibraryView';
+import { onTablistKeyDown } from '../ui/controls';
 
 const TABS: ReadonlyArray<{ id: LibraryTab; label: string; path: string }> = [
   { id: 'playlists', label: 'Playlists', path: '/playlists' },
@@ -19,7 +20,7 @@ export function LibraryPanel() {
 
   return (
     <section className="panel library-panel area-library" aria-label="Library">
-      <div className="tabs" role="tablist" aria-label="Library views">
+      <div className="tabs" role="tablist" aria-label="Library views" onKeyDown={onTablistKeyDown}>
         {TABS.map((t) => (
           <button
             key={t.id}
@@ -27,6 +28,8 @@ export function LibraryPanel() {
             role="tab"
             id={`lib-tab-${t.id}`}
             aria-selected={!libraryView && tab === t.id}
+            // one Tab stop: the selected tab, or the first while a category view is open
+            tabIndex={(libraryView ? t.id === TABS[0]!.id : tab === t.id) ? 0 : -1}
             aria-controls="lib-tabpanel"
             className="tab"
             onClick={() => {

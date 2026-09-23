@@ -7,6 +7,7 @@ import { Dialog } from '../ui/Dialog';
 import { EmptyState } from '../ui/controls';
 import { PROVIDER_LABEL } from '../player/NowPlayingPanel';
 import { MediaRow } from './MediaRow';
+import { RowList } from '../ui/RowList';
 
 const timeFmt = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
 const dayFmt = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
@@ -44,7 +45,7 @@ export function HistoryView() {
           <Trash2 size={14} aria-hidden="true" /> Clear
         </button>
       </div>
-      <ol className="row-list" aria-label="Playback history">
+      <RowList aria-label="Playback history">
         {entries.map((e, i) => (
           <MediaRow
             key={e.id}
@@ -66,7 +67,7 @@ export function HistoryView() {
             }
           />
         ))}
-      </ol>
+      </RowList>
       <Dialog
         open={confirming}
         title="Clear history"

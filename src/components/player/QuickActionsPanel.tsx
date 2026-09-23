@@ -84,7 +84,9 @@ export function QuickActionsPanel() {
         </h2>
         {usingCurrent && <span className="panel__actions muted quick-actions__target">NOW PLAYING</span>}
       </header>
-      <div className="panel__body quick-actions">
+      {/* With every action disabled nothing inside is focusable, so the
+          (possibly scrolling) body itself takes focus for keyboard scrolling. */}
+      <div className="panel__body quick-actions" {...(!selection ? { tabIndex: 0, role: 'group', 'aria-labelledby': 'qa-heading' } : {})}>
         <button
           type="button"
           className="btn btn--block btn--primary"

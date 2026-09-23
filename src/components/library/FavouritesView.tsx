@@ -9,6 +9,7 @@ import type { MediaItem, Playlist, RadioStation } from '../../types/media';
 import { EmptyState } from '../ui/controls';
 import { StationRow } from '../radio/StationRow';
 import { MediaRow } from './MediaRow';
+import { RowList } from '../ui/RowList';
 
 /** Favourite stations, tracks/sources and playlists (SPEC §21). */
 export function FavouritesView() {
@@ -44,17 +45,17 @@ export function FavouritesView() {
       {stations.length > 0 && (
         <section aria-label="Favourite stations">
           <h3 className="list-heading">Stations · {stations.length}</h3>
-          <ol className="row-list">
+          <RowList>
             {stations.map((s, i) => (
               <StationRow key={s.id} station={s} index={i} />
             ))}
-          </ol>
+          </RowList>
         </section>
       )}
       {items.length > 0 && (
         <section aria-label="Favourite tracks and sources">
           <h3 className="list-heading">Tracks &amp; sources · {items.length}</h3>
-          <ol className="row-list">
+          <RowList>
             {items.map((item, i) => (
               <MediaRow
                 key={item.id}
@@ -74,13 +75,13 @@ export function FavouritesView() {
                 }
               />
             ))}
-          </ol>
+          </RowList>
         </section>
       )}
       {lists.length > 0 && (
         <section aria-label="Favourite playlists">
           <h3 className="list-heading">Playlists · {lists.length}</h3>
-          <ol className="row-list">
+          <RowList>
             {lists.map((p, i) => (
               <li key={p.id} className="media-row">
                 <span className="row__index">{String(i + 1).padStart(2, '0')}</span>
@@ -99,7 +100,7 @@ export function FavouritesView() {
                 </button>
               </li>
             ))}
-          </ol>
+          </RowList>
         </section>
       )}
     </div>

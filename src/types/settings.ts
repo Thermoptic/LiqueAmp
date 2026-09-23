@@ -28,6 +28,8 @@ export interface Settings {
   repeat: RepeatMode;
   eq: EqSettings;
   visualizer: VisualizerSettings;
+  /** Global single-key shortcuts; can be turned off (WCAG 2.1.4). */
+  shortcuts: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -40,4 +42,5 @@ export const DEFAULT_SETTINGS: Settings = {
   repeat: 'off',
   eq: { enabled: true, preset: 'flat', bass: 0, mid: 0, treble: 0 },
   visualizer: DEFAULT_VISUALIZER,
+  shortcuts: true,
 };

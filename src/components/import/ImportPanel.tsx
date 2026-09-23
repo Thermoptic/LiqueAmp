@@ -7,6 +7,7 @@ import { useLibrary } from '../../stores/libraryStore';
 import { useUi } from '../../stores/uiStore';
 import { PROVIDER_LABEL } from '../player/NowPlayingPanel';
 import { Status } from '../ui/controls';
+import { RowList } from '../ui/RowList';
 
 const KIND_LABEL: Record<string, string> = {
   audio: 'Audio file',
@@ -183,7 +184,7 @@ function PreviewEditor({ preview, onDone }: { preview: Extract<ImportPreview, { 
           <legend className="field__label">
             {preview.entries.length} entries · {selected.size} selected{duplicates ? ` · ${duplicates} already in library` : ''}
           </legend>
-          <ol className="row-list">
+          <RowList>
             {preview.entries.map((e, i) => (
               <li key={e.item.id} className="import__entry">
                 <label>
@@ -197,7 +198,7 @@ function PreviewEditor({ preview, onDone }: { preview: Extract<ImportPreview, { 
                 </span>
               </li>
             ))}
-          </ol>
+          </RowList>
         </fieldset>
       )}
 
