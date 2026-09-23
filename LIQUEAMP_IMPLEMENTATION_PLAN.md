@@ -1,6 +1,6 @@
 # LIQUEAMP — Implementation Plan (Phase 1 audit)
 
-Status: Approved 2026-09-23. Phases 2–4 complete.
+Status: Approved 2026-09-23. Phases 2–5 complete.
 Date: 2026-09-22
 
 This file records the Phase 1 audit required by `LIQUEAMP_MASTER_BUILD_PROMPT.md`
@@ -113,6 +113,11 @@ Consequences that shape the design:
 - **Radio "listeners".** Radio Browser exposes click counts and votes, not
   live listener counts. The LISTENERS field will show `—`; click counts will
   not be relabelled as listeners.
+- **Moods.** Radio Browser has no mood field; the MOOD tab is a curated set of
+  real directory tags per mood, and shows those tags. Directory "clicks" are
+  shown as clicks, never as listeners.
+- **Verified 2026-09-23:** Radio Paradise (Radio Browser entry, https AAC)
+  plays with real Web Audio analysis in the in-app browser.
 - **ICY "now playing".** Browsers generally cannot read ICY metadata from an
   audio stream. It is shown only where a source actually provides it; otherwise `—`.
 - **Referrer.** The page sends no `Referer` (`<meta name="referrer" content="no-referrer">`).
@@ -168,7 +173,7 @@ Each phase ends with typecheck, tests, build and a look at the running app
 | 2 ✅ | Shell | Vite/React/TS scaffold, theme tokens + default theme, responsive grid shell with all panels (empty states), navigation, `/control` route, storage layer. |
 | 3 ✅ | Playback engine | Central engine and store, queue transitions, error model, dual audio element + Web Audio graph. |
 | 4 ✅ | Direct streams | URL detection/normalization, M3U/PLS parsing, HLS, live vs seekable. |
-| 5 | Radio | Radio Browser client, tabs (radio/genres/locations/mood), search/filter/sort, station info. |
+| 5 ✅ | Radio | Radio Browser client, tabs (radio/genres/locations/mood), search/filter/sort, station info. |
 | 6 | Library | Categories, favorites, history recording, playlists, queue UI incl. reorder. |
 | 7 | URL import | Import pipeline with preview + duplicate detection. |
 | 8 | Providers | YouTube, YT Music, SoundCloud, Spotify adapters (embedded/external modes). |

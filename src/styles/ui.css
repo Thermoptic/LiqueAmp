@@ -15,6 +15,7 @@
 }
 
 .panel__header {
+  flex: none;
   display: flex;
   align-items: center;
   gap: var(--la-space-2);
@@ -195,6 +196,8 @@
 
 /* ---------- Tabs ---------- */
 .tabs {
+  /* never squeezed by a long list below (scrollable boxes may shrink to 0) */
+  flex: none;
   display: flex;
   min-width: 0;
   overflow-x: auto;
@@ -546,4 +549,14 @@
 
 .toast--error {
   border-left-color: var(--la-danger);
+}
+
+/* status lines inside detail lists wrap instead of overflowing */
+.kv-list .status {
+  white-space: normal;
+  align-items: flex-start;
+}
+
+.kv-list .status__dot {
+  margin-top: 4px;
 }

@@ -141,6 +141,16 @@
     display: flex;
   }
 
+  /* selecting a station on the Browse screen shows its details below the list */
+  .app-frame[data-section='browse'] :is(.area-station, .area-actions) {
+    display: flex;
+  }
+
+  /* on mobile the page scrolls, so the station list takes its natural height */
+  .app-frame[data-section='browse'] .radio-browser__view {
+    flex: 1 1 auto;
+  }
+
   .app-frame[data-section='browse'] .area-radio {
     display: flex;
     contain: none;

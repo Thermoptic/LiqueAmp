@@ -50,10 +50,25 @@ export interface MediaItem {
   updatedAt: string;
 }
 
+export interface RadioDirectoryInfo {
+  source: 'radio-browser';
+  /** Directory-wide play clicks. Not listeners; never shown as such. */
+  clicks?: number;
+  votes?: number;
+  /** Clicks in the last 24 h compared with the day before, as reported. */
+  clickTrend?: number;
+}
+
 export interface RadioStation {
   id: string;
   name: string;
+  /** The directly playable stream (e.g. Radio Browser `url_resolved`). */
   streamUrl: string;
+  /** The URL as registered, which may be a .pls/.m3u (kept for re-resolving). */
+  sourceUrl?: string;
+  hls?: boolean;
+  state?: string;
+  directory?: RadioDirectoryInfo;
   homepage?: string;
   favicon?: string;
   artwork?: string;
@@ -61,6 +76,7 @@ export interface RadioStation {
   country?: string;
   countryCode?: string;
   language?: string;
+  /** As declared by the directory; not measured. */
   codec?: string;
   /** kbps as declared by the directory; not measured. */
   bitrate?: number;

@@ -5,6 +5,7 @@ import { applyTheme } from '../services/themes/theme';
 import { useLibrary } from '../stores/libraryStore';
 import { usePlayback } from '../stores/playbackStore';
 import { useQueue } from '../stores/queueStore';
+import { useFavorites } from '../stores/favoritesStore';
 import { useSettings } from '../stores/settingsStore';
 import { useThemes } from '../stores/themeStore';
 import { wireSystemListeners } from '../stores/systemStore';
@@ -20,7 +21,7 @@ function syncAppearance() {
 
 async function hydrateAll() {
   await getDb();
-  await Promise.all([useSettings.getState().hydrate(), useThemes.getState().hydrate(), useLibrary.getState().hydrate(), useQueue.getState().hydrate()]);
+  await Promise.all([useSettings.getState().hydrate(), useThemes.getState().hydrate(), useLibrary.getState().hydrate(), useQueue.getState().hydrate(), useFavorites.getState().hydrate()]);
 }
 
 /**
