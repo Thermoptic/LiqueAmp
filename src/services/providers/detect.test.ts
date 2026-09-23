@@ -6,6 +6,12 @@ describe('normalizeUrl', () => {
     expect(normalizeUrl('  Example.COM/Stream.mp3?utm_source=x&token=abc#top ')).toBe('https://example.com/Stream.mp3?token=abc');
   });
 
+  it('defaults bare local hosts and IPs to http, other hosts to https', () => {
+    expect(normalizeUrl('127.0.0.1:8765/mix.m3u')).toBe('http://127.0.0.1:8765/mix.m3u');
+    expect(normalizeUrl('localhost:8000/stream')).toBe('http://localhost:8000/stream');
+    expect(normalizeUrl('radio.example.com:8000/live')).toBe('https://radio.example.com:8000/live');
+  });
+
   it('keeps non-tracking query parameters (stream tokens)', () => {
     expect(normalizeUrl('https://cdn.example.com/live?auth=123&fbclid=zzz')).toBe('https://cdn.example.com/live?auth=123');
   });

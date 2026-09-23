@@ -3,6 +3,7 @@ import { useUi, type LibraryTab } from '../../stores/uiStore';
 import { FavouritesView } from './FavouritesView';
 import { HistoryView } from './HistoryView';
 import { PlaylistsView } from './PlaylistsView';
+import { MediaLibraryView } from './MediaLibraryView';
 
 const TABS: ReadonlyArray<{ id: LibraryTab; label: string; path: string }> = [
   { id: 'playlists', label: 'Playlists', path: '/playlists' },
@@ -12,6 +13,8 @@ const TABS: ReadonlyArray<{ id: LibraryTab; label: string; path: string }> = [
 
 export function LibraryPanel() {
   const tab = useUi((s) => s.libraryTab);
+  const libraryView = useUi((s) => s.libraryView);
+  const showLibrary = useUi((s) => s.showLibrary);
   const navigate = useNavigate();
 
   return (
@@ -23,19 +26,28 @@ export function LibraryPanel() {
             type="button"
             role="tab"
             id={`lib-tab-${t.id}`}
-            aria-selected={tab === t.id}
+            aria-selected={!libraryView && tab === t.id}
             aria-controls="lib-tabpanel"
             className="tab"
-            onClick={() => navigate(t.path)}
+            onClick={() => {
+              showLibrary(null);
+              navigate(t.path);
+            }}
           >
             {t.label}
           </button>
         ))}
       </div>
       <div className="panel__body panel__body--flush" id="lib-tabpanel" role="tabpanel" aria-labelledby={`lib-tab-${tab}`}>
-        {tab === 'playlists' && <PlaylistsView />}
-        {tab === 'favourites' && <FavouritesView />}
-        {tab === 'history' && <HistoryView />}
+        {libraryView ? (
+          <MediaLibraryView view={libraryView} />
+        ) : (
+          <>
+            {tab === 'playlists' && <PlaylistsView />}
+            {tab === 'favourites' && <FavouritesView />}
+            {tab === 'history' && <HistoryView />}
+          </>
+        )}
       </div>
     </section>
   );

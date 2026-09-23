@@ -1460,3 +1460,111 @@
   font-size: var(--la-text-xs);
   letter-spacing: 0.08em;
 }
+
+/* ---------- Import (phase 7) ---------- */
+.import {
+  display: grid;
+  gap: var(--la-space-3);
+}
+
+.import__step {
+  margin: 0;
+  color: var(--la-text-muted);
+  font-size: var(--la-text-xs);
+  letter-spacing: 0.1em;
+}
+
+.import__preview,
+.import__pending {
+  display: grid;
+  gap: var(--la-space-3);
+}
+
+.import__pending p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.import__fields {
+  display: grid;
+  gap: var(--la-space-1);
+}
+
+.import__entries {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.import__entries .row-list {
+  max-height: 260px;
+  overflow: auto;
+  border: var(--la-border-width) solid var(--la-border-subtle);
+}
+
+.import__entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--la-space-2);
+  min-height: 32px;
+  padding: 0 var(--la-space-3);
+  border-bottom: var(--la-border-width) solid var(--la-border-subtle);
+  font-size: var(--la-text-sm);
+}
+
+.import__entry label {
+  display: flex;
+  align-items: center;
+  gap: var(--la-space-2);
+  min-width: 0;
+  cursor: pointer;
+}
+
+.import__entry input,
+.import__entries legend + * input {
+  accent-color: var(--la-primary);
+}
+
+.dialog--wide {
+  width: min(720px, calc(100vw - 32px));
+}
+
+.dialog__body {
+  max-height: calc(100dvh - 160px);
+  overflow: auto;
+}
+
+/* sidebar categories are buttons that open the library view */
+button.category-item {
+  width: 100%;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.category-item:hover {
+  color: var(--la-text);
+  background: var(--la-surface-2);
+}
+
+button.category-item[aria-pressed='true'] {
+  color: var(--la-accent-bright);
+  box-shadow: inset 2px 0 0 var(--la-primary);
+  background: var(--la-surface-2);
+}
+
+.sidebar__hint {
+  margin: 0;
+  padding: var(--la-space-2) var(--la-space-3);
+  font-size: var(--la-text-xs);
+}
+
+.media-row__category {
+  width: auto;
+  max-width: 110px;
+  min-height: 24px;
+  font-size: var(--la-text-xs);
+}

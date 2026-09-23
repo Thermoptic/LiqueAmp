@@ -18,6 +18,7 @@ interface LibraryStore {
    */
   addMedia(items: MediaItem[]): Promise<MediaItem[]>;
   removeMedia(id: string): Promise<void>;
+  updateMedia(id: string, patch: Partial<Pick<MediaItem, 'title' | 'artist' | 'categoryId' | 'tags'>>): Promise<void>;
   getMedia(id: string): MediaItem | undefined;
 }
 
@@ -103,6 +104,14 @@ export const useLibrary = create<LibraryStore>((set, get) => ({
   async removeMedia(id) {
     set({ media: get().media.filter((m) => m.id !== id) });
     await repositories.media.delete(id);
+  },
+
+  async updateMedia(id, patch) {
+    const current = get().media.find((m) => m.id === id);
+    if (!current) return;
+    const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
+    set({ media: get().media.map((m) => (m.id === id ? next : m)) });
+    await repositories.media.put(next);
   },
 
   getMedia(id) {

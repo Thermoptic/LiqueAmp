@@ -41,7 +41,11 @@ export function normalizeUrl(input: string): string {
   let raw = input.trim();
   if (!raw) throw new InvalidUrlError('Enter a URL.');
   if (/^spotify:/i.test(raw)) return raw;
-  if (!/^[a-z][a-z0-9+.-]*:/i.test(raw) && /^[\w-]+(\.[\w-]+)+([/:?#]|$)/.test(raw)) raw = `https://${raw}`;
+  if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(raw) && /^(localhost|[\w-]+(\.[\w-]+)+)([/:?#]|$)/i.test(raw)) {
+    // Like browsers: local hosts and IP addresses default to http, others to https.
+    const local = /^(localhost|\d{1,3}(\.\d{1,3}){3})([/:?#]|$)/i.test(raw);
+    raw = `${local ? 'http' : 'https'}://${raw}`;
+  }
   let url: URL;
   try {
     url = new URL(raw);

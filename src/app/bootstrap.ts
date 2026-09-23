@@ -40,7 +40,7 @@ export async function bootstrap(): Promise<void> {
   startHistoryRecorder();
   if (import.meta.env.DEV) {
     // Dev-only diagnostics handle; never part of a production build.
-    Object.assign(window, { __liqueamp: { getEngine, usePlayback, useQueue, useSettings } });
+    Object.assign(window, { __liqueamp: { getEngine, usePlayback, useQueue, useSettings, useLibrary, usePlaylists, useFavorites, useHistory } });
   }
   useSettings.subscribe(syncAppearance);
   useThemes.subscribe(syncAppearance);

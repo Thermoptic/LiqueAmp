@@ -186,3 +186,12 @@
 .control-subtitle {
   margin-top: var(--la-space-4);
 }
+
+/* narrow screens: label above value instead of two cramped columns */
+@media (max-width: 520px) {
+  .kv-list__row,
+  .station-info__row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+}
