@@ -49,8 +49,14 @@ export interface LiqueAmpTheme {
   source: ThemeSource;
   colors: ThemeColors;
   effects: ThemeEffects;
-  /** Original imported palette (base00…), kept for remapping (THEMING §6). */
+  /** Original imported palette (base00… or tinted8 names), kept for remapping (THEMING §6). */
   palette?: Record<string, string>;
+  /** Format the theme was imported from. */
+  format?: 'base16' | 'base24' | 'tinted8' | 'liqueamp';
+  /** Which palette entry feeds each semantic token (imported themes). */
+  mapping?: Partial<Record<ThemeColorKey, string>>;
+  author?: string;
+  variant?: 'dark' | 'light';
   createdAt?: string;
   updatedAt?: string;
 }

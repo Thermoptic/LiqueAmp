@@ -2,7 +2,9 @@ import { create } from 'zustand';
 import { BUILTIN_THEMES, LIQUEAMP_DEFAULT } from '../services/themes/builtin';
 import { normalizeTheme } from '../services/themes/theme';
 import { repositories } from '../services/storage/repository';
+import { createId, nowIso } from '../lib/id';
 import type { LiqueAmpTheme } from '../types/theme';
+import { useSettings } from './settingsStore';
 
 interface ThemeStore {
   themes: LiqueAmpTheme[];
@@ -10,6 +12,10 @@ interface ThemeStore {
   getTheme(id: string): LiqueAmpTheme;
   saveTheme(theme: LiqueAmpTheme): Promise<void>;
   deleteTheme(id: string): Promise<void>;
+  /** Renames without changing the id (THEMING §47). */
+  renameTheme(id: string, name: string): Promise<void>;
+  /** Independent editable copy of any theme, including built-ins (THEMING §46). */
+  duplicateTheme(id: string): Promise<LiqueAmpTheme>;
 }
 
 export const useThemes = create<ThemeStore>((set, get) => ({
@@ -36,7 +42,31 @@ export const useThemes = create<ThemeStore>((set, get) => ({
   async deleteTheme(id) {
     const theme = get().themes.find((t) => t.id === id);
     if (!theme || theme.source === 'builtin') throw new Error('Built-in themes cannot be deleted.');
+    if (useSettings.getState().activeThemeId === id) throw new Error('Activate another theme before deleting this one.');
     set({ themes: get().themes.filter((t) => t.id !== id) });
     await repositories.themes.delete(id);
+  },
+
+  async renameTheme(id, name) {
+    const theme = get().themes.find((t) => t.id === id);
+    const trimmed = name.trim();
+    if (!theme) throw new Error('Theme not found.');
+    if (!trimmed) throw new Error('Theme name is required.');
+    await get().saveTheme({ ...theme, name: trimmed.slice(0, 60), updatedAt: nowIso() });
+  },
+
+  async duplicateTheme(id) {
+    const theme = get().getTheme(id);
+    const now = nowIso();
+    const copy: LiqueAmpTheme = {
+      ...structuredClone(theme),
+      id: createId('theme-custom').slice(0, 64),
+      name: `${theme.name} — Custom`.slice(0, 60),
+      source: 'user',
+      createdAt: now,
+      updatedAt: now,
+    };
+    await get().saveTheme(copy);
+    return copy;
   },
 }));

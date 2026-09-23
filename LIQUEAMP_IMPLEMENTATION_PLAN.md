@@ -1,6 +1,6 @@
 # LIQUEAMP — Implementation Plan (Phase 1 audit)
 
-Status: Approved 2026-09-23. Phases 2–8 complete.
+Status: Approved 2026-09-23. Phases 2–9 complete.
 Date: 2026-09-22
 
 This file records the Phase 1 audit required by `LIQUEAMP_MASTER_BUILD_PROMPT.md`
@@ -185,7 +185,7 @@ Each phase ends with typecheck, tests, build and a look at the running app
 | 6 ✅ | Library | Categories, favorites, history recording, playlists, queue UI incl. reorder. |
 | 7 ✅ | URL import | Import pipeline with preview + duplicate detection. |
 | 8 ✅ | Providers | YouTube, YT Music, SoundCloud, Spotify adapters (embedded/external modes). |
-| 9 | Themes | Theme editor, Base16/Base24/Tinted8 import, mapping editor, export. |
+| 9 ✅ | Themes | Theme editor, Base16/Base24/Tinted8 import, mapping editor, export. |
 | 10 | Audio analysis | Analyser service, normalized frames, EQ/bass/mid/treble DSP. |
 | 11 | Visualizers | Spectrum Bars, Waveform, Terminal Spectrum, Minimal Meter, Oscilloscope. |
 | 12 | Integration | Media Session, keyboard shortcuts, accessibility pass. |
