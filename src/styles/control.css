@@ -170,3 +170,19 @@
   padding: 0;
   font-size: var(--la-text-xs);
 }
+
+.resolve-result {
+  display: grid;
+  gap: var(--la-space-3);
+  margin-bottom: var(--la-space-4);
+}
+
+.resolve-result__list {
+  border: var(--la-border-width) solid var(--la-border-subtle);
+  max-height: 320px;
+  overflow: auto;
+}
+
+.control-subtitle {
+  margin-top: var(--la-space-4);
+}

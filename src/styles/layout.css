@@ -17,7 +17,9 @@
   max-width: 1920px;
   margin: 0 auto;
   grid-template-columns: minmax(200px, 250px) minmax(0, 1fr) minmax(340px, 440px);
-  grid-template-rows: auto minmax(380px, 1fr) minmax(230px, 0.6fr) auto auto;
+  /* The main row never gets shorter than Now Playing needs; if the window is
+     too short for everything, the page scrolls instead of squeezing panels. */
+  grid-template-rows: auto minmax(min-content, 1fr) minmax(230px, 0.6fr) auto auto;
   grid-template-areas:
     'header header header'
     'side main radio'
@@ -26,8 +28,9 @@
     'status status status';
 }
 
-/* Fit the whole workstation into the viewport when there is room for it. */
-@media (min-width: 1200px) and (min-height: 820px) {
+/* Fit the whole workstation into the viewport when there is room for it;
+   shorter windows scroll the page instead of squeezing panels. */
+@media (min-width: 1200px) and (min-height: 900px) {
   .dashboard {
     height: 100dvh;
   }
@@ -45,6 +48,8 @@
 }
 .area-radio {
   grid-area: radio;
+  /* sized by its row, not by its (potentially long) station list */
+  contain: size;
 }
 .area-controls {
   grid-area: controls;
@@ -93,6 +98,7 @@
 
   .area-radio {
     height: 440px;
+    contain: none;
   }
 
   .area-lower {
@@ -137,6 +143,7 @@
 
   .app-frame[data-section='browse'] .area-radio {
     display: flex;
+    contain: none;
     height: auto;
     min-height: calc(100dvh - 200px);
   }

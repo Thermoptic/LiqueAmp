@@ -1,6 +1,6 @@
 # LIQUEAMP — Implementation Plan (Phase 1 audit)
 
-Status: Approved 2026-09-23. Phases 2–3 complete.
+Status: Approved 2026-09-23. Phases 2–4 complete.
 Date: 2026-09-22
 
 This file records the Phase 1 audit required by `LIQUEAMP_MASTER_BUILD_PROMPT.md`
@@ -115,6 +115,11 @@ Consequences that shape the design:
   not be relabelled as listeners.
 - **ICY "now playing".** Browsers generally cannot read ICY metadata from an
   audio stream. It is shown only where a source actually provides it; otherwise `—`.
+- **Referrer.** The page sends no `Referer` (`<meta name="referrer" content="no-referrer">`).
+  Verified 2026-09-23: SomaFM's Icecast servers answer 403 to a `localhost`
+  referrer (hotlink protection) but play without one. Phase 8: the YouTube
+  IFrame player requires a referrer, so its iframe must set
+  `referrerpolicy="strict-origin-when-cross-origin"` explicitly.
 - **Spotify full-track playback** (Web Playback SDK) requires Premium and
   OAuth. PKCE works without a server, but this is deferred to Phase 8 and only built on request.
 
@@ -162,7 +167,7 @@ Each phase ends with typecheck, tests, build and a look at the running app
 | 1 | Audit | This document. |
 | 2 ✅ | Shell | Vite/React/TS scaffold, theme tokens + default theme, responsive grid shell with all panels (empty states), navigation, `/control` route, storage layer. |
 | 3 ✅ | Playback engine | Central engine and store, queue transitions, error model, dual audio element + Web Audio graph. |
-| 4 | Direct streams | URL detection/normalization, M3U/PLS parsing, HLS, live vs seekable. |
+| 4 ✅ | Direct streams | URL detection/normalization, M3U/PLS parsing, HLS, live vs seekable. |
 | 5 | Radio | Radio Browser client, tabs (radio/genres/locations/mood), search/filter/sort, station info. |
 | 6 | Library | Categories, favorites, history recording, playlists, queue UI incl. reorder. |
 | 7 | URL import | Import pipeline with preview + duplicate detection. |

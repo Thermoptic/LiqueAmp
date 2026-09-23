@@ -10,6 +10,7 @@ import type { AudioBackend, BackendListener } from './backend';
 import { PlaybackEngine, resolvePlaybackMode } from './engine';
 import { EMPTY_QUEUE } from './queue';
 import { fromMediaError, fromPlayRejection, playbackError, PlaybackFailure } from './errors';
+import { ProviderError } from '../providers/errors';
 
 /** Records calls and lets tests fire backend events. */
 class FakeBackend implements AudioBackend {
@@ -26,9 +27,11 @@ class FakeBackend implements AudioBackend {
   prime() {
     this.calls.push('prime');
   }
-  async load(url: string) {
-    this.calls.push('load');
+  failUrls = new Set<string>();
+  async load(url: string, format: string) {
+    this.calls.push(`load:${format}`);
     if (this.failLoad) throw this.failLoad;
+    if (this.failUrls.has(url)) throw new PlaybackFailure(playbackError('STREAM_UNAVAILABLE', `down: ${url}`));
     this.loaded.push(url);
     this.listener.onStatus('loading');
   }
@@ -92,7 +95,7 @@ describe('PlaybackEngine', () => {
 
   it('enqueue never starts playback (DESIGN §76)', () => {
     engine.enqueue([item('a')]);
-    expect(backend.calls).not.toContain('load');
+    expect(backend.calls.some((c) => c.startsWith('load'))).toBe(false);
     expect(usePlayback.getState().status).toBe('idle');
   });
 
@@ -157,6 +160,13 @@ describe('PlaybackEngine', () => {
     expect(usePlayback.getState().isLive).toBe(true);
   });
 
+  it('keeps sources declared live as live and not seekable', async () => {
+    await engine.playNow(item('radio', { playbackType: 'radio' }));
+    backend.listener.onMeta({ duration: 30, isLive: false, canSeek: true });
+    expect(usePlayback.getState().isLive).toBe(true);
+    expect(usePlayback.getState().canSeek).toBe(false);
+  });
+
   it('reports load failures as structured errors', async () => {
     backend.failLoad = new PlaybackFailure(playbackError('MIXED_CONTENT', 'insecure', false));
     await engine.playNow(item('a'));
@@ -193,6 +203,61 @@ describe('PlaybackEngine', () => {
     expect(usePlayback.getState().status).toBe('idle');
     expect(usePlayback.getState().currentItem).toBeNull();
     expect(useQueue.getState().entries).toHaveLength(2);
+  });
+});
+
+describe('PlaybackEngine candidates', () => {
+  const mirrors = async () => [
+    { url: 'https://main/stream', format: 'audio' as const },
+    { url: 'https://mirror/stream', format: 'audio' as const },
+  ];
+
+  it('falls back to the next mirror when a load fails', async () => {
+    const e = new PlaybackEngine(backend, mirrors);
+    backend.failUrls.add('https://main/stream');
+    await e.playNow(item('station', { playbackType: 'radio' }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(backend.loaded).toEqual(['https://mirror/stream']);
+    expect(usePlayback.getState().activeUrl).toBe('https://mirror/stream');
+    expect(usePlayback.getState().status).toBe('playing');
+  });
+
+  it('falls back when a mirror errors during playback, but reports the last error', async () => {
+    const e = new PlaybackEngine(backend, mirrors);
+    await e.playNow(item('station'));
+    backend.listener.onError(playbackError('NETWORK_ERROR', 'lost'));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(usePlayback.getState().activeUrl).toBe('https://mirror/stream');
+    backend.listener.onError(playbackError('NETWORK_ERROR', 'lost again'));
+    expect(usePlayback.getState().status).toBe('error');
+    expect(usePlayback.getState().error?.message).toBe('lost again');
+  });
+
+  it('does not switch mirrors for errors a mirror cannot fix', async () => {
+    const e = new PlaybackEngine(backend, mirrors);
+    await e.playNow(item('station'));
+    backend.listener.onError(playbackError('PLAYBACK_BLOCKED', 'press play'));
+    expect(usePlayback.getState().activeUrl).toBe('https://main/stream');
+    expect(usePlayback.getState().error?.code).toBe('PLAYBACK_BLOCKED');
+  });
+
+  it('reports planner failures such as unreadable playlists', async () => {
+    const e = new PlaybackEngine(backend, async () => {
+      throw new ProviderError('CORS_ERROR', 'cannot read playlist');
+    });
+    await e.playNow(item('pls'));
+    expect(usePlayback.getState().error?.code).toBe('PLAYLIST_UNREADABLE');
+    expect(backend.loaded).toEqual([]);
+  });
+
+  it('passes the stream format to the backend and records stream info', async () => {
+    const e = new PlaybackEngine(backend, async () => [{ url: 'https://x/live.m3u8', format: 'hls' as const }]);
+    await e.playNow(item('hls'));
+    expect(backend.calls).toContain('load:hls');
+    backend.listener.onStreamInfo({ source: 'hls-manifest', codec: 'AAC', bitrateKbps: 96 });
+    expect(usePlayback.getState().streamInfo?.bitrateKbps).toBe(96);
+    await e.playNow(item('other'));
+    expect(usePlayback.getState().streamInfo).toBeNull();
   });
 });
 

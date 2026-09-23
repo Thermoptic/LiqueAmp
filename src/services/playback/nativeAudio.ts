@@ -1,4 +1,7 @@
-import type { AnalysisAvailability } from '../../stores/playbackStore';
+import type Hls from 'hls.js';
+import { codecFromContentType, codecFromHls, parseBitrate } from '../../lib/codec';
+import type { AnalysisAvailability, StreamInfo } from '../../stores/playbackStore';
+import type { StreamFormat } from '../providers/direct';
 import type { AudioBackend, BackendListener } from './backend';
 import { fromMediaError, fromPlayRejection, playbackError, PlaybackFailure } from './errors';
 
@@ -9,6 +12,21 @@ export interface CorsProbe {
   readable: boolean;
   /** HTTP status, only known when the response was readable. */
   status?: number;
+  /** Metadata from response headers; icy-* only if the server exposes them. */
+  info?: StreamInfo;
+}
+
+export function streamInfoFromHeaders(headers: Headers): StreamInfo | undefined {
+  const contentType = headers.get('content-type') ?? undefined;
+  const info: StreamInfo = {
+    source: 'http-headers',
+    contentType,
+    codec: codecFromContentType(contentType),
+    bitrateKbps: parseBitrate(headers.get('icy-br')),
+    stationName: headers.get('icy-name')?.trim() || undefined,
+    genre: headers.get('icy-genre')?.trim() || undefined,
+  };
+  return info.codec || info.bitrateKbps || info.stationName ? info : undefined;
 }
 
 /**
@@ -27,8 +45,8 @@ export async function probeCors(url: string, fetchImpl: typeof fetch = fetch): P
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
   try {
-    const res = await fetchImpl(target.href, { mode: 'cors', cache: 'no-store', credentials: 'omit', signal: controller.signal });
-    return { readable: true, status: res.status };
+    const res = await fetchImpl(target.href, { mode: 'cors', cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer', signal: controller.signal });
+    return { readable: true, status: res.status, info: res.ok ? streamInfoFromHeaders(res.headers) : undefined };
   } catch {
     // Same-origin requests never fail CORS; an error there means unreachable.
     return { readable: target.origin === location.origin };
@@ -69,6 +87,9 @@ export class NativeAudioBackend implements AudioBackend {
   private fellBack = false;
   private wantsPlay = false;
   private loadToken = 0;
+  private hls: Hls | null = null;
+  /** hls.js reports liveness per playlist; the element's duration may be finite for live HLS. */
+  private hlsLive = false;
 
   constructor() {
     this.analysed = this.createElement(true);
@@ -106,7 +127,7 @@ export class NativeAudioBackend implements AudioBackend {
     }
   }
 
-  async load(url: string): Promise<void> {
+  async load(url: string, format: StreamFormat = 'audio'): Promise<void> {
     const token = ++this.loadToken;
     this.release();
     let target: URL;
@@ -126,18 +147,24 @@ export class NativeAudioBackend implements AudioBackend {
     this.url = target.href;
     this.fellBack = false;
     this.listener?.onStatus('loading');
+    this.listener?.onStreamInfo(null);
+
+    if (format === 'hls' && !this.plain.canPlayType('application/vnd.apple.mpegurl')) {
+      await this.loadWithHlsJs(token);
+      return;
+    }
 
     const probe = await probeCors(this.url);
     if (token !== this.loadToken) return; // superseded by a newer load
-    if (probe.status !== undefined && probe.status >= 400) {
-      throw new PlaybackFailure(
-        playbackError(
-          'STREAM_UNAVAILABLE',
-          probe.status === 404 ? 'The server answered 404: nothing exists at this address.' : `The server refused the request (HTTP ${probe.status}).`,
-        ),
-      );
+    // Only "not found" is conclusive. Other refusals (401/403/5xx) may apply to
+    // the CORS probe alone — some servers reject cross-origin fetches but
+    // still serve the same stream to a plain <audio> element.
+    if (probe.status === 404 || probe.status === 410) {
+      throw new PlaybackFailure(playbackError('STREAM_UNAVAILABLE', `The server answered ${probe.status}: nothing exists at this address.`));
     }
-    this.activate(probe.readable && this.webAudioAvailable() ? this.analysed : this.plain);
+    const readable = probe.readable && (probe.status === undefined || probe.status < 400);
+    if (readable && probe.info) this.listener?.onStreamInfo(probe.info);
+    this.activate(readable && this.webAudioAvailable() ? this.analysed : this.plain);
   }
 
   async play(): Promise<void> {
@@ -145,9 +172,17 @@ export class NativeAudioBackend implements AudioBackend {
     if (!el) return;
     this.wantsPlay = true;
     if (el === this.analysed && !(await this.ensureGraphRunning())) {
-      // A suspended AudioContext would play silence; use the plain element.
-      this.fallBackToPlain('unsupported');
-      return;
+      if (!this.hls) {
+        // A suspended AudioContext would play silence; use the plain element.
+        this.fallBackToPlain('unsupported');
+        return;
+      }
+      // hls.js can only feed the analysed element; the plain one cannot play HLS.
+      if (this.source) {
+        this.wantsPlay = false;
+        this.listener?.onError(playbackError('PLAYBACK_BLOCKED', 'The browser has not allowed audio to start yet. Press play again.'));
+        return;
+      }
     }
     await this.playElement(el);
   }
@@ -215,6 +250,9 @@ export class NativeAudioBackend implements AudioBackend {
   private release(): void {
     this.wantsPlay = false;
     this.active = null;
+    this.hls?.destroy();
+    this.hls = null;
+    this.hlsLive = false;
     for (const el of [this.analysed, this.plain]) {
       el.pause();
       if (el.hasAttribute('src')) {
@@ -240,7 +278,73 @@ export class NativeAudioBackend implements AudioBackend {
     }
   }
 
+  /**
+   * HLS without native support: hls.js feeds the analysed element through
+   * Media Source Extensions. The media URL is then a same-origin blob, so real
+   * analysis works — but hls.js fetches the manifest and segments itself,
+   * which requires CORS. Without it, playback is not possible in this browser.
+   */
+  private async loadWithHlsJs(token: number): Promise<void> {
+    const { default: HlsCtor } = await import('hls.js');
+    if (token !== this.loadToken) return;
+    if (!HlsCtor.isSupported()) {
+      throw new PlaybackFailure(
+        playbackError('MEDIA_FORMAT_NOT_SUPPORTED', 'This browser cannot play HLS streams (no native HLS and no Media Source Extensions).', false),
+      );
+    }
+    const hls = new HlsCtor({ enableWorker: true, lowLatencyMode: false });
+    this.hls = hls;
+    this.active = this.analysed;
+    let mediaRecoveries = 0;
+
+    hls.on(HlsCtor.Events.MANIFEST_PARSED, (_e, data) => {
+      if (this.hls !== hls) return;
+      const level = data.levels[0];
+      const codec = codecFromHls(level?.audioCodec ?? level?.codecSet);
+      const bitrateKbps = level?.bitrate ? Math.round(level.bitrate / 1000) : undefined;
+      // Media playlists often declare neither; then there is nothing to show.
+      if (codec || bitrateKbps) this.listener?.onStreamInfo({ source: 'hls-manifest', codec, bitrateKbps });
+    });
+    hls.on(HlsCtor.Events.LEVEL_LOADED, (_e, data) => {
+      if (this.hls !== hls) return;
+      this.hlsLive = data.details.live;
+      this.emitMeta(this.analysed);
+    });
+    hls.on(HlsCtor.Events.ERROR, (_e, data) => {
+      if (this.hls !== hls || !data.fatal) return;
+      if (data.type === HlsCtor.ErrorTypes.MEDIA_ERROR && mediaRecoveries++ < 1) {
+        hls.recoverMediaError();
+        return;
+      }
+      const status = data.response?.code;
+      const error =
+        data.type !== HlsCtor.ErrorTypes.NETWORK_ERROR
+          ? playbackError('MEDIA_FORMAT_NOT_SUPPORTED', 'The browser could not decode this HLS stream.', false)
+          : status === 404
+            ? playbackError('STREAM_UNAVAILABLE', 'The server answered 404: the HLS stream does not exist.')
+            : status && status >= 400
+              ? playbackError('STREAM_UNAVAILABLE', `The HLS server refused the request (HTTP ${status}).`)
+              : !navigator.onLine
+                ? playbackError('NETWORK_ERROR', 'You are offline. External streams need a network connection.')
+                : playbackError(
+                    'STREAM_UNAVAILABLE',
+                    'The HLS stream could not be loaded. In this browser HLS needs the server to allow browser access (CORS), or the server is unreachable.',
+                  );
+      // Tear down so the element does not sit in a pending play() forever;
+      // Retry reloads from scratch.
+      this.release();
+      this.setAnalysis('inactive');
+      this.listener?.onError(error);
+    });
+
+    hls.attachMedia(this.analysed);
+    hls.loadSource(this.url);
+    this.setAnalysis(this.webAudioAvailable() ? 'available' : 'unsupported');
+  }
+
   private handleElementError(el: HTMLAudioElement): void {
+    // hls.js reports its own, more specific errors.
+    if (this.hls && el === this.analysed) return;
     // The CORS probe can pass while the media request still fails CORS (or the
     // server only allows some requests); retry once without Web Audio.
     if (el === this.analysed && !this.fellBack) {
@@ -266,8 +370,8 @@ export class NativeAudioBackend implements AudioBackend {
 
   private emitMeta(el: HTMLAudioElement): void {
     const duration = el.duration;
-    const isLive = duration === Infinity;
-    const canSeek = Number.isFinite(duration) && duration > 0 && el.seekable.length > 0;
+    const isLive = duration === Infinity || this.hlsLive;
+    const canSeek = !isLive && Number.isFinite(duration) && duration > 0 && el.seekable.length > 0;
     this.listener?.onMeta({ duration, isLive, canSeek });
   }
 

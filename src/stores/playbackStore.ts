@@ -10,7 +10,8 @@ export type PlaybackErrorCode =
   | 'PLAYBACK_BLOCKED'
   | 'MIXED_CONTENT'
   | 'PROVIDER_NOT_SUPPORTED'
-  | 'INVALID_SOURCE';
+  | 'INVALID_SOURCE'
+  | 'PLAYLIST_UNREADABLE';
 
 export interface PlaybackError {
   code: PlaybackErrorCode;
@@ -33,6 +34,23 @@ export type AnalysisAvailability = 'inactive' | 'available' | 'cors-blocked' | '
 export type AudioEngineState = 'not-started' | 'running' | 'suspended' | 'unavailable';
 
 /**
+ * Technical stream metadata. Every field comes from the source itself
+ * (HTTP response headers or the HLS manifest), never from guessing by file
+ * extension. Fields are absent when the browser could not read them.
+ */
+export interface StreamInfo {
+  /** e.g. MP3, AAC, OGG, HLS. */
+  codec?: string;
+  /** Declared bitrate in kbps. */
+  bitrateKbps?: number;
+  contentType?: string;
+  /** Icecast/Shoutcast `icy-name`, only if the server exposes it to the browser. */
+  stationName?: string;
+  genre?: string;
+  source: 'http-headers' | 'hls-manifest';
+}
+
+/**
  * Global playback session state (ARCH §6). Written only by the playback
  * engine; the UI reads it through selectors. Volume, mute, shuffle and repeat
  * are user settings and live in the settings store.
@@ -46,6 +64,9 @@ export interface PlaybackState {
   error: PlaybackError | null;
   analysis: AnalysisAvailability;
   audioEngine: AudioEngineState;
+  streamInfo: StreamInfo | null;
+  /** The URL actually playing (may be a playlist mirror, not the item's own URL). */
+  activeUrl: string | null;
 }
 
 export const INITIAL_PLAYBACK: PlaybackState = {
@@ -57,6 +78,8 @@ export const INITIAL_PLAYBACK: PlaybackState = {
   error: null,
   analysis: 'inactive',
   audioEngine: 'not-started',
+  streamInfo: null,
+  activeUrl: null,
 };
 
 export const usePlayback = create<PlaybackState>(() => ({ ...INITIAL_PLAYBACK }));

@@ -9,6 +9,7 @@ const TITLES: Record<PlaybackErrorCode, string> = {
   MIXED_CONTENT: 'INSECURE STREAM BLOCKED',
   PROVIDER_NOT_SUPPORTED: 'PROVIDER NOT SUPPORTED',
   INVALID_SOURCE: 'INVALID SOURCE',
+  PLAYLIST_UNREADABLE: 'PLAYLIST UNREADABLE',
 };
 
 export function playbackError(code: PlaybackErrorCode, message: string, recoverable = true): PlaybackError {

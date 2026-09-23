@@ -4,6 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0b100e" />
+    <!-- Stream servers do not learn which page plays them (privacy), and some
+         Icecast servers reject unknown referrers as hotlinking. Embedded
+         provider players that need a referrer must set referrerpolicy themselves. -->
+    <meta name="referrer" content="no-referrer" />
     <meta name="description" content="LIQUEAMP — personal music and radio terminal" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>LIQUEAMP</title>

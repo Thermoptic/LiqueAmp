@@ -1,4 +1,5 @@
-import type { AnalysisAvailability, AudioEngineState, PlaybackError } from '../../stores/playbackStore';
+import type { AnalysisAvailability, AudioEngineState, PlaybackError, StreamInfo } from '../../stores/playbackStore';
+import type { StreamFormat } from '../providers/direct';
 
 export type BackendStatus = 'loading' | 'playing' | 'paused' | 'buffering';
 
@@ -16,6 +17,8 @@ export interface BackendListener {
   onMeta(meta: BackendMeta): void;
   onClock(currentTime: number, duration: number, bufferedAhead: number): void;
   onAnalysis(analysis: AnalysisAvailability, engine: AudioEngineState): void;
+  /** Real technical metadata when the source exposes it; null clears it. */
+  onStreamInfo(info: StreamInfo | null): void;
 }
 
 /**
@@ -28,7 +31,7 @@ export interface AudioBackend {
   /** Called synchronously inside user gestures, before any await. */
   prime(): void;
   /** Prepares a source. Rejects with PlaybackFailure for known problems. */
-  load(url: string): Promise<void>;
+  load(url: string, format: StreamFormat): Promise<void>;
   play(): Promise<void>;
   pause(): void;
   /** Stops and releases the current source. */

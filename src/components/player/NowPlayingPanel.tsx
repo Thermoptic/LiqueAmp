@@ -39,12 +39,7 @@ export function NowPlayingPanel() {
         <h2 className="panel__title panel__title--accent" id="np-heading">
           Now Playing
         </h2>
-        {item && (
-          <div className="panel__actions">
-            <span className="badge">{PROVIDER_LABEL[item.provider] ?? item.provider}</span>
-            <span className="badge">{isLive ? 'Live' : item.playbackType}</span>
-          </div>
-        )}
+        {item && <NowPlayingBadges />}
       </header>
 
       <div className="now-playing__body">
@@ -65,6 +60,7 @@ export function NowPlayingPanel() {
           {item ? (
             <>
               <p className="now-playing__artist truncate">{item.artist ?? (isLive ? 'Live stream' : 'Unknown artist')}</p>
+              <StationNameLine />
               {item.album && <p className="now-playing__album truncate">{item.album}</p>}
               {item.tags && item.tags.length > 0 && (
                 <ul className="tag-list" aria-label="Tags">
@@ -88,6 +84,32 @@ export function NowPlayingPanel() {
       <ProgressRow />
       <TransportRow />
     </section>
+  );
+}
+
+/** Provider, type and — only when the source declared them — codec and bitrate. */
+function NowPlayingBadges() {
+  const item = usePlayback((s) => s.currentItem);
+  const isLive = usePlayback((s) => s.isLive);
+  const info = usePlayback((s) => s.streamInfo);
+  if (!item) return null;
+  const title = info ? `Declared by the source (${info.source === 'hls-manifest' ? 'HLS manifest' : 'HTTP headers'})` : undefined;
+  return (
+    <div className="panel__actions now-playing__badges">
+      <span className="badge">{PROVIDER_LABEL[item.provider] ?? item.provider}</span>
+      <span className="badge">{isLive ? 'Live' : item.playbackType === 'radio' ? 'Radio' : 'Stream'}</span>
+      {item.metadata?.format === 'hls' && <span className="badge">HLS</span>}
+      {info?.codec && (
+        <span className="badge" title={title}>
+          {info.codec}
+        </span>
+      )}
+      {info?.bitrateKbps && (
+        <span className="badge" title={title}>
+          {info.bitrateKbps} kbps
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -122,6 +144,14 @@ function PlayerStateLine() {
       <Status tone={statusTone(status)}>[{label}]</Status>
     </p>
   );
+}
+
+/** Icecast `icy-name`, only when the server exposed it and it adds information. */
+function StationNameLine() {
+  const name = usePlayback((s) => s.streamInfo?.stationName);
+  const title = usePlayback((s) => s.currentItem?.title);
+  if (!name || name === title) return null;
+  return <p className="now-playing__album truncate">{name}</p>;
 }
 
 const ANALYSIS_TEXT: Record<AnalysisAvailability, string> = {

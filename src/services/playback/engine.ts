@@ -5,17 +5,39 @@ import {
   type AnalysisAvailability,
   type AudioEngineState,
   type PlaybackError,
+  type StreamInfo,
 } from '../../stores/playbackStore';
 import { useQueue, toEntries } from '../../stores/queueStore';
 import { useSettings } from '../../stores/settingsStore';
 import type { MediaItem, PlaybackMode } from '../../types/media';
 import type { AudioBackend, BackendListener, BackendMeta, BackendStatus } from './backend';
+import { planDirectPlayback, type PlaybackCandidate } from '../providers/direct';
+import { ProviderError } from '../providers/errors';
 import { PlaybackFailure, playbackError, providerNotSupported } from './errors';
 import { NativeAudioBackend } from './nativeAudio';
 import * as Q from './queue';
 
 /** Seconds into a track after which Previous restarts it instead of going back. */
 const RESTART_THRESHOLD = 3;
+
+/** Turns an item into the URLs to try, in order. */
+export type PlaybackPlanner = (item: MediaItem) => Promise<PlaybackCandidate[]>;
+
+/** Errors worth retrying on another mirror from the same playlist. */
+const MIRROR_RETRY: ReadonlySet<PlaybackError['code']> = new Set(['STREAM_UNAVAILABLE', 'NETWORK_ERROR', 'MEDIA_FORMAT_NOT_SUPPORTED']);
+
+function fromProviderError(err: ProviderError): PlaybackError {
+  switch (err.code) {
+    case 'CORS_ERROR':
+      return playbackError('PLAYLIST_UNREADABLE', err.message, false);
+    case 'NETWORK_ERROR':
+      return playbackError('NETWORK_ERROR', err.message);
+    case 'NOT_FOUND':
+      return playbackError('STREAM_UNAVAILABLE', err.message);
+    default:
+      return playbackError('INVALID_SOURCE', err.message, false);
+  }
+}
 
 export function resolvePlaybackMode(item: MediaItem): PlaybackMode {
   switch (item.playbackType) {
@@ -38,8 +60,14 @@ export function resolvePlaybackMode(item: MediaItem): PlaybackMode {
  */
 export class PlaybackEngine implements BackendListener {
   private loadToken = 0;
+  private candidates: PlaybackCandidate[] = [];
+  private candidateIndex = 0;
+  private autoplay = true;
 
-  constructor(private readonly backend: AudioBackend) {
+  constructor(
+    private readonly backend: AudioBackend,
+    private readonly plan: PlaybackPlanner = (item) => planDirectPlayback(item),
+  ) {
     backend.setListener(this);
     const applyVolume = () => {
       const s = useSettings.getState();
@@ -169,7 +197,16 @@ export class PlaybackEngine implements BackendListener {
   private async load(item: MediaItem, autoplay: boolean): Promise<void> {
     const token = ++this.loadToken;
     const mode = resolvePlaybackMode(item);
-    usePlayback.setState({ currentItem: item, mode, status: 'loading', error: null, isLive: false, canSeek: false });
+    usePlayback.setState({
+      currentItem: item,
+      mode,
+      status: 'loading',
+      error: null,
+      isLive: false,
+      canSeek: false,
+      streamInfo: null,
+      activeUrl: null,
+    });
     usePlaybackClock.setState({ currentTime: 0, duration: item.duration ?? Number.NaN, bufferedAhead: 0 });
 
     if (mode !== 'native-audio') {
@@ -177,17 +214,49 @@ export class PlaybackEngine implements BackendListener {
       usePlayback.setState({ status: 'error', error: providerNotSupported(item) });
       return;
     }
-    const url = item.streamUrl || item.sourceUrl;
+
+    let candidates: PlaybackCandidate[];
     try {
-      await this.backend.load(url);
+      candidates = await this.plan(item);
+    } catch (err) {
       if (token !== this.loadToken) return;
-      if (autoplay) await this.backend.play();
+      this.backend.stop();
+      const error = err instanceof ProviderError ? fromProviderError(err) : playbackError('STREAM_UNAVAILABLE', String(err));
+      usePlayback.setState({ status: 'error', error });
+      return;
+    }
+    if (token !== this.loadToken) return;
+    if (candidates.length === 0) {
+      usePlayback.setState({ status: 'error', error: playbackError('INVALID_SOURCE', 'This source contains nothing playable.', false) });
+      return;
+    }
+    this.candidates = candidates;
+    this.candidateIndex = 0;
+    this.autoplay = autoplay;
+    await this.tryCandidate(token);
+  }
+
+  private async tryCandidate(token: number): Promise<void> {
+    const candidate = this.candidates[this.candidateIndex]!;
+    usePlayback.setState({ activeUrl: candidate.url, status: 'loading', error: null });
+    try {
+      await this.backend.load(candidate.url, candidate.format);
+      if (token !== this.loadToken) return;
+      if (this.autoplay) await this.backend.play();
       else usePlayback.setState({ status: 'paused' });
     } catch (err) {
       if (token !== this.loadToken) return;
       const error = err instanceof PlaybackFailure ? err.error : playbackError('STREAM_UNAVAILABLE', String(err));
-      usePlayback.setState({ status: 'error', error });
+      if (!this.tryNextCandidate(error)) usePlayback.setState({ status: 'error', error });
     }
+  }
+
+  /** Moves to the next mirror if this error is worth retrying. */
+  private tryNextCandidate(error: PlaybackError): boolean {
+    if (!MIRROR_RETRY.has(error.code) || this.candidateIndex + 1 >= this.candidates.length) return false;
+    this.candidateIndex++;
+    void this.tryCandidate(this.loadToken);
+    return true;
   }
 
   // ---- backend events ------------------------------------------------------
@@ -203,11 +272,19 @@ export class PlaybackEngine implements BackendListener {
   }
 
   onError(error: PlaybackError): void {
+    if (this.tryNextCandidate(error)) return;
     usePlayback.setState({ status: 'error', error });
   }
 
+  onStreamInfo(streamInfo: StreamInfo | null): void {
+    usePlayback.setState({ streamInfo });
+  }
+
   onMeta(meta: BackendMeta): void {
-    usePlayback.setState({ isLive: meta.isLive, canSeek: meta.canSeek });
+    // A source declared live (radio directory, PLS `Length=-1`) stays live even
+    // if the browser derives a finite duration from stream headers.
+    const declaredLive = usePlayback.getState().currentItem?.playbackType === 'radio';
+    usePlayback.setState({ isLive: meta.isLive || declaredLive, canSeek: meta.canSeek && !declaredLive });
     usePlaybackClock.setState({ duration: meta.duration });
   }
 
