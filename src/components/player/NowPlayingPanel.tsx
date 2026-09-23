@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { ExternalLink, Pause, Play, Repeat, Repeat1, RotateCcw, Shuffle, SkipBack, SkipForward } from 'lucide-react';
+import { ExternalLink, Heart, Pause, Play, Repeat, Repeat1, RotateCcw, Shuffle, SkipBack, SkipForward } from 'lucide-react';
+import { isItemFavorite, useFavorites } from '../../stores/favoritesStore';
+import { useUi } from '../../stores/uiStore';
 import { getEngine } from '../../services/playback/engine';
 import { formatTime } from '../../lib/format';
 import { usePlayback, usePlaybackClock, type AnalysisAvailability, type PlaybackStatus } from '../../stores/playbackStore';
@@ -219,6 +221,24 @@ function ProgressRow() {
   );
 }
 
+function FavouriteButton() {
+  const item = usePlayback((s) => s.currentItem);
+  const isFav = useFavorites((s) => (item ? isItemFavorite(item, s.favorites, s.stations) : false));
+  const toggleItem = useFavorites((s) => s.toggleItem);
+  const toast = useUi((s) => s.toast);
+  return (
+    <button
+      type="button"
+      className="btn btn--accent-outline transport__fav"
+      disabled={!item}
+      aria-pressed={isFav}
+      onClick={() => item && void toggleItem(item).then((added) => toast(added ? 'Added to favourites' : 'Removed from favourites', 'success'))}
+    >
+      <Heart size={14} aria-hidden="true" /> {isFav ? 'Favourite' : 'Add favourite'}
+    </button>
+  );
+}
+
 function TransportRow() {
   const hasItem = usePlayback((s) => Boolean(s.currentItem));
   const status = usePlayback((s) => s.status);
@@ -269,6 +289,7 @@ function TransportRow() {
       </div>
       <VolumeControl />
       <div className="transport__modes">
+        <FavouriteButton />
         <button type="button" className="btn btn--accent-outline" onClick={() => update({ repeat: NEXT_REPEAT[repeat] })}>
           [R] Repeat: {repeat}
         </button>

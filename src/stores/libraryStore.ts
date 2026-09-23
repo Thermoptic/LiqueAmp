@@ -12,6 +12,20 @@ interface LibraryStore {
   setCategoryEnabled(id: string, enabled: boolean): Promise<void>;
   moveCategory(id: string, direction: -1 | 1): Promise<void>;
   deleteCategory(id: string): Promise<void>;
+  /**
+   * Saves items to the library and returns the stored versions. An item whose
+   * id or source already exists is not duplicated; the existing one is returned.
+   */
+  addMedia(items: MediaItem[]): Promise<MediaItem[]>;
+  removeMedia(id: string): Promise<void>;
+  getMedia(id: string): MediaItem | undefined;
+}
+
+/** Identity used to detect the same source imported twice (PROVIDERS §61). */
+export function mediaIdentity(item: MediaItem): string {
+  const providerItemId = item.metadata?.providerItemId;
+  if (typeof providerItemId === 'string') return providerItemId;
+  return `${item.provider}:${item.streamUrl || item.sourceUrl}`;
 }
 
 const byOrder = (a: Category, b: Category) => a.sortOrder - b.sortOrder;
@@ -63,6 +77,36 @@ export const useLibrary = create<LibraryStore>((set, get) => ({
     const reordered = list.map((c, i) => ({ ...c, sortOrder: i }));
     set({ categories: reordered });
     await repositories.categories.putMany(reordered);
+  },
+
+  async addMedia(items) {
+    const existing = get().media;
+    const byId = new Map(existing.map((m) => [m.id, m]));
+    const byIdentity = new Map(existing.map((m) => [mediaIdentity(m), m]));
+    const added: MediaItem[] = [];
+    const result = items.map((item) => {
+      const found = byId.get(item.id) ?? byIdentity.get(mediaIdentity(item));
+      if (found) return found;
+      const saved = { ...item };
+      byId.set(saved.id, saved);
+      byIdentity.set(mediaIdentity(saved), saved);
+      added.push(saved);
+      return saved;
+    });
+    if (added.length) {
+      set({ media: [...existing, ...added] });
+      await repositories.media.putMany(added);
+    }
+    return result;
+  },
+
+  async removeMedia(id) {
+    set({ media: get().media.filter((m) => m.id !== id) });
+    await repositories.media.delete(id);
+  },
+
+  getMedia(id) {
+    return get().media.find((m) => m.id === id);
   },
 
   async deleteCategory(id) {

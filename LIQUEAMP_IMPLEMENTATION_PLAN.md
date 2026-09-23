@@ -1,6 +1,6 @@
 # LIQUEAMP — Implementation Plan (Phase 1 audit)
 
-Status: Approved 2026-09-23. Phases 2–5 complete.
+Status: Approved 2026-09-23. Phases 2–6 complete.
 Date: 2026-09-22
 
 This file records the Phase 1 audit required by `LIQUEAMP_MASTER_BUILD_PROMPT.md`
@@ -83,6 +83,10 @@ ARCH §59 requires conflicts to be resolved explicitly. Proposed resolutions:
    SPEC §12 allows "where technically appropriate" → Doto for branding, panel
    headings, the track title and numeric readouts; a monospace face for body
    text and metadata (this matches the body text in `liqueampui.png`).
+8. **History snapshots.** ARCH §21 stores only `mediaItemId`. Radio stations
+   and resolved URLs are not necessarily in the library, so a bare id could
+   not be shown or replayed. → `HistoryEntry` also stores a snapshot of the
+   played `MediaItem`.
 7. **Primary platform.** SPEC §4 says mobile-first; MASTER §10 describes the
    desktop dashboard. → One responsive layout, built mobile-first from Phase 2 rather than adapted at the end.
 
@@ -174,7 +178,7 @@ Each phase ends with typecheck, tests, build and a look at the running app
 | 3 ✅ | Playback engine | Central engine and store, queue transitions, error model, dual audio element + Web Audio graph. |
 | 4 ✅ | Direct streams | URL detection/normalization, M3U/PLS parsing, HLS, live vs seekable. |
 | 5 ✅ | Radio | Radio Browser client, tabs (radio/genres/locations/mood), search/filter/sort, station info. |
-| 6 | Library | Categories, favorites, history recording, playlists, queue UI incl. reorder. |
+| 6 ✅ | Library | Categories, favorites, history recording, playlists, queue UI incl. reorder. |
 | 7 | URL import | Import pipeline with preview + duplicate detection. |
 | 8 | Providers | YouTube, YT Music, SoundCloud, Spotify adapters (embedded/external modes). |
 | 9 | Themes | Theme editor, Base16/Base24/Tinted8 import, mapping editor, export. |

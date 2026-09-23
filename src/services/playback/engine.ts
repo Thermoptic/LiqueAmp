@@ -141,7 +141,8 @@ export class PlaybackEngine implements BackendListener {
   stop(): void {
     this.loadToken++;
     this.backend.stop();
-    usePlayback.setState({ ...INITIAL_PLAYBACK, audioEngine: usePlayback.getState().audioEngine });
+    const { audioEngine, loadId } = usePlayback.getState();
+    usePlayback.setState({ ...INITIAL_PLAYBACK, audioEngine, loadId: loadId + 1 });
     usePlaybackClock.setState({ currentTime: 0, duration: Number.NaN, bufferedAhead: 0 });
     useQueue.getState().apply({ ...useQueue.getState(), currentId: null });
   }
@@ -198,6 +199,7 @@ export class PlaybackEngine implements BackendListener {
     const token = ++this.loadToken;
     const mode = resolvePlaybackMode(item);
     usePlayback.setState({
+      loadId: usePlayback.getState().loadId + 1,
       currentItem: item,
       mode,
       status: 'loading',

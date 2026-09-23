@@ -21,6 +21,9 @@ interface UiStore {
   libraryTab: LibraryTab;
   selection: Selection;
   select(selection: Selection): void;
+  /** Playlist shown in detail in the Playlists tab, or null for the list. */
+  openPlaylistId: string | null;
+  openPlaylist(id: string | null): void;
   toast(message: string, kind?: ToastKind): void;
   dismissToast(id: string): void;
   setLibraryTab(tab: LibraryTab): void;
@@ -30,9 +33,14 @@ export const useUi = create<UiStore>((set, get) => ({
   toasts: [],
   libraryTab: 'playlists',
   selection: null,
+  openPlaylistId: null,
 
   select(selection) {
     set({ selection });
+  },
+
+  openPlaylist(openPlaylistId) {
+    set({ openPlaylistId });
   },
 
   toast(message, kind = 'info') {

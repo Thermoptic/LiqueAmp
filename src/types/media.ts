@@ -128,7 +128,14 @@ export interface HistoryEntry {
   mediaId: string;
   startedAt: string;
   endedAt?: string;
-  /** Seconds actually played. */
+  /** Seconds actually listened (wall-clock time while playing). */
   durationPlayed: number;
+  /** Only for items with a known, finite duration. */
   completionPercentage?: number;
+  /**
+   * Snapshot of what was played, so history can show and replay items that
+   * are not in the library (radio stations, resolved URLs). Extension of
+   * ARCH §21; see LIQUEAMP_IMPLEMENTATION_PLAN.md §3.
+   */
+  item: MediaItem;
 }

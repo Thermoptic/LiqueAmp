@@ -63,7 +63,7 @@ export function CategoryDialog({ open, onClose, category }: CategoryDialogProps)
         className="input"
         value={name}
         maxLength={60}
-        autoFocus
+        data-autofocus
         onChange={(e) => {
           setName(e.currentTarget.value);
           setError(null);

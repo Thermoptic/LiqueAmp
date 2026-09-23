@@ -1,21 +1,31 @@
 import { useEffect, useRef, useState } from 'react';
-import { Copy, Ellipsis, ExternalLink, Heart, Play, Plus, Share2 } from 'lucide-react';
+import { Copy, Ellipsis, ExternalLink, Heart, ListPlus, Play, Plus, Share2 } from 'lucide-react';
 import { getEngine } from '../../services/playback/engine';
 import { playStation, queueStation } from '../../services/radio/actions';
 import { shareOrCopy } from '../../services/share';
-import { useFavorites } from '../../stores/favoritesStore';
+import { isItemFavorite, useFavorites } from '../../stores/favoritesStore';
+import { usePlayback } from '../../stores/playbackStore';
 import { useUi } from '../../stores/uiStore';
+import { stationToMediaItem } from '../../services/radio/stations';
+import { AddToPlaylistDialog } from '../library/AddToPlaylistDialog';
 
 /**
  * Commands for the current selection (a station or a media item). Only
  * actions that can actually work for that selection are enabled.
  */
 export function QuickActionsPanel() {
-  const selection = useUi((s) => s.selection);
+  const selected = useUi((s) => s.selection);
+  const current = usePlayback((s) => s.currentItem);
+  // With nothing selected, actions apply to what is playing.
+  const selection = selected ?? (current ? { kind: 'media' as const, item: current } : null);
+  const usingCurrent = !selected && Boolean(current);
   const toast = useUi((s) => s.toast);
   const favorites = useFavorites((s) => s.favorites);
+  const stations = useFavorites((s) => s.stations);
   const toggleStation = useFavorites((s) => s.toggleStation);
+  const toggleItem = useFavorites((s) => s.toggleItem);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [addingToPlaylist, setAddingToPlaylist] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -37,7 +47,18 @@ export function QuickActionsPanel() {
   const shareUrl = station ? (station.homepage ?? station.sourceUrl ?? station.streamUrl) : (item?.sourceUrl ?? '');
   const streamUrl = station?.streamUrl ?? item?.streamUrl ?? item?.sourceUrl ?? '';
   const homepage = station?.homepage;
-  const isFav = station ? favorites.some((f) => f.id === `station:${station.id}`) : false;
+  const isFav = station
+    ? favorites.some((f) => f.id === `station:${station.id}`)
+    : item
+      ? isItemFavorite(item, favorites, stations)
+      : false;
+  const playlistItems = station ? [stationToMediaItem(station)] : item ? [item] : [];
+
+  function toggleFavourite() {
+    const done = (added: boolean) => toast(added ? 'Added to favourites' : 'Removed from favourites', 'success');
+    if (station) void toggleStation(station).then(done);
+    else if (item) void toggleItem(item).then(done);
+  }
 
   async function share() {
     const result = await shareOrCopy({ title, url: shareUrl });
@@ -61,6 +82,7 @@ export function QuickActionsPanel() {
         <h2 className="panel__title panel__title--small" id="qa-heading">
           Quick Actions
         </h2>
+        {usingCurrent && <span className="panel__actions muted quick-actions__target">NOW PLAYING</span>}
       </header>
       <div className="panel__body quick-actions">
         <button
@@ -83,17 +105,12 @@ export function QuickActionsPanel() {
         >
           <Plus size={15} aria-hidden="true" /> Add to Queue
         </button>
-        {!item && (
-          <button
-            type="button"
-            className="btn btn--block"
-            disabled={!station}
-            aria-pressed={isFav}
-            onClick={() => station && void toggleStation(station).then((added) => toast(added ? 'Added to favourites' : 'Removed from favourites', 'success'))}
-          >
-            <Heart size={15} aria-hidden="true" /> {isFav ? 'In Favourites' : 'Add to Favourites'}
-          </button>
-        )}
+        <button type="button" className="btn btn--block" disabled={!selection} aria-pressed={isFav} onClick={toggleFavourite}>
+          <Heart size={15} aria-hidden="true" /> {isFav ? 'In Favourites' : 'Add to Favourites'}
+        </button>
+        <button type="button" className="btn btn--block" disabled={!selection} onClick={() => setAddingToPlaylist(true)}>
+          <ListPlus size={15} aria-hidden="true" /> Add to Playlist
+        </button>
         <button type="button" className="btn btn--block" disabled={!shareUrl} onClick={() => void share()}>
           <Share2 size={15} aria-hidden="true" /> {station ? 'Share Station' : 'Share'}
         </button>
@@ -123,6 +140,7 @@ export function QuickActionsPanel() {
         </div>
         {!selection && <p className="quick-actions__hint muted">Select a station or track first.</p>}
       </div>
+      <AddToPlaylistDialog open={addingToPlaylist} items={playlistItems} onClose={() => setAddingToPlaylist(false)} />
     </section>
   );
 }

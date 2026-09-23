@@ -67,6 +67,8 @@ export interface PlaybackState {
   streamInfo: StreamInfo | null;
   /** The URL actually playing (may be a playlist mirror, not the item's own URL). */
   activeUrl: string | null;
+  /** Increments on every load, so observers can tell replays of one item apart. */
+  loadId: number;
 }
 
 export const INITIAL_PLAYBACK: PlaybackState = {
@@ -80,6 +82,7 @@ export const INITIAL_PLAYBACK: PlaybackState = {
   audioEngine: 'not-started',
   streamInfo: null,
   activeUrl: null,
+  loadId: 0,
 };
 
 export const usePlayback = create<PlaybackState>(() => ({ ...INITIAL_PLAYBACK }));

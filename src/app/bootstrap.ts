@@ -6,6 +6,9 @@ import { useLibrary } from '../stores/libraryStore';
 import { usePlayback } from '../stores/playbackStore';
 import { useQueue } from '../stores/queueStore';
 import { useFavorites } from '../stores/favoritesStore';
+import { usePlaylists } from '../stores/playlistStore';
+import { useHistory } from '../stores/historyStore';
+import { startHistoryRecorder } from '../services/playback/historyRecorder';
 import { useSettings } from '../stores/settingsStore';
 import { useThemes } from '../stores/themeStore';
 import { wireSystemListeners } from '../stores/systemStore';
@@ -21,7 +24,7 @@ function syncAppearance() {
 
 async function hydrateAll() {
   await getDb();
-  await Promise.all([useSettings.getState().hydrate(), useThemes.getState().hydrate(), useLibrary.getState().hydrate(), useQueue.getState().hydrate(), useFavorites.getState().hydrate()]);
+  await Promise.all([useSettings.getState().hydrate(), useThemes.getState().hydrate(), useLibrary.getState().hydrate(), useQueue.getState().hydrate(), useFavorites.getState().hydrate(), usePlaylists.getState().hydrate(), useHistory.getState().hydrate()]);
 }
 
 /**
@@ -34,6 +37,7 @@ export async function bootstrap(): Promise<void> {
   await Promise.race([hydrateAll(), new Promise((resolve) => setTimeout(resolve, 2000))]);
   syncAppearance();
   getEngine(); // after hydration, so the saved volume applies from the start
+  startHistoryRecorder();
   if (import.meta.env.DEV) {
     // Dev-only diagnostics handle; never part of a production build.
     Object.assign(window, { __liqueamp: { getEngine, usePlayback, useQueue, useSettings } });

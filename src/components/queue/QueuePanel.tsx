@@ -4,6 +4,7 @@ import { formatTime } from '../../lib/format';
 import { usePlayback } from '../../stores/playbackStore';
 import { useQueue } from '../../stores/queueStore';
 import { EmptyState } from '../ui/controls';
+import { DragHandle, ReorderButtons, useDragReorder } from '../ui/reorder';
 
 export function QueuePanel() {
   const entries = useQueue((s) => s.entries);
@@ -12,6 +13,12 @@ export function QueuePanel() {
   const clearUpcoming = useQueue((s) => s.clearUpcoming);
   const shuffleUpcoming = useQueue((s) => s.shuffleUpcoming);
   const status = usePlayback((s) => s.status);
+  const moveEntry = useQueue((s) => s.move);
+  const move = (from: number, to: number) => {
+    const entry = entries[from];
+    if (entry) moveEntry(entry.entryId, to);
+  };
+  const { rowProps } = useDragReorder(move);
   const currentIndex = entries.findIndex((e) => e.entryId === currentId);
   const upcoming = currentIndex >= 0 ? entries.length - currentIndex - 1 : entries.length;
 
@@ -39,7 +46,8 @@ export function QueuePanel() {
               const isCurrent = entry.entryId === currentId;
               const { item } = entry;
               return (
-                <li key={entry.entryId} className="row queue-row" aria-current={isCurrent ? 'true' : undefined}>
+                <li key={entry.entryId} className="row queue-row" aria-current={isCurrent ? 'true' : undefined} {...rowProps(i)}>
+                  <DragHandle />
                   <span className="row__index">{String(i + 1).padStart(2, '0')}</span>
                   <button
                     type="button"
@@ -52,6 +60,7 @@ export function QueuePanel() {
                   </button>
                   <span className="queue-row__meta">
                     <span className="row__index">{item.duration ? formatTime(item.duration) : item.playbackType === 'radio' ? 'LIVE' : ''}</span>
+                    <ReorderButtons index={i} count={entries.length} label={item.title} onMove={move} />
                     <button
                       type="button"
                       className="btn btn--ghost btn--icon queue-row__remove"
