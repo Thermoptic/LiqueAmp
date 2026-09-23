@@ -518,3 +518,36 @@
   text-align: right;
   color: var(--la-text-secondary);
 }
+
+/* ---------- visualizers section ---------- */
+.viz-section {
+  display: grid;
+  gap: var(--la-space-4);
+}
+
+.viz-section__preview {
+  display: grid;
+}
+
+.viz-section__canvas {
+  height: 140px;
+  border: var(--la-border-width) dashed var(--la-border);
+  color: var(--la-text-muted);
+  font-size: var(--la-text-xs);
+  letter-spacing: 0.1em;
+}
+
+.viz-diagnostics {
+  margin-top: var(--la-space-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.viz-controls {
+  display: grid;
+  gap: var(--la-space-2);
+  max-width: 560px;
+}
+
+.viz-controls__footer {
+  padding-top: var(--la-space-2);
+}

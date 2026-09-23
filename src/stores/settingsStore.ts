@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { kv } from '../services/storage/repository';
+import { sanitizeVisualizer } from '../types/visualizer';
 import { DEFAULT_SETTINGS, EQ_LIMIT_DB, type EqSettings, type Settings } from '../types/settings';
 
 const KEY = 'settings';
@@ -43,6 +44,7 @@ function sanitize(input: Partial<Settings> | undefined): Partial<Settings> {
   if (typeof input.shuffle === 'boolean') out.shuffle = input.shuffle;
   if (input.repeat === 'off' || input.repeat === 'all' || input.repeat === 'one') out.repeat = input.repeat;
   if (input.eq && typeof input.eq === 'object') out.eq = sanitizeEq(input.eq);
+  if (input.visualizer && typeof input.visualizer === 'object') out.visualizer = sanitizeVisualizer(input.visualizer);
   return out;
 }
 

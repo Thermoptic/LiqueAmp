@@ -6,6 +6,8 @@ import type { RepeatMode } from '../../types/settings';
 import { Field, PendingTag, Segmented, Toggle } from '../ui/controls';
 import { VolumeControl } from '../player/VolumeControl';
 import { EqControls } from '../audio/EqControls';
+import { Link } from 'react-router';
+import { VisualizerQuickControls } from '../visualizer/VisualizerControls';
 
 function Module({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
   return (
@@ -101,8 +103,10 @@ export function AppearanceModule() {
 export function VisualizerModule() {
   return (
     <Module title="Visualizer" icon={<BarChart3 size={15} aria-hidden="true" />}>
-      <p className="control-module__note">The audio analysis is ready; the visualizers that use it are not built yet.</p>
-      <PendingTag />
+      <VisualizerQuickControls />
+      <Link to="/control/visualizers" className="control-module__link">
+        More visualizer settings →
+      </Link>
     </Module>
   );
 }

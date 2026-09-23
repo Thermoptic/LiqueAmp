@@ -1,3 +1,5 @@
+import { DEFAULT_VISUALIZER, type VisualizerSettings } from './visualizer';
+
 export type MotionPreference = 'system' | 'reduced' | 'full';
 
 export type RepeatMode = 'off' | 'all' | 'one';
@@ -25,6 +27,7 @@ export interface Settings {
   shuffle: boolean;
   repeat: RepeatMode;
   eq: EqSettings;
+  visualizer: VisualizerSettings;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -36,4 +39,5 @@ export const DEFAULT_SETTINGS: Settings = {
   shuffle: false,
   repeat: 'off',
   eq: { enabled: true, preset: 'flat', bass: 0, mid: 0, treble: 0 },
+  visualizer: DEFAULT_VISUALIZER,
 };

@@ -6,6 +6,7 @@ import { SystemSection } from './SystemSection';
 import { CategoriesSection } from './CategoriesSection';
 import { ThemesSection } from './ThemesSection';
 import { MediaSection } from './MediaSection';
+import { VisualizersSection } from './VisualizersSection';
 
 const SECTIONS = [
   { id: 'system', label: 'System' },
@@ -20,7 +21,6 @@ const SECTIONS = [
 
 const PENDING_TEXT: Record<string, string> = {
   providers: 'Provider status and configuration arrive with the provider adapters.',
-  visualizers: 'Visualizer configuration arrives with the audio analysis engine.',
   'import-export': 'Data export and validated import are not implemented yet.',
   pwa: 'Installability and offline configuration are not implemented yet.',
 };
@@ -56,6 +56,7 @@ export function ControlPage() {
           {current.id === 'categories' && <CategoriesSection />}
           {current.id === 'themes' && <ThemesSection />}
           {current.id === 'media' && <MediaSection />}
+          {current.id === 'visualizers' && <VisualizersSection />}
           {current.id in PENDING_TEXT && (
             <section className="panel">
               <header className="panel__header">

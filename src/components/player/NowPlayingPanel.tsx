@@ -5,7 +5,7 @@ import { isItemFavorite, useFavorites } from '../../stores/favoritesStore';
 import { useUi } from '../../stores/uiStore';
 import { getEngine } from '../../services/playback/engine';
 import { formatTime } from '../../lib/format';
-import { usePlayback, usePlaybackClock, type AnalysisAvailability, type PlaybackStatus } from '../../stores/playbackStore';
+import { usePlayback, usePlaybackClock, type PlaybackStatus } from '../../stores/playbackStore';
 import { useQueue } from '../../stores/queueStore';
 import { useSettings } from '../../stores/settingsStore';
 import type { RepeatMode } from '../../types/settings';
@@ -13,6 +13,7 @@ import { Artwork } from '../ui/Artwork';
 import { Status, type StatusTone } from '../ui/controls';
 import { VolumeControl } from './VolumeControl';
 import { EqSummary } from '../audio/EqControls';
+import { VisualizerView } from '../visualizer/VisualizerView';
 
 export const PROVIDER_LABEL: Record<string, string> = {
   direct: 'Direct',
@@ -87,7 +88,7 @@ export function NowPlayingPanel() {
           <PlayerStateLine />
         </div>
 
-        <VisualizerSlot />
+        <VisualizerView className="now-playing__viz" allowFullscreen />
       </div>
 
       <ProgressRow />
@@ -172,23 +173,6 @@ function StationNameLine() {
   const title = usePlayback((s) => s.currentItem?.title);
   if (!name || name === title) return null;
   return <p className="now-playing__album truncate">{name}</p>;
-}
-
-const ANALYSIS_TEXT: Record<AnalysisAvailability, string> = {
-  inactive: 'VISUALIZER · NO AUDIO SIGNAL',
-  available: 'AUDIO SIGNAL AVAILABLE FOR ANALYSIS · VISUALIZERS NOT BUILT YET',
-  'cors-blocked': 'VISUALIZER UNAVAILABLE · THIS SOURCE DOES NOT ALLOW BROWSER AUDIO ANALYSIS',
-  unsupported: 'VISUALIZER UNAVAILABLE · WEB AUDIO IS NOT AVAILABLE',
-  'provider-restricted': 'VISUALIZER UNAVAILABLE · THE PROVIDER DOES NOT EXPOSE RAW AUDIO FOR BROWSER ANALYSIS',
-};
-
-function VisualizerSlot() {
-  const analysis = usePlayback((s) => s.analysis);
-  return (
-    <div className="now-playing__viz" data-analysis={analysis} role="img" aria-label={ANALYSIS_TEXT[analysis]}>
-      <span className="now-playing__viz-label">{ANALYSIS_TEXT[analysis]}</span>
-    </div>
-  );
 }
 
 function ProgressRow() {
