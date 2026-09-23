@@ -16,6 +16,7 @@ const ANALYSIS_LABEL: Record<AnalysisAvailability, [string, StatusTone]> = {
   available: ['SIGNAL AVAILABLE', 'ok'],
   'cors-blocked': ['BLOCKED BY SOURCE (CORS)', 'warn'],
   unsupported: ['UNSUPPORTED', 'error'],
+  'provider-restricted': ['NOT EXPOSED BY PROVIDER', 'idle'],
 };
 
 /** Buffer is measured from the media element; shown only while something is loaded. */

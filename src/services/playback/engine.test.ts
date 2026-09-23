@@ -261,6 +261,44 @@ describe('PlaybackEngine candidates', () => {
   });
 });
 
+describe('PlaybackEngine with provider players', () => {
+  function yt(id = 'yt1') {
+    return item(id, { provider: 'youtube', playbackType: 'embed', sourceUrl: 'https://www.youtube.com/watch?v=abcdefghijk' });
+  }
+
+  it('switches between native audio and a provider player, keeping one session', async () => {
+    const embed = new FakeBackend();
+    const e = new PlaybackEngine(backend, undefined, { youtube: () => embed });
+    await e.playNow(item('a'));
+    await e.playNow(yt());
+    expect(backend.calls).toContain('stop');
+    expect(embed.loaded).toEqual(['https://www.youtube.com/watch?v=abcdefghijk']);
+    expect(usePlayback.getState().analysis).toBe('provider-restricted');
+    // events from the stopped native backend are ignored
+    backend.listener.onStatus('paused');
+    expect(usePlayback.getState().status).toBe('playing');
+    embed.listener.onStatus('paused');
+    expect(usePlayback.getState().status).toBe('paused');
+    await e.playNow(item('b'));
+    expect(embed.calls).toContain('stop');
+  });
+
+  it('hides volume control for players that do not expose it', async () => {
+    const spotify = Object.assign(new FakeBackend(), { volumeControl: false });
+    const e = new PlaybackEngine(backend, undefined, { spotify: () => spotify });
+    await e.playNow(item('sp', { provider: 'spotify', playbackType: 'embed', sourceUrl: 'https://open.spotify.com/track/x' }));
+    expect(usePlayback.getState().canSetVolume).toBe(false);
+    await e.playNow(item('a'));
+    expect(usePlayback.getState().canSetVolume).toBe(true);
+  });
+
+  it('shows external-only items as opening elsewhere instead of playing', async () => {
+    const e = new PlaybackEngine(backend);
+    await e.playNow(item('pl', { provider: 'youtube', playbackType: 'external' }));
+    expect(usePlayback.getState().error?.title).toBe('OPENS EXTERNALLY');
+  });
+});
+
 describe('playback helpers', () => {
   it('maps playback types to modes', () => {
     expect(resolvePlaybackMode(item('a'))).toBe('native-audio');

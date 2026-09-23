@@ -10,6 +10,7 @@ const TITLES: Record<PlaybackErrorCode, string> = {
   PROVIDER_NOT_SUPPORTED: 'PROVIDER NOT SUPPORTED',
   INVALID_SOURCE: 'INVALID SOURCE',
   PLAYLIST_UNREADABLE: 'PLAYLIST UNREADABLE',
+  EMBED_BLOCKED: 'EMBEDDING NOT ALLOWED',
 };
 
 export function playbackError(code: PlaybackErrorCode, message: string, recoverable = true): PlaybackError {

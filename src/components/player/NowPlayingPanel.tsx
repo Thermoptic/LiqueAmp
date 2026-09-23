@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { attachEmbedSlot } from '../../services/playback/embedHost';
 import { ExternalLink, Heart, Pause, Play, Repeat, Repeat1, RotateCcw, Shuffle, SkipBack, SkipForward } from 'lucide-react';
 import { isItemFavorite, useFavorites } from '../../stores/favoritesStore';
 import { useUi } from '../../stores/uiStore';
@@ -34,6 +35,7 @@ export function NowPlayingPanel() {
   const item = usePlayback((s) => s.currentItem);
   const status = usePlayback((s) => s.status);
   const isLive = usePlayback((s) => s.isLive);
+  const mode = usePlayback((s) => s.mode);
 
   return (
     <section className="panel panel--strong now-playing area-main" aria-labelledby="np-heading">
@@ -45,7 +47,11 @@ export function NowPlayingPanel() {
       </header>
 
       <div className="now-playing__body">
-        <Artwork className="now-playing__art" src={item?.artwork} alt={item ? `Artwork for ${item.title}` : 'No artwork'} />
+        {mode === 'embedded' ? (
+          <EmbedSlot />
+        ) : (
+          <Artwork className="now-playing__art" src={item?.artwork} alt={item ? `Artwork for ${item.title}` : 'No artwork'} />
+        )}
 
         <div className="now-playing__info">
           <div className="now-playing__title-row">
@@ -89,6 +95,17 @@ export function NowPlayingPanel() {
   );
 }
 
+/**
+ * Where the official provider player appears. The player itself lives in a
+ * fixed host outside React (moving an iframe would reload it); this element
+ * only tells the host where to sit.
+ */
+function EmbedSlot() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => (ref.current ? attachEmbedSlot(ref.current) : undefined), []);
+  return <div ref={ref} className="now-playing__art now-playing__embed-slot" aria-hidden="true" />;
+}
+
 /** Provider, type and — only when the source declared them — codec and bitrate. */
 function NowPlayingBadges() {
   const item = usePlayback((s) => s.currentItem);
@@ -99,7 +116,7 @@ function NowPlayingBadges() {
   return (
     <div className="panel__actions now-playing__badges">
       <span className="badge">{PROVIDER_LABEL[item.provider] ?? item.provider}</span>
-      <span className="badge">{isLive ? 'Live' : item.playbackType === 'radio' ? 'Radio' : 'Stream'}</span>
+      <span className="badge">{isLive ? 'Live' : item.playbackType === 'radio' ? 'Radio' : item.playbackType === 'embed' ? 'Embed' : 'Stream'}</span>
       {item.metadata?.format === 'hls' && <span className="badge">HLS</span>}
       {info?.codec && (
         <span className="badge" title={title}>
@@ -161,6 +178,7 @@ const ANALYSIS_TEXT: Record<AnalysisAvailability, string> = {
   available: 'AUDIO SIGNAL AVAILABLE FOR ANALYSIS · VISUALIZERS NOT BUILT YET',
   'cors-blocked': 'VISUALIZER UNAVAILABLE · THIS SOURCE DOES NOT ALLOW BROWSER AUDIO ANALYSIS',
   unsupported: 'VISUALIZER UNAVAILABLE · WEB AUDIO IS NOT AVAILABLE',
+  'provider-restricted': 'VISUALIZER UNAVAILABLE · THE PROVIDER DOES NOT EXPOSE RAW AUDIO FOR BROWSER ANALYSIS',
 };
 
 function VisualizerSlot() {

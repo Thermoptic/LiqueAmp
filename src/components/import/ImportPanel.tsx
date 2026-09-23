@@ -13,7 +13,20 @@ const KIND_LABEL: Record<string, string> = {
   stream: 'Direct stream',
   hls: 'HLS stream',
   playlist: 'Playlist',
+  provider: 'Provider item',
 };
+
+function playbackNote(item: { provider: string; playbackType: string }): string {
+  const name = PROVIDER_LABEL[item.provider] ?? item.provider;
+  if (item.playbackType === 'external') return `Opens on ${name}; it cannot be played inside LIQUEAMP.`;
+  if (item.playbackType === 'embed') {
+    const base = `Official ${name} player, embedded. LIQUEAMP controls it but cannot read its audio, so there is no visualizer or EQ.`;
+    return item.provider === 'spotify'
+      ? `${base} Spotify decides what plays: full tracks if you are logged in to Spotify in this browser, otherwise previews. Volume is set in the Spotify player.`
+      : base;
+  }
+  return 'Native audio in the browser. Whether it plays, and whether analysis works, is known when it plays (CORS, codec).';
+}
 
 const STEP_LABEL: Record<ImportStep, string> = {
   detecting: 'DETECTING SOURCE…',
@@ -81,17 +94,6 @@ export function ImportPanel({ onDone }: { onDone?(): void }) {
             <p>{phase.preview.message}</p>
           </div>
         )}
-        {phase.kind === 'done' && phase.preview.status === 'provider-pending' && (
-          <div className="import__pending">
-            <Status tone="warn">RECOGNISED: {(PROVIDER_LABEL[phase.preview.detection.provider ?? ''] ?? '').toUpperCase()}</Status>
-            <p className="muted">
-              {phase.preview.detection.normalizedUrl}
-              <br />
-              Importing {PROVIDER_LABEL[phase.preview.detection.provider ?? '']} links needs the provider integration (title, artwork, official
-              player), which is not built yet. Nothing was saved.
-            </p>
-          </div>
-        )}
         {phase.kind === 'done' && phase.preview.status === 'ready' && (
           <PreviewEditor preview={phase.preview} onDone={onDone} />
         )}
@@ -143,6 +145,7 @@ function PreviewEditor({ preview, onDone }: { preview: Extract<ImportPreview, { 
           <dt>Type</dt>
           <dd>
             {KIND_LABEL[preview.kind] ?? preview.kind} · {preview.detection.confidence} confidence
+            {preview.detection.providerItemId ? ` · ${preview.detection.providerItemId}` : ''}
           </dd>
         </div>
         <div className="kv-list__row">
@@ -151,9 +154,10 @@ function PreviewEditor({ preview, onDone }: { preview: Extract<ImportPreview, { 
         </div>
         <div className="kv-list__row">
           <dt>Playback</dt>
-          <dd>Native audio in the browser. Whether it plays, and whether analysis works, is known when it plays (CORS, codec).</dd>
+          <dd>{playbackNote(first)}</dd>
         </div>
       </dl>
+      {first.artwork && <img className="import__artwork" src={first.artwork} alt="" referrerPolicy="no-referrer" />}
       {preview.notes.map((n) => (
         <p key={n} className="notice">
           {n}

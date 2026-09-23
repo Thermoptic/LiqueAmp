@@ -39,4 +39,6 @@ export interface AudioBackend {
   seek(seconds: number): void;
   setVolume(volume: number, muted: boolean): void;
   readonly currentTime: number;
+  /** False when the player does not let LIQUEAMP change volume (default true). */
+  readonly volumeControl?: boolean;
 }

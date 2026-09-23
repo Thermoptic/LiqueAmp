@@ -36,9 +36,39 @@ describe('previewImport', () => {
     expect(p.entries.map((e) => e.duplicateOf?.id ?? null)).toEqual([null, 'lib-1']);
   });
 
-  it('recognises provider links without inventing metadata', async () => {
-    const p = await previewImport('https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC', { library: [] });
-    expect(p.status).toBe('provider-pending');
+  it('resolves provider links through oEmbed into embedded items', async () => {
+    const oembed = (async () =>
+      new Response(JSON.stringify({ title: 'Never Gonna Give You Up', thumbnail_url: 'https://i.scdn.co/image/abc' }), {
+        headers: { 'content-type': 'application/json' },
+      })) as typeof fetch;
+    const p = await previewImport('https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC?si=x', { library: [], fetchImpl: oembed });
+    if (p.status !== 'ready') throw new Error(p.status);
+    const item = p.entries[0]!.item;
+    expect(p.kind).toBe('provider');
+    expect([item.provider, item.title, item.artist, item.playbackType, item.sourceUrl]).toEqual([
+      'spotify',
+      'Never Gonna Give You Up',
+      undefined,
+      'embed',
+      'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC',
+    ]);
+    expect(item.metadata?.providerItemId).toBe('spotify:track:4uLU6hMCjMI75M1A2tKUQC');
+  });
+
+  it('marks a provider item already in the library by its provider id', async () => {
+    const oembed = (async () => new Response(JSON.stringify({ title: 'Video', author_name: 'Channel' }))) as typeof fetch;
+    const existing = { ...libItem('https://www.youtube.com/watch?v=abcdefghijk'), provider: 'youtube' as const, metadata: { providerItemId: 'youtube:video:abcdefghijk' } };
+    const p = await previewImport('https://youtu.be/abcdefghijk', { library: [existing], fetchImpl: oembed });
+    if (p.status !== 'ready') throw new Error(p.status);
+    expect(p.entries[0]!.duplicateOf?.id).toBe('lib-1');
+  });
+
+  it('reports unknown provider items without inventing metadata', async () => {
+    const notFound = (async () => new Response('Not Found', { status: 404 })) as typeof fetch;
+    expect(await previewImport('https://soundcloud.com/someone/missing-track', { library: [], fetchImpl: notFound })).toMatchObject({
+      status: 'error',
+      title: 'NOT FOUND',
+    });
   });
 
   it('returns readable errors instead of throwing', async () => {

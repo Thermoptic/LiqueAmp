@@ -1568,3 +1568,86 @@ button.category-item[aria-pressed='true'] {
   min-height: 24px;
   font-size: var(--la-text-xs);
 }
+
+/* ---------- Provider players (phase 8) ---------- */
+/* Fixed host that holds provider iframes; positioned over the Now Playing
+   slot by embedHost.ts, or docked when the slot is not on screen. */
+.embed-host {
+  position: fixed;
+  z-index: 25;
+  background: var(--la-bg);
+  border: var(--la-border-width) solid var(--la-border-strong);
+  overflow: hidden;
+}
+
+.embed-host[hidden] {
+  display: none;
+}
+
+.embed-host--docked {
+  right: max(var(--la-space-4), env(safe-area-inset-right));
+  bottom: calc(var(--la-space-4) + env(safe-area-inset-bottom));
+  width: 220px;
+  height: 220px;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.5);
+  border-color: var(--la-primary);
+}
+
+@media (max-width: 767px) {
+  .embed-host--docked {
+    bottom: calc(var(--la-bottom-nav-h) + var(--la-mini-player-h) + env(safe-area-inset-bottom) + var(--la-space-2));
+  }
+}
+
+.embed-host__player,
+.embed-host__player > div,
+.embed-host__player iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.embed-host__player[hidden] {
+  display: none;
+}
+
+/* The slot reserves the player's space; provider terms need >= 200x200. */
+.now-playing__embed-slot {
+  aspect-ratio: 1;
+  min-width: 200px;
+  background: var(--la-bg);
+  border: var(--la-border-width) dashed var(--la-border);
+}
+
+.now-playing__body:has(.now-playing__embed-slot) {
+  grid-template-columns: clamp(200px, min(19vw, 28vh), 250px) minmax(0, 1fr);
+}
+
+@media (max-width: 767px) {
+  .now-playing__body:has(.now-playing__embed-slot) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .now-playing__embed-slot {
+    width: min(100%, 320px);
+    justify-self: center;
+  }
+}
+
+.volume__note {
+  font-size: var(--la-text-xs);
+}
+
+.import__artwork {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border: var(--la-border-width) solid var(--la-border);
+}
+
+/* The provider player follows the Now Playing slot while the page scrolls;
+   the fixed mobile bars must stay on top of it. */
+.bottom-nav,
+.mobile-mini {
+  z-index: 30;
+}

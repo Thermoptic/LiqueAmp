@@ -11,7 +11,8 @@ export type PlaybackErrorCode =
   | 'MIXED_CONTENT'
   | 'PROVIDER_NOT_SUPPORTED'
   | 'INVALID_SOURCE'
-  | 'PLAYLIST_UNREADABLE';
+  | 'PLAYLIST_UNREADABLE'
+  | 'EMBED_BLOCKED';
 
 export interface PlaybackError {
   code: PlaybackErrorCode;
@@ -27,9 +28,10 @@ export interface PlaybackError {
  * - available: routed through the Web Audio graph
  * - cors-blocked: playing, but the server does not allow browser access to samples
  * - unsupported: Web Audio is not available in this browser
+ * - provider-restricted: an official provider player plays it; no raw audio exists for the page
  * - inactive: nothing native is playing
  */
-export type AnalysisAvailability = 'inactive' | 'available' | 'cors-blocked' | 'unsupported';
+export type AnalysisAvailability = 'inactive' | 'available' | 'cors-blocked' | 'unsupported' | 'provider-restricted';
 
 export type AudioEngineState = 'not-started' | 'running' | 'suspended' | 'unavailable';
 
@@ -69,6 +71,8 @@ export interface PlaybackState {
   activeUrl: string | null;
   /** Increments on every load, so observers can tell replays of one item apart. */
   loadId: number;
+  /** False when the current provider player does not let LIQUEAMP set volume (PROVIDERS §50). */
+  canSetVolume: boolean;
 }
 
 export const INITIAL_PLAYBACK: PlaybackState = {
@@ -83,6 +87,7 @@ export const INITIAL_PLAYBACK: PlaybackState = {
   streamInfo: null,
   activeUrl: null,
   loadId: 0,
+  canSetVolume: true,
 };
 
 export const usePlayback = create<PlaybackState>(() => ({ ...INITIAL_PLAYBACK }));

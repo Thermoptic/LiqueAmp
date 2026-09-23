@@ -1,6 +1,6 @@
 # LIQUEAMP — Implementation Plan (Phase 1 audit)
 
-Status: Approved 2026-09-23. Phases 2–7 complete.
+Status: Approved 2026-09-23. Phases 2–8 complete.
 Date: 2026-09-22
 
 This file records the Phase 1 audit required by `LIQUEAMP_MASTER_BUILD_PROMPT.md`
@@ -101,9 +101,9 @@ items are based on current knowledge of the official APIs and must be tested.
 |---|---|---|---|---|
 | Direct stream | `<audio>` | Full (seek only if not live) | Title from URL/playlist file; codec/bitrate usually unknown | **Only if the server sends CORS headers** |
 | Internet radio | `<audio>` | Play/pause/volume; no seek | Station data from the Radio Browser directory (radio-browser.info) | Only if the stream sends CORS headers |
-| YouTube / YT Music | Official IFrame Player API (embedded) | Play/pause/seek/volume via API | Title via player API after load (oEmbed has no CORS — NOT VERIFIED) | **Never** (no raw audio) |
-| Spotify | Official Embed / iFrame API; external "Open in Spotify" | Limited (NOT VERIFIED) | oEmbed (NOT VERIFIED for CORS) | **Never** |
-| SoundCloud | Official Widget API (embedded) | Play/pause/seek/volume via API | oEmbed (NOT VERIFIED for CORS) | **Never** |
+| YouTube / YT Music | Official IFrame Player API (embedded); YouTube playlists open externally | Play/pause/seek/volume via API (verified) | oEmbed — CORS verified 2026-09-23 | **Never** (no raw audio) |
+| Spotify | Official iFrame API (embedded) | Play/pause/seek; **no volume** (verified). Full tracks only when logged in to Spotify in the browser, otherwise previews (verified: 30 s preview) | oEmbed — CORS verified; no artist field | **Never** |
+| SoundCloud | Official Widget API (embedded) | Play/pause/seek/volume via API (verified) | oEmbed — CORS verified | **Never** |
 
 Consequences that shape the design:
 
@@ -129,6 +129,10 @@ Consequences that shape the design:
   referrer (hotlink protection) but play without one. Phase 8: the YouTube
   IFrame player requires a referrer, so its iframe must set
   `referrerpolicy="strict-origin-when-cross-origin"` explicitly.
+- **Embedded players never move.** Moving an iframe reloads it, so provider
+  players live in one fixed host positioned over the Now Playing slot, or
+  docked (220×220) when the slot is not on screen. Provider terms require a
+  visible player (YouTube: at least 200×200), so it is never hidden.
 - **Spotify full-track playback** (Web Playback SDK) requires Premium and
   OAuth. PKCE works without a server, but this is deferred to Phase 8 and only built on request.
 
@@ -180,7 +184,7 @@ Each phase ends with typecheck, tests, build and a look at the running app
 | 5 ✅ | Radio | Radio Browser client, tabs (radio/genres/locations/mood), search/filter/sort, station info. |
 | 6 ✅ | Library | Categories, favorites, history recording, playlists, queue UI incl. reorder. |
 | 7 ✅ | URL import | Import pipeline with preview + duplicate detection. |
-| 8 | Providers | YouTube, YT Music, SoundCloud, Spotify adapters (embedded/external modes). |
+| 8 ✅ | Providers | YouTube, YT Music, SoundCloud, Spotify adapters (embedded/external modes). |
 | 9 | Themes | Theme editor, Base16/Base24/Tinted8 import, mapping editor, export. |
 | 10 | Audio analysis | Analyser service, normalized frames, EQ/bass/mid/treble DSP. |
 | 11 | Visualizers | Spectrum Bars, Waveform, Terminal Spectrum, Minimal Meter, Oscilloscope. |
