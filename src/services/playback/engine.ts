@@ -16,6 +16,7 @@ import { ProviderError } from '../providers/errors';
 import { PlaybackFailure, playbackError, providerNotSupported } from './errors';
 import { NativeAudioBackend } from './nativeAudio';
 import * as Q from './queue';
+import { effectiveGains } from '../analysis/eq';
 
 /** Seconds into a track after which Previous restarts it instead of going back. */
 const RESTART_THRESHOLD = 3;
@@ -94,8 +95,10 @@ export class PlaybackEngine {
     this.active = native;
     native.setListener(this.listenerFor(native));
     this.applyVolume();
+    native.setEq?.(effectiveGains(useSettings.getState().eq));
     useSettings.subscribe((s, prev) => {
       if (s.volume !== prev.volume || s.muted !== prev.muted) this.applyVolume();
+      if (s.eq !== prev.eq) native.setEq?.(effectiveGains(s.eq));
     });
   }
 
@@ -212,6 +215,11 @@ export class PlaybackEngine {
 
   seekBy(delta: number): void {
     this.seek(this.active.currentTime + delta);
+  }
+
+  /** Real-audio analyser for the current item, or null (provider players, no CORS, idle). */
+  getAnalyser(): AnalyserNode | null {
+    return this.active === this.native ? (this.native.getAnalyser?.() ?? null) : null;
   }
 
   // ---- backends --------------------------------------------------------------

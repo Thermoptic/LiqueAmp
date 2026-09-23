@@ -5,6 +5,7 @@ import { useThemes } from '../../stores/themeStore';
 import type { RepeatMode } from '../../types/settings';
 import { Field, PendingTag, Segmented, Toggle } from '../ui/controls';
 import { VolumeControl } from '../player/VolumeControl';
+import { EqControls } from '../audio/EqControls';
 
 function Module({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
   return (
@@ -22,10 +23,7 @@ export function AudioModule() {
   return (
     <Module title="Audio" icon={<Headphones size={15} aria-hidden="true" />}>
       <VolumeControl compact />
-      <div className="field">
-        <span className="field__label">Equalizer</span>
-        <PendingTag>Needs audio engine</PendingTag>
-      </div>
+      <EqControls />
     </Module>
   );
 }
@@ -103,7 +101,7 @@ export function AppearanceModule() {
 export function VisualizerModule() {
   return (
     <Module title="Visualizer" icon={<BarChart3 size={15} aria-hidden="true" />}>
-      <p className="control-module__note">Visualizers need the audio analysis engine, which is not built yet.</p>
+      <p className="control-module__note">The audio analysis is ready; the visualizers that use it are not built yet.</p>
       <PendingTag />
     </Module>
   );

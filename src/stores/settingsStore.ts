@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { kv } from '../services/storage/repository';
-import { DEFAULT_SETTINGS, type Settings } from '../types/settings';
+import { DEFAULT_SETTINGS, EQ_LIMIT_DB, type EqSettings, type Settings } from '../types/settings';
 
 const KEY = 'settings';
 
@@ -42,7 +42,19 @@ function sanitize(input: Partial<Settings> | undefined): Partial<Settings> {
   if (typeof input.muted === 'boolean') out.muted = input.muted;
   if (typeof input.shuffle === 'boolean') out.shuffle = input.shuffle;
   if (input.repeat === 'off' || input.repeat === 'all' || input.repeat === 'one') out.repeat = input.repeat;
+  if (input.eq && typeof input.eq === 'object') out.eq = sanitizeEq(input.eq);
   return out;
+}
+
+function sanitizeEq(eq: Partial<EqSettings>): EqSettings {
+  const db = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(-EQ_LIMIT_DB, Math.min(EQ_LIMIT_DB, Math.round(v))) : 0);
+  return {
+    enabled: typeof eq.enabled === 'boolean' ? eq.enabled : true,
+    preset: typeof eq.preset === 'string' ? eq.preset : 'custom',
+    bass: db(eq.bass),
+    mid: db(eq.mid),
+    treble: db(eq.treble),
+  };
 }
 
 function clamp01(v: number) {

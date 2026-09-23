@@ -54,6 +54,10 @@ class FakeBackend implements AudioBackend {
     this.volume = v;
     this.muted = m;
   }
+  eq = { bass: 99, mid: 99, treble: 99 };
+  setEq(g: { bass: number; mid: number; treble: number }) {
+    this.eq = g;
+  }
 }
 
 function item(id: string, extra: Partial<MediaItem> = {}): MediaItem {
@@ -188,6 +192,14 @@ describe('PlaybackEngine', () => {
     backend.listener.onError(playbackError('NETWORK_ERROR', 'lost'));
     backend.listener.onStatus('paused');
     expect(usePlayback.getState().status).toBe('error');
+  });
+
+  it('applies EQ settings to the native backend, zero when switched off', () => {
+    expect(backend.eq).toEqual({ bass: 0, mid: 0, treble: 0 });
+    useSettings.getState().update({ eq: { enabled: true, preset: 'custom', bass: 4, mid: -2, treble: 3 } });
+    expect(backend.eq).toEqual({ bass: 4, mid: -2, treble: 3 });
+    useSettings.getState().update({ eq: { enabled: false, preset: 'custom', bass: 4, mid: -2, treble: 3 } });
+    expect(backend.eq).toEqual({ bass: 0, mid: 0, treble: 0 });
   });
 
   it('applies and follows volume settings', () => {

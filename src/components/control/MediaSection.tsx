@@ -1,5 +1,6 @@
 import { usePlayback } from '../../stores/playbackStore';
 import { ImportPanel } from '../import/ImportPanel';
+import { AnalysisReadout } from './AnalysisReadout';
 import { Status } from '../ui/controls';
 
 /**
@@ -16,6 +17,7 @@ export function MediaSection() {
         <div className="panel__body">
           <ImportPanel />
           <NowPlayingDiagnostics />
+          <AnalysisReadout />
         </div>
       </section>
     </div>

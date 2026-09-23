@@ -1,6 +1,7 @@
 import type Hls from 'hls.js';
 import { codecFromContentType, codecFromHls, parseBitrate } from '../../lib/codec';
 import type { AnalysisAvailability, StreamInfo } from '../../stores/playbackStore';
+import { DEFAULT_FFT_SIZE, DEFAULT_SMOOTHING } from '../analysis/analysis';
 import type { StreamFormat } from '../providers/direct';
 import type { AudioBackend, BackendListener } from './backend';
 import { fromMediaError, fromPlayRejection, playbackError, PlaybackFailure } from './errors';
@@ -82,6 +83,11 @@ export class NativeAudioBackend implements AudioBackend {
   private listener: BackendListener | null = null;
   private ctx: AudioContext | null = null;
   private source: MediaElementAudioSourceNode | null = null;
+  // Graph: source → bass → mid → treble → destination, with an analyser tap
+  // after the EQ so visualizers see what is actually heard.
+  private eqNodes: { bass: BiquadFilterNode; mid: BiquadFilterNode; treble: BiquadFilterNode } | null = null;
+  private analyser: AnalyserNode | null = null;
+  private eqGains = { bass: 0, mid: 0, treble: 0 };
   private url = '';
   private analysis: AnalysisAvailability = 'inactive';
   private fellBack = false;
@@ -108,6 +114,33 @@ export class NativeAudioBackend implements AudioBackend {
   getAnalysisSource(): { context: AudioContext; node: AudioNode } | null {
     return this.active === this.analysed && this.ctx && this.source ? { context: this.ctx, node: this.source } : null;
   }
+
+  /** The analyser for the current source, only while real samples flow through Web Audio. */
+  getAnalyser(): AnalyserNode | null {
+    return this.active === this.analysed && this.analyser && this.ctx?.state === 'running' ? this.analyser : null;
+  }
+
+  /** Sets EQ gains in dB. They only affect sources routed through Web Audio. */
+  setEq(gains: { bass: number; mid: number; treble: number }): void {
+    this.eqGains = gains;
+    if (!this.eqNodes || !this.ctx) return;
+    const t = this.ctx.currentTime;
+    // Short ramps avoid clicks when a slider moves.
+    this.eqNodes.bass.gain.setTargetAtTime(gains.bass, t, 0.03);
+    this.eqNodes.mid.gain.setTargetAtTime(gains.mid, t, 0.03);
+    this.eqNodes.treble.gain.setTargetAtTime(gains.treble, t, 0.03);
+  }
+
+  /** Advanced analyser configuration (VIS §9–11); applied immediately if the graph exists. */
+  configureAnalyser(fftSize: number, smoothing: number): void {
+    this.analyserConfig = { fftSize, smoothing };
+    if (this.analyser) {
+      this.analyser.fftSize = fftSize;
+      this.analyser.smoothingTimeConstant = smoothing;
+    }
+  }
+
+  private analyserConfig = { fftSize: DEFAULT_FFT_SIZE, smoothing: DEFAULT_SMOOTHING };
 
   /**
    * Must be called synchronously inside a user gesture (click/keypress).
@@ -398,8 +431,20 @@ export class NativeAudioBackend implements AudioBackend {
       this.prime();
       if (!this.ctx) return false;
       if (!this.source) {
-        this.source = this.ctx.createMediaElementSource(this.analysed);
-        this.source.connect(this.ctx.destination);
+        const ctx = this.ctx;
+        this.source = ctx.createMediaElementSource(this.analysed);
+        const bass = new BiquadFilterNode(ctx, { type: 'lowshelf', frequency: 200 });
+        const mid = new BiquadFilterNode(ctx, { type: 'peaking', frequency: 1000, Q: 0.8 });
+        const treble = new BiquadFilterNode(ctx, { type: 'highshelf', frequency: 4000 });
+        const analyser = new AnalyserNode(ctx, {
+          fftSize: this.analyserConfig.fftSize,
+          smoothingTimeConstant: this.analyserConfig.smoothing,
+        });
+        this.source.connect(bass).connect(mid).connect(treble).connect(ctx.destination);
+        treble.connect(analyser);
+        this.eqNodes = { bass, mid, treble };
+        this.analyser = analyser;
+        this.setEq(this.eqGains);
       }
       if (this.ctx.state !== 'running') await this.ctx.resume();
       return this.ctx.state === 'running';

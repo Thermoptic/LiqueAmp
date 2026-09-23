@@ -12,6 +12,7 @@ import type { RepeatMode } from '../../types/settings';
 import { Artwork } from '../ui/Artwork';
 import { Status, type StatusTone } from '../ui/controls';
 import { VolumeControl } from './VolumeControl';
+import { EqSummary } from '../audio/EqControls';
 
 export const PROVIDER_LABEL: Record<string, string> = {
   direct: 'Direct',
@@ -307,6 +308,7 @@ function TransportRow() {
       </div>
       <VolumeControl />
       <div className="transport__modes">
+        <EqSummary />
         <FavouriteButton />
         <button type="button" className="btn btn--accent-outline" onClick={() => update({ repeat: NEXT_REPEAT[repeat] })}>
           [R] Repeat: {repeat}

@@ -2,6 +2,18 @@ export type MotionPreference = 'system' | 'reduced' | 'full';
 
 export type RepeatMode = 'off' | 'all' | 'one';
 
+/** Three-band EQ in dB (−12…+12). Applied only where the browser may process the audio. */
+export interface EqSettings {
+  enabled: boolean;
+  /** Preset id, or 'custom' after manual changes. */
+  preset: string;
+  bass: number;
+  mid: number;
+  treble: number;
+}
+
+export const EQ_LIMIT_DB = 12;
+
 /** Persistent user settings (ARCH §24). Ephemeral UI state lives elsewhere. */
 export interface Settings {
   activeThemeId: string;
@@ -12,6 +24,7 @@ export interface Settings {
   muted: boolean;
   shuffle: boolean;
   repeat: RepeatMode;
+  eq: EqSettings;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -22,4 +35,5 @@ export const DEFAULT_SETTINGS: Settings = {
   muted: false,
   shuffle: false,
   repeat: 'off',
+  eq: { enabled: true, preset: 'flat', bass: 0, mid: 0, treble: 0 },
 };

@@ -41,4 +41,8 @@ export interface AudioBackend {
   readonly currentTime: number;
   /** False when the player does not let LIQUEAMP change volume (default true). */
   readonly volumeControl?: boolean;
+  /** Native audio only: EQ gains in dB, applied when the source is routed through Web Audio. */
+  setEq?(gains: { bass: number; mid: number; treble: number }): void;
+  /** Native audio only: the analyser, while real samples are readable. */
+  getAnalyser?(): AnalyserNode | null;
 }
