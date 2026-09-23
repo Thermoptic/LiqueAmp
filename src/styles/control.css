@@ -468,3 +468,9 @@
     display: none;
   }
 }
+
+.control-loading {
+  padding: var(--la-space-5);
+  color: var(--la-text-muted);
+  letter-spacing: 0.1em;
+}
