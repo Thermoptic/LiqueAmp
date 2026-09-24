@@ -1,9 +1,20 @@
+import type { CSSProperties } from 'react';
+import bodyMask from '../../assets/logo/body.png';
+import noteMask from '../../assets/logo/note.png';
+
+const mask = (url: string): CSSProperties => ({ maskImage: `url(${url})`, WebkitMaskImage: `url(${url})` });
+
+/**
+ * The LIQUEAMP mark. Two alpha masks cut from the logo artwork
+ * (scripts/split-logo.mjs) are filled with theme colours, so the mark follows
+ * the active theme: the play triangle and drop in the text colour, the music
+ * note in the theme's primary colour.
+ */
 export function LogoMark({ size = 44 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true" className="logo-mark">
-      <circle cx="32" cy="32" r="27" className="logo-mark__ring" />
-      <path d="M24 17v30h18" className="logo-mark__l" />
-      <circle cx="42" cy="21" r="3.5" className="logo-mark__dot" />
-    </svg>
+    <span className="logo-mark" style={{ width: size, height: size }} aria-hidden="true">
+      <span className="logo-mark__layer logo-mark__body" style={mask(bodyMask)} />
+      <span className="logo-mark__layer logo-mark__note" style={mask(noteMask)} />
+    </span>
   );
 }

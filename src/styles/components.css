@@ -222,21 +222,30 @@
   margin: 0;
 }
 
-.logo-mark__ring {
-  fill: none;
-  stroke: var(--la-text-secondary);
-  stroke-width: 3;
+/* Logo artwork as two masks filled with theme colours (see Logo.tsx) */
+.logo-mark {
+  position: relative;
+  display: inline-block;
+  flex: none;
 }
 
-.logo-mark__l {
-  fill: none;
-  stroke: var(--la-text);
-  stroke-width: 6;
-  stroke-linecap: square;
+.logo-mark__layer {
+  position: absolute;
+  inset: 0;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
 }
 
-.logo-mark__dot {
-  fill: var(--la-secondary);
+.logo-mark__body {
+  background: var(--la-text);
+}
+
+.logo-mark__note {
+  background: var(--la-primary);
 }
 
 /* ---------- Artwork ---------- */
