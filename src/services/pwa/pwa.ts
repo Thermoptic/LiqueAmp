@@ -121,7 +121,8 @@ export function startPwa(): void {
   });
 
   navigator.serviceWorker
-    .register('/sw.js', { scope: '/' })
+    // relative to the base path, so it also works under a sub-path such as /LiqueAmp/
+    .register(`${import.meta.env.BASE_URL}sw.js`, { scope: import.meta.env.BASE_URL })
     .then(async (reg) => {
       registration = reg;
       watchForUpdates(reg);

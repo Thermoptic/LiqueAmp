@@ -8,26 +8,30 @@ const ControlPage = lazy(() => import('../components/control/ControlPage').then(
 
 // All dashboard paths share one element so switching sections never remounts
 // the dashboard. /control is a separate page.
-export const router = createBrowserRouter([
-  {
-    path: '/',
-    element: <Dashboard />,
-    children: [
-      { index: true, element: null },
-      { path: 'browse', element: null },
-      { path: 'playlists', element: null },
-      { path: 'favourites', element: null },
-      { path: 'history', element: null },
-      { path: 'settings', element: null },
-    ],
-  },
-  {
-    path: '/control/:section?',
-    element: (
-      <Suspense fallback={<p className="control-loading">LOADING CONTROL…</p>}>
-        <ControlPage />
-      </Suspense>
-    ),
-  },
-  { path: '*', element: <Dashboard /> },
-]);
+export const router = createBrowserRouter(
+  [
+    {
+      path: '/',
+      element: <Dashboard />,
+      children: [
+        { index: true, element: null },
+        { path: 'browse', element: null },
+        { path: 'playlists', element: null },
+        { path: 'favourites', element: null },
+        { path: 'history', element: null },
+        { path: 'settings', element: null },
+      ],
+    },
+    {
+      path: '/control/:section?',
+      element: (
+        <Suspense fallback={<p className="control-loading">LOADING CONTROL…</p>}>
+          <ControlPage />
+        </Suspense>
+      ),
+    },
+    { path: '*', element: <Dashboard /> },
+  ],
+  // The app may be served from a sub-path (GitHub Pages: /LiqueAmp/); routes stay base-relative.
+  { basename: import.meta.env.BASE_URL.replace(/\/$/, '') || '/' },
+);

@@ -17,6 +17,15 @@ describe('service worker build', () => {
     expect(shouldPrecache('/assets/hls-D9b4QHpD.js')).toBe(false);
     expect(shouldPrecache('/assets/ControlPage-x.js')).toBe(true);
     expect(precacheManifest(files).urls).toEqual(['/assets/index-abc.js', '/icons/icon-192.png', '/index.html']);
+    expect(shouldPrecache('/404.html')).toBe(false); // same shell as index.html
+  });
+
+  it('prefixes every URL with the base path (GitHub Pages sub-path)', () => {
+    const m = precacheManifest(files, '/LiqueAmp/');
+    expect(m.base).toBe('/LiqueAmp/');
+    expect(m.urls).toEqual(['/LiqueAmp/assets/index-abc.js', '/LiqueAmp/icons/icon-192.png', '/LiqueAmp/index.html']);
+    // the version depends on content, not on where it is served
+    expect(m.version).toBe(precacheManifest(files).version);
   });
 
   it('the version changes with any shell file, and only then', () => {
@@ -28,10 +37,11 @@ describe('service worker build', () => {
 
   it('fills the real template and leaves no placeholder behind', () => {
     const template = readFileSync(new URL('./service-worker.js', import.meta.url), 'utf8');
-    const out = renderServiceWorker(template, { urls: ['/index.html'], version: 'v123' });
+    const out = renderServiceWorker(template, { urls: ['/x/index.html'], version: 'v123', base: '/x/' });
     expect(out).toContain("const VERSION = 'v123';");
-    expect(out).toContain('const PRECACHE = ["/index.html"];');
-    expect(out).not.toMatch(/__VERSION__|__PRECACHE__/);
+    expect(out).toContain('const BASE = "/x/";');
+    expect(out).toContain('const PRECACHE = ["/x/index.html"];');
+    expect(out).not.toMatch(/__VERSION__|__BASE__|__PRECACHE__/);
     expect(() => renderServiceWorker('const VERSION = 1;', { urls: [], version: 'x' })).toThrow();
   });
 

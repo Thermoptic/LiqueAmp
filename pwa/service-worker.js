@@ -1,6 +1,6 @@
 /*
  * LIQUEAMP service worker (ARCH §34, MASTER §71).
- * Template — the build fills in the version and the precache list (see
+ * Template — the build fills in the version, base path and precache list (see
  * pwa/serviceWorkerPlugin.ts). Not used in development.
  *
  * What it does:
@@ -14,6 +14,8 @@
  *    asks for it, so an update cannot cut off playback
  */
 const VERSION = '__VERSION__';
+/** Where the app is served from, e.g. "/" or "/LiqueAmp/" (GitHub Pages). */
+const BASE = '__BASE__';
 const PRECACHE = __PRECACHE__;
 const SHELL_CACHE = `liqueamp-shell-${VERSION}`;
 /** Same-origin build assets that are not precached (e.g. the HLS chunk), cached on first use. */
@@ -52,13 +54,13 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(appShell(request));
     return;
   }
-  if (PRECACHE.includes(url.pathname) || url.pathname.startsWith('/assets/')) {
+  if (PRECACHE.includes(url.pathname) || url.pathname.startsWith(`${BASE}assets/`)) {
     event.respondWith(cacheFirst(request, url));
   }
 });
 
 async function appShell(request) {
-  const cached = await caches.match('/index.html', { cacheName: SHELL_CACHE, ignoreVary: true });
+  const cached = await caches.match(`${BASE}index.html`, { cacheName: SHELL_CACHE, ignoreVary: true });
   return cached || fetch(request);
 }
 
@@ -69,7 +71,7 @@ async function cacheFirst(request, url) {
   const cached = await caches.match(request, { ignoreVary: true });
   if (cached) return cached;
   const response = await fetch(request);
-  if (response.ok && url.pathname.startsWith('/assets/')) {
+  if (response.ok && url.pathname.startsWith(`${BASE}assets/`)) {
     const cache = await caches.open(RUNTIME_CACHE);
     await cache.put(request, response.clone());
   }
