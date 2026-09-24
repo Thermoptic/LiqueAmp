@@ -94,3 +94,13 @@ a {
   font-weight: 800;
   letter-spacing: 0.02em;
 }
+
+/* static start-up line in index.html, visible until the app renders */
+.boot {
+  margin: 0;
+  padding: var(--la-space-4);
+  font-family: var(--la-font-mono);
+  font-size: var(--la-text-sm);
+  letter-spacing: 0.1em;
+  color: var(--la-text-muted);
+}

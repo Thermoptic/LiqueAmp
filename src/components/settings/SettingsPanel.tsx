@@ -5,6 +5,7 @@ import type { MotionPreference } from '../../types/settings';
 import { Segmented, Status, Toggle } from '../ui/controls';
 import { SHORTCUTS } from '../../services/input/keyboard';
 import { PwaSettings } from '../pwa/PwaControls';
+import { EqControls } from '../audio/EqControls';
 import { MiniPlayer } from '../player/MiniPlayer';
 
 const MOTION_OPTIONS = [
@@ -42,6 +43,13 @@ export function SettingsPanel() {
             <Segmented label="Motion" value={motion} options={MOTION_OPTIONS} onChange={(v) => update({ motion: v })} />
           </div>
           <p className="settings-group__note">System follows your operating system's reduced-motion preference.</p>
+        </section>
+
+        <section className="settings-group" aria-labelledby="set-eq">
+          <h3 id="set-eq" className="settings-group__title">
+            Equalizer
+          </h3>
+          <EqControls />
         </section>
 
         <section className="settings-group" aria-labelledby="set-keys">

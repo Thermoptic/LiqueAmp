@@ -4,3 +4,4 @@ dev-dist/
 coverage/
 *.log
 .vite/
+e2e/output/

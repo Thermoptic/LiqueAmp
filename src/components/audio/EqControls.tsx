@@ -60,8 +60,12 @@ export function EqPresetSelect({ id, compact }: { id?: string; compact?: boolean
   );
 }
 
-/** Full EQ controls for the Audio module and Settings. */
-export function EqControls() {
+/**
+ * EQ controls. Full (preset, switch, three band sliders) in Settings; compact
+ * (preset, switch, status) in the control strip, where the bands are set with
+ * the BASS / MID / TREBLE controls in Now Playing.
+ */
+export function EqControls({ compact = false }: { compact?: boolean }) {
   const eq = useSettings((s) => s.eq);
   const update = useSettings((s) => s.update);
   const presetId = useId();
@@ -85,7 +89,7 @@ export function EqControls() {
           </button>
         </div>
       </div>
-      {(['bass', 'mid', 'treble'] as const).map((band) => (
+      {!compact && (['bass', 'mid', 'treble'] as const).map((band) => (
         <div key={band} className="field eq__band">
           <span className="field__label">{band[0]!.toUpperCase() + band.slice(1)}</span>
           <span className="eq__slider">
@@ -108,18 +112,40 @@ export function EqControls() {
   );
 }
 
-/** Compact EQ readout for the Now Playing panel, like the reference design. */
+const BAND_STEPS = Array.from({ length: EQ_LIMIT_DB * 2 + 1 }, (_, i) => i - EQ_LIMIT_DB);
+const short = (db: number) => `${db > 0 ? '+' : ''}${db}`;
+
+/**
+ * EQ row in Now Playing, like the reference design: preset plus BASS / MID /
+ * TREBLE, each a small ±12 dB selector (native select: keyboard and screen
+ * reader friendly).
+ */
 export function EqSummary() {
   const eq = useSettings((s) => s.eq);
+  const update = useSettings((s) => s.update);
   const analysis = usePlayback((s) => s.analysis);
-  const [, tone] = eqStatus(analysis, eq.enabled);
-  const short = (db: number) => `${db > 0 ? '+' : ''}${db}`;
+  const [status, tone] = eqStatus(analysis, eq.enabled);
   return (
-    <div className={`eq-summary eq-summary--${tone}`} title={eqStatus(analysis, eq.enabled)[0]}>
+    <div className={`eq-summary eq-summary--${tone}`} title={status}>
       <EqPresetSelect compact />
-      <span className="eq-summary__band">BASS {short(eq.bass)}</span>
-      <span className="eq-summary__band">MID {short(eq.mid)}</span>
-      <span className="eq-summary__band">TREBLE {short(eq.treble)}</span>
+      {(['bass', 'mid', 'treble'] as const).map((band) => (
+        <label key={band} className="eq-summary__band">
+          <span aria-hidden="true">{band.toUpperCase()}</span>
+          <select
+            className="eq-summary__select"
+            aria-label={`${band} gain, dB`}
+            value={eq[band]}
+            disabled={!eq.enabled}
+            onChange={(e) => update({ eq: setBand(eq, band, Number(e.currentTarget.value)) })}
+          >
+            {BAND_STEPS.map((db) => (
+              <option key={db} value={db}>
+                {short(db)}
+              </option>
+            ))}
+          </select>
+        </label>
+      ))}
     </div>
   );
 }

@@ -9,12 +9,13 @@ import { EqControls } from '../audio/EqControls';
 import { Link } from 'react-router';
 import { VisualizerQuickControls } from '../visualizer/VisualizerControls';
 
-function Module({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
+function Module({ title, icon, action, children }: { title: string; icon: ReactNode; action?: ReactNode; children: ReactNode }) {
   return (
     <section className="panel control-module" aria-label={title}>
       <header className="control-module__header">
         {icon}
         <h3 className="panel__title panel__title--small">{title}</h3>
+        {action}
       </header>
       <div className="control-module__body">{children}</div>
     </section>
@@ -25,7 +26,7 @@ export function AudioModule() {
   return (
     <Module title="Audio" icon={<Headphones size={15} aria-hidden="true" />}>
       <VolumeControl compact />
-      <EqControls />
+      <EqControls compact />
     </Module>
   );
 }
@@ -102,11 +103,16 @@ export function AppearanceModule() {
 
 export function VisualizerModule() {
   return (
-    <Module title="Visualizer" icon={<BarChart3 size={15} aria-hidden="true" />}>
+    <Module
+      title="Visualizer"
+      icon={<BarChart3 size={15} aria-hidden="true" />}
+      action={
+        <Link to="/control/visualizers" className="control-module__link control-module__action">
+          More settings →
+        </Link>
+      }
+    >
       <VisualizerQuickControls />
-      <Link to="/control/visualizers" className="control-module__link">
-        More visualizer settings →
-      </Link>
     </Module>
   );
 }

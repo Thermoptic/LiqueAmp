@@ -23,7 +23,8 @@ interface FavoritesStore {
 
 const favId = (type: FavoriteType, refId: string) => `${type}:${refId}`;
 
-function stationFor(item: MediaItem, stations: Record<string, RadioStation>): RadioStation | undefined {
+/** The saved/seen station record behind a playing radio item, if any. */
+export function stationFor(item: MediaItem, stations: Record<string, RadioStation>): RadioStation | undefined {
   const id = typeof item.metadata?.stationId === 'string' ? item.metadata.stationId : item.id;
   return item.provider === 'radio' ? stations[id] : undefined;
 }

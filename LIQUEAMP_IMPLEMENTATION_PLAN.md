@@ -1,6 +1,6 @@
 # LIQUEAMP — Implementation Plan (Phase 1 audit)
 
-Status: Approved 2026-09-23. Phases 2–14 complete.
+Status: Approved 2026-09-23. All phases (2–15) complete 2026-09-24 — see §7.
 Date: 2026-09-22
 
 This file records the Phase 1 audit required by `LIQUEAMP_MASTER_BUILD_PROMPT.md`
@@ -150,22 +150,36 @@ location are omitted because they would need an external service. The
 
 ## 5. Source layout
 
+As built (updated in phase 15; the phase-1 proposal differed in detail):
+
 ```text
 src/
-  app/            routes, providers, app shell
-  components/     layout/, navigation/, player/, radio/, library/,
-                  playlists/, queue/, history/, favorites/, search/,
-                  audio/, visualizer/, settings/, control/, ui/
+  app/            bootstrap (hydration, engine, media session, keyboard, PWA),
+                  router (base-path aware), dashboard, sections
+  components/     audio/ control/ import/ layout/ library/ navigation/ player/
+                  pwa/ queue/ radio/ settings/ ui/ visualizer/
   services/
-    playback/     PlaybackEngine, audio graph, media session
-    providers/    registry, detectProvider, one adapter per provider
-    storage/      idb repositories, migrations
-    themes/       parser (base16/24/tinted8), mapping, apply
-    analysis/     AnalyserNode → normalized VisualizerFrame
-  visualizers/    registry + one module per visualizer
-  stores/         zustand slices (playback, library, queue, …)
-  types/          MediaItem, RadioStation, Playlist, Theme, …
-  styles/         tokens.css, base.css
+    playback/     PlaybackEngine (the one engine), native audio + Web Audio
+                  graph, embedded provider players, queue, history recorder,
+                  media session
+    providers/    detection, direct/playlist resolution, oEmbed, runtime
+                  status, source testing
+    analysis/     AnalyserNode reader, features, EQ
+    visualizers/  registry, renderer, one module per visualizer
+    radio/        radio-browser.info client, stations, moods
+    themes/       theme model, Base16/Base24/Tinted8 import/export
+    import/       URL import pipeline
+    backup/       JSON backup export, validation, transactional import
+    storage/      IndexedDB (idb) + repositories
+    input/        keyboard layer          a11y/  live-region announcer
+    pwa/          service worker registration, install, updates
+  stores/         zustand stores (settings, playback, queue, library, …)
+  types/          media, settings, advanced (/control), theme, visualizer
+  lib/            small helpers (format, ids, script loading, fields)
+  styles/         tokens.css, base, ui, layout, components, control
+pwa/              service-worker template + Vite plugin (precache, 404.html)
+e2e/              acceptance test (MASTER §88) and performance measurements
+scripts/          icon generation
 ```
 
 ---
@@ -191,8 +205,62 @@ Each phase ends with typecheck, tests, build and a look at the running app
 | 12 ✅ | Integration | Media Session, keyboard shortcuts, accessibility pass. |
 | 13 ✅ | PWA | Manifest, icons, service worker, offline shell. |
 | 14 ✅ | Control panel | Media/provider/category management, import/export, diagnostics. |
-| 15 | Hardening | Acceptance test (MASTER §88), performance, visual refinement. |
+| 15 ✅ | Hardening | Acceptance test (MASTER §88), performance, visual refinement. |
 
 Deferred unless requested: crossfade (needs two simultaneous native sources;
 possible only for direct/radio), visualizer generator (SPEC §33), light theme,
 Spotify Web Playback SDK.
+
+---
+
+## 7. Completion (phase 15)
+
+### Acceptance test (MASTER §88)
+
+`npm run e2e` builds the app and runs the 30 acceptance checks — plus an
+axe-core accessibility audit — in every installed Chrome/Edge, headless, in a
+throwaway profile. It serves the build like GitHub Pages (base path, 404.html
+fallback), plays generated audio from two local servers (one with CORS, one
+without) and drives the real UI with mouse and keyboard input. Reports:
+`e2e/output/report-<browser>.md`.
+
+Result on 2026-09-24: **31/31 in Chrome and 31/31 in Edge.**
+
+NOT VERIFIED (not available on the test machine or not scriptable):
+Firefox, Safari/iOS, installing on a real phone, lock-screen / notification
+media controls on a device (handlers are verified; the OS UI is not),
+Spotify playback while logged in to Spotify.
+
+### Performance (measured, `npm run perf`)
+
+- Steady playback with the spectrum visualizer: ~18 ms script per second
+  (~0.3 ms per frame), ~5 layouts/s, DOM updates only in Now Playing (clock)
+  and the status bar; without visualizer ~2 ms/s.
+- Memory: JS heap flat over a minute of playback (6.1 → 6.0 MB after GC).
+- A warm full relayout of the dashboard takes < 1 ms; the one-off cost at a
+  cold start (first text shaping with the web fonts) is not a CSS problem.
+- First contentful paint, cold / warm (service worker): desktop 352 / 44 ms;
+  simulated phone (4× CPU, 4G) 808 / 76 ms. The cold figure is the static
+  "LIQUEAMP · STARTING…" line in index.html; the dashboard itself follows once
+  local data is loaded (deliberate, so the saved theme never flashes).
+- Build: React + router in their own chunk (~60% of the code), so an update
+  re-downloads only the app chunk (~195 kB, ~59 kB gzip). The remaining
+  >500 kB warning is hls.js, loaded only when an HLS stream plays.
+
+### Decisions made after the phase plan
+
+- **GitHub Pages** (`base: '/LiqueAmp/'`): router basename, service worker
+  scope/precache under the base path, relative manifest, 404.html app shell for
+  deep links. The app also still works when served from `/`.
+- **EQ in the player**: BASS / MID / TREBLE in Now Playing are ±12 dB
+  selectors (as in the reference); the control strip shows volume, preset and
+  status; the full sliders live in Settings › Equalizer. This keeps the control
+  strip compact so the dashboard fits a 1920×1080 viewport.
+- **Station Info** shows the playing station when nothing is selected
+  (marked NOW PLAYING), as Quick Actions already did.
+- **/control** holds provider enable/disable, media enable/disable, backup
+  import/export (format `liqueamp-backup` v1) and analyser/render settings;
+  none of it stores secrets.
+- **Unchanged by design**: no listener counts, CPU/memory/latency or weather
+  (not measurable in a browser); crossfade still deferred.
+

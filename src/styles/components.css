@@ -1925,3 +1925,54 @@ kbd {
 .viz-controls__slider {
   grid-template-columns: minmax(min-content, 0.6fr) minmax(0, 1.6fr);
 }
+
+/* BASS / MID / TREBLE selectors in Now Playing: the chip is the control */
+.eq-summary__band {
+  gap: var(--la-space-1);
+  cursor: pointer;
+}
+
+.eq-summary__band:focus-within {
+  outline: 2px solid var(--la-focus);
+  outline-offset: 1px;
+}
+
+.eq-summary__select {
+  appearance: none;
+  padding: 0 var(--la-space-1);
+  border: 0;
+  background: transparent;
+  color: var(--la-accent-bright);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.eq-summary__select:focus-visible {
+  outline: none;
+}
+
+.eq-summary__select option {
+  background: var(--la-surface);
+  color: var(--la-text);
+}
+
+.eq-summary__select:disabled {
+  color: var(--la-text-muted);
+  cursor: not-allowed;
+}
+
+/* a module-level link sits at the right of the module header */
+.control-module__action {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* BASS / MID / TREBLE: the select is only as wide as "+12", so the row keeps
+   the chip widths of the reference and does not wrap */
+.eq-summary__select {
+  width: 3ch;
+  padding: 0;
+  text-align: right;
+  text-align-last: right;
+}
