@@ -11,6 +11,8 @@ const TITLES: Record<PlaybackErrorCode, string> = {
   INVALID_SOURCE: 'INVALID SOURCE',
   PLAYLIST_UNREADABLE: 'PLAYLIST UNREADABLE',
   EMBED_BLOCKED: 'EMBEDDING NOT ALLOWED',
+  PROVIDER_DISABLED: 'PROVIDER DISABLED',
+  MEDIA_DISABLED: 'ITEM DISABLED',
 };
 
 export function playbackError(code: PlaybackErrorCode, message: string, recoverable = true): PlaybackError {

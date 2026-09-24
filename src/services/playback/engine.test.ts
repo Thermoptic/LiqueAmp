@@ -54,6 +54,10 @@ class FakeBackend implements AudioBackend {
     this.volume = v;
     this.muted = m;
   }
+  analyser: [number, number] | null = null;
+  configureAnalyser(fft: number, smoothing: number) {
+    this.analyser = [fft, smoothing];
+  }
   eq = { bass: 99, mid: 99, treble: 99 };
   setEq(g: { bass: number; mid: number; treble: number }) {
     this.eq = g;
@@ -192,6 +196,29 @@ describe('PlaybackEngine', () => {
     backend.listener.onError(playbackError('NETWORK_ERROR', 'lost'));
     backend.listener.onStatus('paused');
     expect(usePlayback.getState().status).toBe('error');
+  });
+
+  it('applies and follows the advanced analyser settings from /control', () => {
+    expect(backend.analyser).toEqual([2048, 0.7]);
+    useSettings.getState().update({ analysis: { fftSize: 8192, smoothing: 0.4 } });
+    expect(backend.analyser).toEqual([8192, 0.4]);
+  });
+
+  it('a provider disabled in /control is reported, never played', async () => {
+    useSettings.setState({ providers: { ...DEFAULT_SETTINGS.providers, direct: { enabled: false } } });
+    await engine.playNow(item('a'));
+    expect(usePlayback.getState()).toMatchObject({ status: 'error', error: { code: 'PROVIDER_DISABLED', provider: 'direct' } });
+    expect(backend.loaded).toEqual([]);
+  });
+
+  it('disabled media are left out of lists and refused when played directly', async () => {
+    await engine.playList([item('a', { enabled: false }), item('b'), item('c')], 2);
+    expect(useQueue.getState().entries.map((e) => e.item.id)).toEqual(['b', 'c']);
+    expect(usePlayback.getState().currentItem?.id).toBe('c');
+    engine.enqueue([item('d', { enabled: false })]);
+    expect(useQueue.getState().entries).toHaveLength(2);
+    await engine.playNow(item('x', { enabled: false }));
+    expect(usePlayback.getState().error?.code).toBe('MEDIA_DISABLED');
   });
 
   it('applies EQ settings to the native backend, zero when switched off', () => {

@@ -7,6 +7,8 @@ import { EmptyState, onTablistKeyDown, Status, Toggle } from '../ui/controls';
 import { StationRow } from './StationRow';
 import { RowList } from '../ui/RowList';
 import { useSystem } from '../../stores/systemStore';
+import { useSettings } from '../../stores/settingsStore';
+import { Link } from 'react-router';
 
 const TABS: ReadonlyArray<{ id: RadioTab; label: string }> = [
   { id: 'radio', label: 'Radio' },
@@ -25,6 +27,20 @@ const ORDERS: ReadonlyArray<{ value: StationOrder; label: string }> = [
 export function RadioBrowserPanel({ focusSearch }: { focusSearch: boolean }) {
   const tab = useRadio((s) => s.tab);
   const setTab = useRadio((s) => s.setTab);
+  const enabled = useSettings((s) => s.providers.radio.enabled);
+
+  if (!enabled) {
+    // Switched off in /control: no directory requests at all.
+    return (
+      <section className="panel radio-browser area-radio" aria-label="Radio browser">
+        <div className="panel__body">
+          <EmptyState title="RADIO DISABLED">
+            The radio directory is switched off in <Link to="/control/providers">/control › Providers</Link>.
+          </EmptyState>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="panel radio-browser area-radio" aria-label="Radio browser">

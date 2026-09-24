@@ -12,7 +12,9 @@ export type PlaybackErrorCode =
   | 'PROVIDER_NOT_SUPPORTED'
   | 'INVALID_SOURCE'
   | 'PLAYLIST_UNREADABLE'
-  | 'EMBED_BLOCKED';
+  | 'EMBED_BLOCKED'
+  | 'PROVIDER_DISABLED'
+  | 'MEDIA_DISABLED';
 
 export interface PlaybackError {
   code: PlaybackErrorCode;

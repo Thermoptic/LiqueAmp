@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { kv } from '../services/storage/repository';
 import { sanitizeVisualizer } from '../types/visualizer';
+import { sanitizeAnalysis, sanitizeProviders, sanitizeRender } from '../types/advanced';
 import { DEFAULT_SETTINGS, EQ_LIMIT_DB, type EqSettings, type Settings } from '../types/settings';
 
 const KEY = 'settings';
@@ -11,7 +12,8 @@ interface SettingsStore extends Settings {
   update(patch: Partial<Settings>): void;
 }
 
-function pickSettings(s: Settings): Settings {
+/** Only the persisted settings fields (no store methods / flags). */
+export function pickSettings(s: Settings): Settings {
   const out = {} as Record<keyof Settings, unknown>;
   for (const key of Object.keys(DEFAULT_SETTINGS) as Array<keyof Settings>) out[key] = s[key];
   return out as unknown as Settings;
@@ -23,7 +25,7 @@ export const useSettings = create<SettingsStore>((set, get) => ({
 
   async hydrate() {
     const stored = await kv.get<Partial<Settings>>(KEY);
-    set({ ...DEFAULT_SETTINGS, ...sanitize(stored), hydrated: true });
+    set({ ...DEFAULT_SETTINGS, ...sanitizeSettings(stored), hydrated: true });
   },
 
   update(patch) {
@@ -33,7 +35,8 @@ export const useSettings = create<SettingsStore>((set, get) => ({
   },
 }));
 
-function sanitize(input: Partial<Settings> | undefined): Partial<Settings> {
+/** Validates stored or imported settings; unknown/invalid fields are dropped. */
+export function sanitizeSettings(input: Partial<Settings> | undefined): Partial<Settings> {
   if (!input || typeof input !== 'object') return {};
   const out: Partial<Settings> = {};
   if (typeof input.activeThemeId === 'string') out.activeThemeId = input.activeThemeId;
@@ -43,6 +46,9 @@ function sanitize(input: Partial<Settings> | undefined): Partial<Settings> {
   if (typeof input.muted === 'boolean') out.muted = input.muted;
   if (typeof input.shuffle === 'boolean') out.shuffle = input.shuffle;
   if (typeof input.shortcuts === 'boolean') out.shortcuts = input.shortcuts;
+  if ('providers' in input) out.providers = sanitizeProviders(input.providers);
+  if ('analysis' in input) out.analysis = sanitizeAnalysis(input.analysis);
+  if ('render' in input) out.render = sanitizeRender(input.render);
   if (input.repeat === 'off' || input.repeat === 'all' || input.repeat === 'one') out.repeat = input.repeat;
   if (input.eq && typeof input.eq === 'object') out.eq = sanitizeEq(input.eq);
   if (input.visualizer && typeof input.visualizer === 'object') out.visualizer = sanitizeVisualizer(input.visualizer);

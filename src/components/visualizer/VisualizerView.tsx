@@ -26,8 +26,11 @@ const FLOWING: ReadonlySet<PlaybackStatus> = new Set(['playing', 'buffering', 'l
 interface VisualizerViewProps {
   className?: string;
   allowFullscreen?: boolean;
-  /** Show measured renderer diagnostics below the canvas (VIS §91). */
-  diagnostics?: boolean;
+  /**
+   * Measured renderer diagnostics (VIS §91): below the canvas, or on top of
+   * it (no layout change) when turned on via /control › Visualizers › Debug.
+   */
+  diagnostics?: 'below' | 'overlay' | false;
 }
 
 export function VisualizerView({ className = '', allowFullscreen = false, diagnostics = false }: VisualizerViewProps) {
@@ -40,6 +43,7 @@ export function VisualizerView({ className = '', allowFullscreen = false, diagno
   const glowLevel = useSettings((s) => s.glowLevel);
   const themes = useThemes((s) => s.themes);
   const reducedMotion = useReducedMotion();
+  const limits = useSettings((s) => s.render);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -82,6 +86,10 @@ export function VisualizerView({ className = '', allowFullscreen = false, diagno
     const palette = resolvePalette(canvas, settings.colorMode);
     renderer.configure(buildRenderConfig(settings, palette, { reducedMotion, glowAmount }, renderer.devicePixelRatio), reducedMotion);
   }, [settings, themeId, glowLevel, themes, reducedMotion, enabled, available]);
+
+  useEffect(() => {
+    rendererRef.current?.setLimits(limits.frameLimit === 'auto' ? null : limits.frameLimit, limits.dprCap);
+  }, [limits, enabled, available]);
 
   useEffect(() => {
     rendererRef.current?.setActive(FLOWING.has(status));
@@ -154,6 +162,7 @@ export function VisualizerView({ className = '', allowFullscreen = false, diagno
           <Maximize2 size={13} aria-hidden="true" />
         </button>
       )}
+      {diagnostics === 'overlay' && <p className="viz__debug">{stats ?? 'RENDER LOOP IDLE'}</p>}
       {allowFullscreen && item && (
         <p className="viz__caption" aria-hidden="true">
           {item.artist ? `${item.artist} — ${item.title}` : item.title}
@@ -162,7 +171,7 @@ export function VisualizerView({ className = '', allowFullscreen = false, diagno
       )}
     </div>
   );
-  if (!diagnostics) return view;
+  if (diagnostics !== 'below') return view;
   return (
     <>
       {view}

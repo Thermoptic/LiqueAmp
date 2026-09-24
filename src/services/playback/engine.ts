@@ -33,11 +33,16 @@ export type EmbedFactories = Partial<Record<EmbedKind, () => AudioBackend>>;
 const MIRROR_RETRY: ReadonlySet<PlaybackError['code']> = new Set(['STREAM_UNAVAILABLE', 'NETWORK_ERROR', 'MEDIA_FORMAT_NOT_SUPPORTED']);
 
 const PROVIDER_NAME: Partial<Record<ProviderId, string>> = {
+  direct: 'Direct streams',
+  radio: 'Radio',
   youtube: 'YouTube',
   'youtube-music': 'YouTube Music',
   spotify: 'Spotify',
   soundcloud: 'SoundCloud',
 };
+
+/** False only for items explicitly disabled in /control › Media. */
+const isEnabled = (item: MediaItem) => item.enabled !== false;
 
 function fromProviderError(err: ProviderError): PlaybackError {
   switch (err.code) {
@@ -96,9 +101,12 @@ export class PlaybackEngine {
     native.setListener(this.listenerFor(native));
     this.applyVolume();
     native.setEq?.(effectiveGains(useSettings.getState().eq));
+    const { analysis } = useSettings.getState();
+    native.configureAnalyser?.(analysis.fftSize, analysis.smoothing);
     useSettings.subscribe((s, prev) => {
       if (s.volume !== prev.volume || s.muted !== prev.muted) this.applyVolume();
       if (s.eq !== prev.eq) native.setEq?.(effectiveGains(s.eq));
+      if (s.analysis !== prev.analysis) native.configureAnalyser?.(s.analysis.fftSize, s.analysis.smoothing);
     });
   }
 
@@ -107,7 +115,12 @@ export class PlaybackEngine {
   /** Replaces the queue with `items` and starts at `startIndex`. */
   playList(items: MediaItem[], startIndex = 0): Promise<void> {
     this.native.prime();
-    const entries = toEntries(items);
+    // Items disabled in /control › Media are left out of lists (the start
+    // index follows the same item where possible).
+    const start0 = items[startIndex];
+    const playable = items.filter(isEnabled);
+    startIndex = start0 && isEnabled(start0) ? playable.indexOf(start0) : 0;
+    const entries = toEntries(playable);
     useQueue.getState().apply({ ...Q.EMPTY_QUEUE, entries });
     const start = entries[Math.max(0, Math.min(entries.length - 1, startIndex))];
     return start ? this.playEntry(start.entryId) : Promise.resolve();
@@ -122,7 +135,7 @@ export class PlaybackEngine {
 
   /** Adds to the end of the queue. Never starts playback. */
   enqueue(items: MediaItem[]): void {
-    useQueue.getState().add(items);
+    useQueue.getState().add(items.filter(isEnabled));
   }
 
   playEntry(entryId: string, recordHistory = true): Promise<void> {
@@ -282,6 +295,19 @@ export class PlaybackEngine {
     });
     usePlaybackClock.setState({ currentTime: 0, duration: item.duration ?? Number.NaN, bufferedAhead: 0 });
     this.autoplay = autoplay;
+
+    // Switched off in /control: say so instead of trying.
+    const blocked = !isEnabled(item)
+      ? playbackError('MEDIA_DISABLED', 'This item is disabled in /control › Media.', false)
+      : useSettings.getState().providers[item.provider]?.enabled === false
+        ? playbackError('PROVIDER_DISABLED', `${PROVIDER_NAME[item.provider] ?? item.provider} is disabled in /control › Providers.`, false)
+        : null;
+    if (blocked) {
+      this.switchTo(this.native);
+      this.native.stop();
+      usePlayback.setState({ status: 'error', error: { ...blocked, provider: item.provider } });
+      return;
+    }
 
     if (mode === 'external') {
       this.switchTo(this.native);

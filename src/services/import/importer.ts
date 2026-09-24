@@ -3,7 +3,7 @@
 // Nothing is saved here; the preview is committed by the caller.
 
 import { mediaIdentity } from '../../stores/libraryStore';
-import type { MediaItem } from '../../types/media';
+import type { MediaItem, ProviderId } from '../../types/media';
 import { detectSource, InvalidUrlError, type Detection } from '../providers/detect';
 import { resolveDirect, type DirectFormat } from '../providers/direct';
 import { ProviderError } from '../providers/errors';
@@ -27,10 +27,12 @@ export interface ImportOptions {
   library: MediaItem[];
   onStep?(step: ImportStep): void;
   fetchImpl?: typeof fetch;
+  /** Providers switched off in /control are refused before any network request. */
+  isProviderEnabled?(provider: ProviderId): boolean;
 }
 
 /** Builds an import preview for a pasted URL. Never throws. */
-export async function previewImport(input: string, { library, onStep, fetchImpl }: ImportOptions): Promise<ImportPreview> {
+export async function previewImport(input: string, { library, onStep, fetchImpl, isProviderEnabled }: ImportOptions): Promise<ImportPreview> {
   onStep?.('detecting');
   let detection: Detection;
   try {
@@ -40,6 +42,9 @@ export async function previewImport(input: string, { library, onStep, fetchImpl 
   }
   if (detection.kind === 'unsupported') {
     return { status: 'error', title: 'UNSUPPORTED SOURCE', message: detection.reason ?? 'This address cannot be played in a browser.' };
+  }
+  if (detection.provider && isProviderEnabled?.(detection.provider) === false) {
+    return { status: 'error', title: 'PROVIDER DISABLED', message: 'This provider is disabled in /control › Providers. Enable it there to import from it.' };
   }
   onStep?.('resolving');
   const byId = new Map(library.map((m) => [m.id, m]));

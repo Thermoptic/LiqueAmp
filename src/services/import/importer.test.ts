@@ -16,6 +16,17 @@ function fetchText(body: string | 'fail'): typeof fetch {
 }
 
 describe('previewImport', () => {
+  it('refuses providers disabled in /control before any network request', async () => {
+    let fetched = false;
+    const fetchImpl = (async () => {
+      fetched = true;
+      return new Response('{}');
+    }) as typeof fetch;
+    const p = await previewImport('https://www.youtube.com/watch?v=dQw4w9WgXcQ', { library: [], fetchImpl, isProviderEnabled: (id) => id !== 'youtube' });
+    expect(p).toMatchObject({ status: 'error', title: 'PROVIDER DISABLED' });
+    expect(fetched).toBe(false);
+  });
+
   it('reports the pipeline steps in order and previews a single stream', async () => {
     const steps: ImportStep[] = [];
     const p = await previewImport('example.com/radio/live.mp3', { library: [], onStep: (s) => steps.push(s) });

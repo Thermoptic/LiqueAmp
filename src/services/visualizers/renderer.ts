@@ -3,7 +3,7 @@ import type { VisualizerColorMode, VisualizerId, VisualizerSettings } from '../.
 import { visualizerRegistry } from './registry';
 import type { Palette, RenderConfig, Visualizer } from './types';
 
-/** VIS §40: never render more than 2 device pixels per CSS pixel. */
+/** VIS §40: default cap on device pixels per CSS pixel (configurable in /control). */
 export const DPR_CAP = 2;
 /** Reduced motion renders at a calm, low rate (VIS §53). */
 const REDUCED_MOTION_FPS = 20;
@@ -83,6 +83,9 @@ export class VisualizerRenderer {
   private active = false;
   private settleUntil = 0;
   private minInterval = 0;
+  private reducedMotion = false;
+  private frameLimit: number | null = null;
+  private dprCap = DPR_CAP;
   private lastRender = 0;
   private destroyed = false;
   /** Measured, for diagnostics only (VIS §91–92). */
@@ -128,7 +131,23 @@ export class VisualizerRenderer {
 
   configure(config: RenderConfig, reducedMotion: boolean) {
     this.config = config;
-    this.minInterval = reducedMotion ? 1000 / REDUCED_MOTION_FPS : 0;
+    this.reducedMotion = reducedMotion;
+    this.updateInterval();
+  }
+
+  /** Advanced limits from /control (VIS §40, §46): frame cap (null = display rate) and DPR cap. */
+  setLimits(frameLimit: number | null, dprCap: number) {
+    this.frameLimit = frameLimit;
+    this.updateInterval();
+    if (dprCap !== this.dprCap) {
+      this.dprCap = dprCap;
+      this.measure();
+    }
+  }
+
+  private updateInterval() {
+    const fps = Math.min(this.reducedMotion ? REDUCED_MOTION_FPS : Infinity, this.frameLimit ?? Infinity);
+    this.minInterval = Number.isFinite(fps) ? 1000 / fps : 0;
   }
 
   get devicePixelRatio() {
@@ -192,7 +211,7 @@ export class VisualizerRenderer {
 
   private measure() {
     const rect = this.canvas.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP);
+    const dpr = Math.min(window.devicePixelRatio || 1, this.dprCap);
     const width = Math.round(rect.width);
     const height = Math.round(rect.height);
     if (width === this.width && height === this.height && dpr === this.dpr) return;

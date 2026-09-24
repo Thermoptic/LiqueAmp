@@ -18,9 +18,12 @@ interface LibraryStore {
    */
   addMedia(items: MediaItem[]): Promise<MediaItem[]>;
   removeMedia(id: string): Promise<void>;
-  updateMedia(id: string, patch: Partial<Pick<MediaItem, 'title' | 'artist' | 'categoryId' | 'tags'>>): Promise<void>;
+  updateMedia(id: string, patch: MediaPatch): Promise<void>;
   getMedia(id: string): MediaItem | undefined;
 }
+
+/** Fields editable in the library and /control › Media (SPEC §35). Sources and ids never change. */
+export type MediaPatch = Partial<Pick<MediaItem, 'title' | 'artist' | 'album' | 'artwork' | 'description' | 'categoryId' | 'tags' | 'enabled'>>;
 
 /** Identity used to detect the same source imported twice (PROVIDERS §61). */
 export function mediaIdentity(item: MediaItem): string {

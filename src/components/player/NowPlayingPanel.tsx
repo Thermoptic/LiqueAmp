@@ -38,6 +38,7 @@ export function NowPlayingPanel() {
   const status = usePlayback((s) => s.status);
   const isLive = usePlayback((s) => s.isLive);
   const mode = usePlayback((s) => s.mode);
+  const debugViz = useSettings((s) => s.render.debug);
 
   return (
     <section className="panel panel--strong now-playing area-main" aria-labelledby="np-heading">
@@ -88,7 +89,7 @@ export function NowPlayingPanel() {
           <PlayerStateLine />
         </div>
 
-        <VisualizerView className="now-playing__viz" allowFullscreen />
+        <VisualizerView className="now-playing__viz" allowFullscreen diagnostics={debugViz ? 'overlay' : false} />
       </div>
 
       <ProgressRow />

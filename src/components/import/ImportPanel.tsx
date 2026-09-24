@@ -8,6 +8,7 @@ import { useUi } from '../../stores/uiStore';
 import { PROVIDER_LABEL } from '../player/NowPlayingPanel';
 import { Status } from '../ui/controls';
 import { RowList } from '../ui/RowList';
+import { useSettings } from '../../stores/settingsStore';
 
 const KIND_LABEL: Record<string, string> = {
   audio: 'Audio file',
@@ -49,6 +50,7 @@ export function ImportPanel({ onDone }: { onDone?(): void }) {
     const preview = await previewImport(url, {
       library: useLibrary.getState().media,
       onStep: (step) => setPhase({ kind: 'running', step }),
+      isProviderEnabled: (p) => useSettings.getState().providers[p]?.enabled !== false,
     });
     setPhase({ kind: 'done', preview });
   }

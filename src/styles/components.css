@@ -1898,3 +1898,30 @@ kbd {
 .radio-browser__offline p {
   margin: 0;
 }
+
+/* measured render diagnostics on top of the canvas (debug mode only) */
+.viz__debug {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  margin: 0;
+  padding: 0 var(--la-space-1);
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--la-text);
+  background: color-mix(in srgb, var(--la-bg) 80%, transparent);
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+
+/* items disabled in /control › Media stay visible, but read as off */
+.media-row[data-disabled] .media-row__title,
+.media-row[data-disabled] .media-row__meta {
+  color: var(--la-text-muted);
+}
+
+/* "Sensitivity" is wider than the label column in the narrow control-strip
+   module; let the label column grow to its longest word only where needed. */
+.viz-controls__slider {
+  grid-template-columns: minmax(min-content, 0.6fr) minmax(0, 1.6fr);
+}

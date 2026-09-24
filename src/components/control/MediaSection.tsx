@@ -1,6 +1,7 @@
 import { usePlayback } from '../../stores/playbackStore';
 import { ImportPanel } from '../import/ImportPanel';
 import { AnalysisReadout } from './AnalysisReadout';
+import { MediaManager } from './media/MediaManager';
 import { Status } from '../ui/controls';
 
 /**
@@ -20,6 +21,7 @@ export function MediaSection() {
           <AnalysisReadout />
         </div>
       </section>
+      <MediaManager />
     </div>
   );
 }

@@ -111,6 +111,16 @@ export class RadioBrowserClient {
 
   constructor(private readonly fetchImpl: typeof fetch = (...args) => fetch(...args)) {}
 
+  /** Directory mirror currently used, once discovery has run (for /control diagnostics). */
+  get serverInUse(): string | null {
+    return this.servers?.[this.current] ?? null;
+  }
+
+  /** Number of cached directory responses (5-minute cache). */
+  get cachedResponses(): number {
+    return this.cache.size;
+  }
+
   private async discover(signal?: AbortSignal): Promise<string[]> {
     if (this.servers) return this.servers;
     try {

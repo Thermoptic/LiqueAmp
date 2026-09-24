@@ -12,6 +12,7 @@ import { startHistoryRecorder } from '../services/playback/historyRecorder';
 import { startMediaSession } from '../services/playback/mediaSession';
 import { startKeyboardShortcuts } from '../services/input/keyboard';
 import { startPwa } from '../services/pwa/pwa';
+import { startProviderStatusTracking } from '../services/providers/status';
 import { useSettings } from '../stores/settingsStore';
 import { useThemes } from '../stores/themeStore';
 import { wireSystemListeners } from '../stores/systemStore';
@@ -48,6 +49,7 @@ export async function bootstrap(): Promise<void> {
   startMediaSession(getEngine());
   startKeyboardShortcuts(getEngine());
   startPwa();
+  startProviderStatusTracking();
   if (import.meta.env.DEV) {
     // Dev-only diagnostics handle; never part of a production build.
     Object.assign(window, { __liqueamp: { getEngine, usePlayback, useQueue, useSettings, useLibrary, usePlaylists, useFavorites, useHistory } });

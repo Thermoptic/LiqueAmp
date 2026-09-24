@@ -45,4 +45,6 @@ export interface AudioBackend {
   setEq?(gains: { bass: number; mid: number; treble: number }): void;
   /** Native audio only: the analyser, while real samples are readable. */
   getAnalyser?(): AnalyserNode | null;
+  /** Advanced AnalyserNode configuration (VIS §9–11), applied live. */
+  configureAnalyser?(fftSize: number, smoothing: number): void;
 }

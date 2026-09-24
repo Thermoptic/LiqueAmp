@@ -551,3 +551,174 @@
 .viz-controls__footer {
   padding-top: var(--la-space-2);
 }
+
+/* ---------- media management ---------- */
+.media-manager {
+  display: grid;
+  gap: var(--la-space-3);
+}
+
+.media-manager__filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: var(--la-space-2);
+}
+
+.media-manager__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--la-space-2);
+  padding: var(--la-space-2) 0;
+  border-bottom: var(--la-border-width) solid var(--la-border-subtle);
+}
+
+.media-manager__main {
+  display: grid;
+  min-width: 0;
+}
+
+.media-manager__title {
+  color: var(--la-text);
+}
+
+.media-manager__meta {
+  display: flex;
+  gap: var(--la-space-2);
+  align-items: center;
+  font-size: var(--la-text-xs);
+  color: var(--la-text-muted);
+}
+
+.media-manager__row[data-disabled] .media-manager__title {
+  color: var(--la-text-muted);
+}
+
+.media-manager__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--la-space-1);
+}
+
+.media-manager__test {
+  grid-column: 1 / -1;
+  padding: var(--la-space-2) var(--la-space-3);
+  border-left: 2px solid var(--la-border-strong);
+  font-size: var(--la-text-xs);
+}
+
+.media-edit {
+  display: grid;
+  grid-template-columns: 128px minmax(0, 1fr);
+  gap: var(--la-space-4);
+  align-items: start;
+}
+
+.media-edit__fields {
+  display: grid;
+  gap: var(--la-space-1);
+}
+
+.media-edit__fields .field__label {
+  margin-top: var(--la-space-2);
+}
+
+.media-edit__description {
+  resize: vertical;
+  min-height: 4.5em;
+  font-family: var(--la-font-mono);
+}
+
+.media-edit__source {
+  display: flex;
+  gap: var(--la-space-1);
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .media-manager__filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .media-edit {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .media-edit__art {
+    width: 96px;
+  }
+}
+
+/* ---------- import / export ---------- */
+.backup {
+  display: grid;
+  gap: var(--la-space-3);
+  justify-items: start;
+}
+
+.backup > * {
+  max-width: 100%;
+}
+
+.backup__summary {
+  margin: 0;
+  font-size: var(--la-text-sm);
+  color: var(--la-text-secondary);
+}
+
+.backup__file,
+.backup__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--la-space-2);
+  min-width: 0;
+}
+
+/* the label is the visible button for the hidden file input */
+.backup__file:focus-within .btn {
+  outline: 2px solid var(--la-focus);
+  outline-offset: 2px;
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--la-space-2);
+  font-size: var(--la-text-sm);
+  cursor: pointer;
+}
+
+.checkbox input {
+  accent-color: var(--la-primary);
+  width: 16px;
+  height: 16px;
+}
+
+.backup__table {
+  border-collapse: collapse;
+  font-size: var(--la-text-xs);
+  font-variant-numeric: tabular-nums;
+  display: block;
+  overflow-x: auto;
+}
+
+.backup__table th,
+.backup__table td {
+  padding: var(--la-space-1) var(--la-space-3);
+  border-bottom: var(--la-border-width) solid var(--la-border-subtle);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.backup__table th[scope='row'],
+.backup__table thead th:first-child {
+  text-align: left;
+  color: var(--la-text-secondary);
+  font-weight: normal;
+}
+
+.backup__table thead th {
+  color: var(--la-text-muted);
+  font-weight: normal;
+}

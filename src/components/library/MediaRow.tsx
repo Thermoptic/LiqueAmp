@@ -25,7 +25,7 @@ export function MediaRow({ item, index, meta, actions, onActivate, leading, rowP
   const select = useUi((s) => s.select);
   const defaultMeta = [item.artist, PROVIDER_LABEL[item.provider] ?? item.provider].filter(Boolean).join(' · ');
   return (
-    <li className="media-row" aria-current={isCurrent ? 'true' : undefined} {...rowProps}>
+    <li className="media-row" aria-current={isCurrent ? 'true' : undefined} data-disabled={item.enabled === false || undefined} {...rowProps}>
       {leading}
       <span className="row__index">{String(index + 1).padStart(2, '0')}</span>
       <button
@@ -35,9 +35,12 @@ export function MediaRow({ item, index, meta, actions, onActivate, leading, rowP
           select({ kind: 'media', item });
           onActivate();
         }}
-        aria-label={`Play ${item.title}${isCurrent ? ' (now playing)' : ''}`}
+        aria-label={`Play ${item.title}${isCurrent ? ' (now playing)' : ''}${item.enabled === false ? ' (disabled in /control)' : ''}`}
       >
-        <span className="media-row__title truncate">{item.title}</span>
+        <span className="media-row__title truncate">
+          {item.title}
+          {item.enabled === false && <span className="station-row__flag station-row__flag--off">DISABLED</span>}
+        </span>
         <span className="media-row__meta truncate">{meta ?? defaultMeta}</span>
       </button>
       {actions && <span className="media-row__actions">{actions}</span>}
