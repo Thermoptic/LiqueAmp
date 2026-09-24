@@ -45,6 +45,8 @@
   /* Display role (logo, titles, panel headings): JetBrains Mono ExtraBold.
      Replaced Doto on 2026-09-24 at the user's request. */
   --la-font-display: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  /* LIQUEAMP wordmark and the Now Playing title (Kode Mono, bundled locally) */
+  --la-font-brand: 'Kode Mono', 'JetBrains Mono', ui-monospace, monospace;
   --la-font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
   --la-text-xs: 0.6875rem;
   --la-text-sm: 0.75rem;

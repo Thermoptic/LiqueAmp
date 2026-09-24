@@ -48,7 +48,7 @@ Where a `?` appears alone in a flow diagram it means `↓`/`→`; in DESIGN
 | App state | Zustand | Selector subscriptions, so components re-render only for the slices they read (ARCH §5, §41). Small, no boilerplate. |
 | Persistence | IndexedDB via `idb`, behind a repository layer with schema versions | ARCH §26, §51. |
 | PWA | `vite-plugin-pwa` (Workbox) | Manifest, service worker, offline shell (ARCH §34). |
-| Fonts | JetBrains Mono for everything, bundled locally (`@fontsource`); display role = weight 800 (was Doto until 2026-09-24, see §3.6) | Works offline; no remote font dependency. |
+| Fonts | JetBrains Mono, bundled locally (`@fontsource`); display role = weight 800 (was Doto until 2026-09-24, see §3.6). Kode Mono 700 (a Google Font, bundled locally too) for the LIQUEAMP wordmark and the Now Playing title (`--la-font-brand`, user request 2026-09-24) | Works offline; no remote font dependency. |
 | Icons | `lucide-react` | One coherent stroke family (DESIGN §62). |
 | HLS (`.m3u8`) | `hls.js` where the browser lacks native HLS | Phase 4. |
 | Theme files | `yaml` parser | Base16/Base24 schemes are YAML (THEMING §15). |

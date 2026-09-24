@@ -20,8 +20,9 @@
 }
 
 .brand__name {
+  font-family: var(--la-font-brand);
   font-size: var(--la-text-3xl);
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1;
   letter-spacing: 0.04em;
 }
@@ -383,8 +384,9 @@
   line-clamp: 2;
   overflow: hidden;
   overflow-wrap: anywhere;
+  font-family: var(--la-font-brand);
   font-size: clamp(1.5rem, 2.6vw, var(--la-text-3xl));
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1.1;
   color: var(--la-text);
 }
