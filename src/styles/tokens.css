@@ -42,7 +42,9 @@
     color-mix(in srgb, var(--la-glow) calc(45% * var(--la-glow-amount)), transparent);
 
   /* typography */
-  --la-font-display: 'Doto', 'JetBrains Mono', ui-monospace, monospace;
+  /* Display role (logo, titles, panel headings): JetBrains Mono ExtraBold.
+     Replaced Doto on 2026-09-24 at the user's request. */
+  --la-font-display: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
   --la-font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
   --la-text-xs: 0.6875rem;
   --la-text-sm: 0.75rem;

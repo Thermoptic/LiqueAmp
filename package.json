@@ -14,7 +14,6 @@
     "perf": "npm run build && node e2e/perf.mjs && node e2e/startup.mjs"
   },
   "dependencies": {
-    "@fontsource/doto": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",
     "hls.js": "^1.7.3",
     "idb": "^8.0.3",

@@ -48,7 +48,7 @@ Where a `?` appears alone in a flow diagram it means `↓`/`→`; in DESIGN
 | App state | Zustand | Selector subscriptions, so components re-render only for the slices they read (ARCH §5, §41). Small, no boilerplate. |
 | Persistence | IndexedDB via `idb`, behind a repository layer with schema versions | ARCH §26, §51. |
 | PWA | `vite-plugin-pwa` (Workbox) | Manifest, service worker, offline shell (ARCH §34). |
-| Fonts | Doto + a monospace body font, both bundled locally (`@fontsource`) | Works offline; no remote font dependency. |
+| Fonts | JetBrains Mono for everything, bundled locally (`@fontsource`); display role = weight 800 (was Doto until 2026-09-24, see §3.6) | Works offline; no remote font dependency. |
 | Icons | `lucide-react` | One coherent stroke family (DESIGN §62). |
 | HLS (`.m3u8`) | `hls.js` where the browser lacks native HLS | Phase 4. |
 | Theme files | `yaml` parser | Base16/Base24 schemes are YAML (THEMING §15). |
@@ -83,6 +83,10 @@ ARCH §59 requires conflicts to be resolved explicitly. Proposed resolutions:
    SPEC §12 allows "where technically appropriate" → Doto for branding, panel
    headings, the track title and numeric readouts; a monospace face for body
    text and metadata (this matches the body text in `liqueampui.png`).
+   **Changed 2026-09-24 (user decision):** Doto is no longer used. The display
+   role (branding, headings, track title) is JetBrains Mono at weight 800, so
+   the whole app uses one typeface. SPEC §12 / DESIGN / THEMING still mention
+   Doto; this entry records the deviation.
 8. **History snapshots.** ARCH §21 stores only `mediaItemId`. Radio stations
    and resolved URLs are not necessarily in the library, so a bare id could
    not be shown or replayed. → `HistoryEntry` also stores a snapshot of the

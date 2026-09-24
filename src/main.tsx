@@ -1,12 +1,10 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router';
-import '@fontsource/doto/latin-700.css';
-import '@fontsource/doto/latin-800.css';
-import '@fontsource/doto/latin-900.css';
 import '@fontsource/jetbrains-mono/latin-400.css';
 import '@fontsource/jetbrains-mono/latin-600.css';
 import '@fontsource/jetbrains-mono/latin-700.css';
+import '@fontsource/jetbrains-mono/latin-800.css';
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/ui.css';
