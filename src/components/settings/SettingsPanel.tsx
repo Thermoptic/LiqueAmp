@@ -22,6 +22,7 @@ const MOTION_OPTIONS = [
 export function SettingsPanel() {
   const motion = useSettings((s) => s.motion);
   const shortcuts = useSettings((s) => s.shortcuts);
+  const artwork = useSettings((s) => s.artwork);
   const update = useSettings((s) => s.update);
   const storage = useSystem((s) => s.storage);
 
@@ -43,6 +44,20 @@ export function SettingsPanel() {
             <Segmented label="Motion" value={motion} options={MOTION_OPTIONS} onChange={(v) => update({ motion: v })} />
           </div>
           <p className="settings-group__note">System follows your operating system's reduced-motion preference.</p>
+        </section>
+
+        <section className="settings-group" aria-labelledby="set-np">
+          <h3 id="set-np" className="settings-group__title">
+            Now Playing
+          </h3>
+          <div className="field">
+            <span className="field__label">Artwork</span>
+            <Toggle checked={artwork} onChange={(v) => update({ artwork: v })} label="Artwork" />
+          </div>
+          <p className="settings-group__note">
+            Off: the Now Playing box always shows the LIQUEAMP default image. YouTube, SoundCloud and Spotify players must stay visible to play, so they move to the
+            corner instead.
+          </p>
         </section>
 
         <section className="settings-group" aria-labelledby="set-eq">

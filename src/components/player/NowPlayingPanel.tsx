@@ -39,6 +39,7 @@ export function NowPlayingPanel() {
   const isLive = usePlayback((s) => s.isLive);
   const mode = usePlayback((s) => s.mode);
   const debugViz = useSettings((s) => s.render.debug);
+  const showArtwork = useSettings((s) => s.artwork);
 
   return (
     <section className="panel panel--strong now-playing area-main" aria-labelledby="np-heading">
@@ -50,10 +51,14 @@ export function NowPlayingPanel() {
       </header>
 
       <div className="now-playing__body">
-        {mode === 'embedded' ? (
+        {/* Artwork off (Settings): always the default image; a provider player
+            then docks in the corner, as it must stay visible to play. */}
+        {mode === 'embedded' && showArtwork ? (
           <EmbedSlot />
-        ) : (
+        ) : showArtwork ? (
           <Artwork className="now-playing__art" src={item?.artwork} alt={item ? `Artwork for ${item.title}` : 'No artwork'} />
+        ) : (
+          <Artwork className="now-playing__art" src={null} alt="" />
         )}
 
         <div className="now-playing__info">

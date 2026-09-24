@@ -46,6 +46,7 @@ export function sanitizeSettings(input: Partial<Settings> | undefined): Partial<
   if (typeof input.muted === 'boolean') out.muted = input.muted;
   if (typeof input.shuffle === 'boolean') out.shuffle = input.shuffle;
   if (typeof input.shortcuts === 'boolean') out.shortcuts = input.shortcuts;
+  if (typeof input.artwork === 'boolean') out.artwork = input.artwork;
   if ('providers' in input) out.providers = sanitizeProviders(input.providers);
   if ('analysis' in input) out.analysis = sanitizeAnalysis(input.analysis);
   if ('render' in input) out.render = sanitizeRender(input.render);

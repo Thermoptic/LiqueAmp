@@ -43,6 +43,20 @@ describe('settings persistence', () => {
     expect(s.motion).toBe('reduced');
     expect(s.glowLevel).toBe(1.5);
   });
+
+  it('artwork is on by default, persists when switched off, and ignores invalid values', async () => {
+    expect(DEFAULT_SETTINGS.artwork).toBe(true);
+    useSettings.getState().update({ artwork: false });
+    await flush();
+    await flush();
+    useSettings.setState({ ...DEFAULT_SETTINGS, hydrated: false });
+    await useSettings.getState().hydrate();
+    expect(useSettings.getState().artwork).toBe(false);
+
+    await kv.set('settings', { artwork: 'no' });
+    await useSettings.getState().hydrate();
+    expect(useSettings.getState().artwork).toBe(true);
+  });
 });
 
 describe('categories', () => {

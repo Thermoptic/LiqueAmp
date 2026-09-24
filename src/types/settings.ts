@@ -31,6 +31,12 @@ export interface Settings {
   visualizer: VisualizerSettings;
   /** Global single-key shortcuts; can be turned off (WCAG 2.1.4). */
   shortcuts: boolean;
+  /**
+   * Now Playing box: show the item's artwork / the provider player (true), or
+   * always the LIQUEAMP default image (false). Provider players then dock in
+   * the corner, because they must stay visible to play.
+   */
+  artwork: boolean;
   // advanced — managed in /control
   providers: ProviderConfigs;
   analysis: AnalysisConfig;
@@ -48,6 +54,7 @@ export const DEFAULT_SETTINGS: Settings = {
   eq: { enabled: true, preset: 'flat', bass: 0, mid: 0, treble: 0 },
   visualizer: DEFAULT_VISUALIZER,
   shortcuts: true,
+  artwork: true,
   providers: DEFAULT_PROVIDERS,
   analysis: DEFAULT_ANALYSIS,
   render: DEFAULT_RENDER,
