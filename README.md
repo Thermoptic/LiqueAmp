@@ -1,76 +1,134 @@
+````markdown
 <div align="center">
 
 <img src="liqueamp_logo_color.png" alt="LiqueAmp" width="420">
 
-# LIQUEAMP
+# `LIQUEAMP`
 
-### *It really Liques the Llamas Ass!*
+### `// It really Liques the Llamas Ass!`
 
-**A weirdly over-engineered music player for music, radio and everything in between.**
+**STREAM // RADIO // WORLDWIDE**
 
-[**▶ LIVE DEMO**](https://thermoptic.github.io/LiqueAmp/)
+<br>
+
+[![LIVE](https://img.shields.io/badge/●%20LIVE-DEMO-ff9f68?style=for-the-badge&labelColor=171925)](https://thermoptic.github.io/LiqueAmp/)
+[![PWA](https://img.shields.io/badge/PWA-READY-ff9f68?style=for-the-badge&labelColor=171925)](#)
+[![OFFLINE](https://img.shields.io/badge/OFFLINE-FIRST-ff9f68?style=for-the-badge&labelColor=171925)](#)
 
 </div>
 
 ---
 
-## 🎵 What is LiqueAmp?
+```text
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  LIQUEAMP // MUSIC SYSTEM                                                    │
+│                                                                              │
+│  A weirdly over-engineered music player for music, radio and everything     │
+│  in between.                                                                │
+│                                                                              │
+│  [ SYSTEM ONLINE ]   [ AUDIO ENGINE ]   [ RADIO ]   [ LOCAL STORAGE ]       │
+└──────────────────────────────────────────────────────────────────────────────┘
+````
 
-**LiqueAmp** is a browser-based music player and internet radio application designed to feel more like a piece of software than a website.
-It combines a **music player, radio browser, library, playlists and audio visualizer** into one terminal-inspired interface.
-The design mixes **retro software, radio equipment and futuristic control panels** with dark colours, glowing orange accents, monospaced typography and an unhealthy amount of tiny status indicators.
-Basically: **Winamp went to a radio station, got bitten by a cyberpunk llama, and came back as a web app.**
+## `> WHAT_IS_LIQUEAMP`
 
----
+**LiqueAmp** is a browser-based music player and internet radio application
+designed to feel like an actual piece of software rather than another
+generic music website.
 
-## 📸 Screenshots
+It combines a **music player, radio browser, library, playlists and
+audio visualizer** inside a terminal-inspired interface.
 
-### Now Playing
+The visual style mixes **retro software, radio equipment and futuristic
+control panels** with dark surfaces, glowing orange controls, technical
+typography and an unreasonable number of tiny status indicators.
 
-![LiqueAmp Now Playing](screenshots/now-playing.png)
-
-### Settings
-
-![LiqueAmp Settings](screenshots/settings.png)
-
----
-
-## ✨ Features
-
-- 🎵 **Music player** — playback, volume, shuffle, repeat & queue
-- 📻 **Internet radio** — browse stations by location, genre & popularity
-- 📚 **Local library** — store and organize your music
-- 📋 **Playlists** — create, edit and play playlists
-- ❤️ **Favourites** — save tracks and stations
-- 🕘 **History** — keep track of what you've played
-- 📊 **Audio visualizer** — real-time spectrum visualization
-- 🎚️ **Equalizer** — bass, mid, treble & DSP controls
-- 🎨 **Theming** — customizable colours, glow and appearance
-- 🌈 **Base16 support** — use existing Base16 colour schemes
-- 💾 **Offline-first** — local data stored in the browser
-- 📱 **PWA** — designed for desktop and mobile
-- ⌨️ **Keyboard controls** — control playback without touching the mouse
-- 🛠️ **Control Panel** — manage streams, content, themes and settings
-- 📱 **Responsive UI** — desktop control room, mobile music player
+> **Winamp went to a radio station, got bitten by a cyberpunk llama,
+> and came back as a web app.**
 
 ---
 
-## 🧠 The idea
+## `> SCREENSHOTS`
 
-LiqueAmp is built around three things:
+### `01 // NOW PLAYING`
 
-**Music should be fun.  
-Interfaces should have personality.  
-And absolutely nobody needs another boring Spotify clone.**
+<div align="center">
+
+<img src="screenshots/now-playing.png" alt="LiqueAmp Now Playing" width="100%">
+
+</div>
+
+### `02 // SETTINGS`
+
+<div align="center">
+
+<img src="screenshots/settings.png" alt="LiqueAmp Settings" width="100%">
+
+</div>
+
+---
+
+## `> FEATURES`
+
+| SYSTEM       | CAPABILITIES                                           |
+| :----------- | :----------------------------------------------------- |
+| `PLAYER`     | Playback, volume, shuffle, repeat & queue              |
+| `RADIO`      | Internet radio, search, genres, locations & popularity |
+| `LIBRARY`    | Local music library & browser storage                  |
+| `PLAYLISTS`  | Create, edit & play playlists                          |
+| `FAVOURITES` | Save tracks & radio stations                           |
+| `HISTORY`    | Recently played media                                  |
+| `VISUALIZER` | Real-time audio spectrum visualization                 |
+| `EQUALIZER`  | Bass, mid, treble & DSP controls                       |
+| `THEMES`     | Custom colours, glow & appearance                      |
+| `BASE16`     | Base16 colour scheme support                           |
+| `OFFLINE`    | Offline-first local data storage                       |
+| `PWA`        | Installable desktop & mobile experience                |
+| `KEYBOARD`   | Keyboard playback controls                             |
+| `CONTROL`    | Manage streams, content, themes & settings             |
+| `RESPONSIVE` | Desktop control room + mobile player                   |
+
+---
+
+## `> DESIGN_PHILOSOPHY`
+
+```text
+01  MUSIC SHOULD BE FUN
+
+02  SOFTWARE SHOULD HAVE PERSONALITY
+
+03  INFORMATION SHOULD BE VISIBLE
+
+04  BUTTONS SHOULD LOOK LIKE BUTTONS
+
+05  NOBODY NEEDS ANOTHER BORING SPOTIFY CLONE
+
+06  THERE SHOULD PROBABLY BE A LLAMA
+```
 
 ---
 
 <div align="center">
 
-### 🦙 LIQUEAMP
+```text
+┌─────────────────────────────────────┐
+│                                     │
+│          LIQUEAMP v1.0              │
+│                                     │
+│   STREAM // RADIO // WORLDWIDE      │
+│                                     │
+│   ● AUDIO ENGINE: RUNNING           │
+│   ● NETWORK: ONLINE                 │
+│   ● LLAMA: SATISFIED                │
+│                                     │
+└─────────────────────────────────────┘
+```
 
-**STREAM // RADIO // WORLDWIDE**
+### `It really Liques the Llamas Ass!`
 
-*Made with questionable amounts of enthusiasm.*
+**Made with questionable amounts of enthusiasm.**
+
+🦙
 
 </div>
+```
