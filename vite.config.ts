@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 import { serviceWorkerPlugin } from './pwa/serviceWorkerPlugin';
 
 export default defineConfig({
+  base: '/LiqueAmp/',
   plugins: [react(), serviceWorkerPlugin()],
   test: {
     environment: 'jsdom',
