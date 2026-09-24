@@ -53,7 +53,7 @@ async function window10s(label) {
   await p.evaluate(`
     window.__mut = new Map();
     window.__obs?.disconnect();
-    window.__obs = new MutationObserver((list) => { for (const m of list) { const el = m.target.nodeType === 1 ? m.target : m.target.parentElement; const panel = el?.closest('section, footer, header, .control-strip > *')?.getAttribute('aria-label') ?? el?.closest('section, footer, header')?.className ?? '(other)'; window.__mut.set(panel, (window.__mut.get(panel) ?? 0) + 1); } });
+    window.__obs = new MutationObserver((list) => { for (const m of list) { const el = m.target.nodeType === 1 ? m.target : m.target.parentElement; const panel = el?.closest('section, footer, header')?.getAttribute('aria-label') ?? el?.closest('section, footer, header')?.className ?? '(other)'; window.__mut.set(panel, (window.__mut.get(panel) ?? 0) + 1); } });
     window.__obs.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true });
     return 1;`);
   const a = await metrics();

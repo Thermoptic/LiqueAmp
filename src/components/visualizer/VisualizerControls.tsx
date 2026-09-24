@@ -51,7 +51,7 @@ function SliderRow({ label, value, onChange, disabled }: { label: string; value:
   );
 }
 
-/** Compact controls for the Visualizer module in the control strip. */
+/** Compact controls for the dashboard's Visualizer module. */
 export function VisualizerQuickControls() {
   const [settings, set] = useVisualizerSettings();
   const styleId = useId();
@@ -64,7 +64,7 @@ export function VisualizerQuickControls() {
         <StyleSelect id={styleId} />
       </div>
       <div className="field">
-        <span className="field__label">Visualizer</span>
+        <span className="field__label">Enabled</span>
         <Toggle checked={settings.enabled} onChange={(v) => set({ enabled: v })} label="Visualizer on" />
       </div>
       <SliderRow label="Sensitivity" value={settings.sensitivity} onChange={(v) => set({ sensitivity: v })} disabled={!settings.enabled} />

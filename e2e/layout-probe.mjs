@@ -21,7 +21,7 @@ const VARIANTS = {
   'no shadows': '* { box-shadow: none !important; text-shadow: none !important; }',
   'no radio list': '.radio-browser__list { display: none !important; }',
   'no station icons': '.station-row img, .station-icon img { display: none !important; }',
-  'no control strip': '.control-strip { display: none !important; }',
+  'no settings modules': '.control-module { display: none !important; }',
   'no lower panels': '.lower { display: none !important; }',
 };
 

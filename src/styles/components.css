@@ -652,6 +652,7 @@
 .control-module__header {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--la-space-2);
   margin-bottom: var(--la-space-2);
   color: var(--la-accent-bright);
@@ -1929,7 +1930,7 @@ kbd {
   color: var(--la-text-muted);
 }
 
-/* "Sensitivity" is wider than the label column in the narrow control-strip
+/* "Sensitivity" is wider than the label column in the narrow settings
    module; let the label column grow to its longest word only where needed. */
 .viz-controls__slider {
   grid-template-columns: minmax(min-content, 0.6fr) minmax(0, 1.6fr);

@@ -13,7 +13,7 @@ import { RadioBrowserPanel } from '../components/radio/RadioBrowserPanel';
 import { StationInfoPanel } from '../components/radio/StationInfoPanel';
 import { LibraryPanel } from '../components/library/LibraryPanel';
 import { QueuePanel } from '../components/queue/QueuePanel';
-import { ControlStrip } from '../components/settings/ControlModules';
+import { AppearanceModule, AudioModule, PlayerModule, VisualizerModule } from '../components/settings/ControlModules';
 import { SettingsPanel } from '../components/settings/SettingsPanel';
 import { SkipLink } from '../components/layout/SkipLink';
 
@@ -43,13 +43,18 @@ export function Dashboard() {
           <h1 className="sr-only">LIQUEAMP player</h1>
           {section === 'settings' ? <SettingsPanel /> : <NowPlayingPanel />}
           <RadioBrowserPanel focusSearch={section === 'browse'} />
+          {/* under the sidebar, same width as the Library column */}
+          <AudioModule />
+          {/* Library spans both lower rows; the settings modules sit under the other three panels */}
           <div className="lower area-lower">
             <LibraryPanel />
             <QueuePanel />
             <StationInfoPanel />
             <QuickActionsPanel />
+            <PlayerModule />
+            <AppearanceModule />
+            <VisualizerModule />
           </div>
-          <ControlStrip />
         </main>
         <StatusBar />
       </div>

@@ -260,6 +260,13 @@ Spotify playback while logged in to Spotify.
   selectors (as in the reference); the control strip shows volume, preset and
   status; the full sliders live in Settings › Equalizer. This keeps the control
   strip compact so the dashboard fits a 1920×1080 viewport.
+- **Dashboard lower area** (user request, 2026-09-24): the Crossfade
+  placeholder is gone; Audio sits under the sidebar with the same width as
+  Library; the Playlists / Favourites / History panel runs down both lower
+  rows; Player, Appearance and Visualizer sit under Queue, Station Info and
+  Quick Actions (CSS subgrid keeps them aligned with Audio).
+- **Now Playing artwork** can be switched off (Settings › Now Playing); provider
+  players then dock in the corner, because they must stay visible to play.
 - **Station Info** shows the playing station when nothing is selected
   (marked NOW PLAYING), as Quick Actions already did.
 - **/control** holds provider enable/disable, media enable/disable, backup

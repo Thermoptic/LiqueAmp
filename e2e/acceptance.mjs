@@ -133,17 +133,23 @@ async function run(browser, ports) {
     }
     const top = (sel) => document.querySelector(sel)?.getBoundingClientRect().top;
     const rowTops = [top('.now-playing'), top('.radio-browser')].filter((v) => v !== undefined);
-    const lowerTops = [...document.querySelectorAll('.lower > *')].filter((el) => el.getClientRects().length).map((el) => el.getBoundingClientRect().top);
+    const edge = (sels, side) => sels.map((s) => document.querySelector(s)?.getBoundingClientRect()[side]).filter((v) => v !== undefined);
     const spread = (xs) => (xs.length ? Math.max(...xs) - Math.min(...xs) : 0);
-    return { panels: panels.length, overlaps, hscroll: document.documentElement.scrollWidth > innerWidth, mainRow: spread(rowTops), lowerRow: spread(lowerTops) };`;
+    // lower area: panels in one row; Audio + settings modules in the row below;
+    // the Playlists panel runs down to where the modules end
+    const lowerTops = edge(['.area-library', '.area-queue', '.area-station', '.area-actions'], 'top');
+    const moduleTops = edge(['.area-audio', '.area-player', '.area-appearance', '.area-visualizer'], 'top');
+    const bottoms = edge(['.area-library', '.area-audio', '.area-player', '.area-appearance', '.area-visualizer'], 'bottom');
+    const side = document.querySelector('.area-side')?.getBoundingClientRect(), audio = document.querySelector('.area-audio')?.getBoundingClientRect();
+    return { panels: panels.length, overlaps, hscroll: document.documentElement.scrollWidth > innerWidth, mainRow: spread(rowTops), lowerRow: spread(lowerTops), moduleRow: spread(moduleTops), bottoms: spread(bottoms), audioWidth: side && audio ? Math.abs(side.width - audio.width) + Math.abs(side.left - audio.left) : 0 };`;
   await check(4, 'Desktop layout is aligned', async () => {
     const notes = [];
     for (const [w, h] of [[1920, 1080], [1440, 900], [1280, 800]]) {
       await size(w, h);
       await sleep(500);
       const l = await p.evaluate(LAYOUT);
-      if (l.hscroll || l.mainRow > 1 || l.lowerRow > 1) throw new Error(`${w}×${h}: ${JSON.stringify(l)}`);
-      notes.push(`${w}×${h}: ${l.panels} panels, rows aligned`);
+      if (l.hscroll || l.mainRow > 1 || l.lowerRow > 1 || l.moduleRow > 1 || l.bottoms > 1 || l.audioWidth > 1) throw new Error(`${w}×${h}: ${JSON.stringify(l)}`);
+      notes.push(`${w}×${h}: ${l.panels} panels, rows aligned, Audio = Library width`);
     }
     await size(1440, 900);
     await shot('desktop');
@@ -170,7 +176,7 @@ async function run(browser, ports) {
       await sleep(400);
       const m = await p.evaluate(`
         const nav = [...document.querySelectorAll('.bottom-nav a')].map((a) => a.getBoundingClientRect().height);
-        const visible = [...document.querySelectorAll('.dashboard__main > section, .dashboard__main > .lower > section, .dashboard__main > .area-controls')].filter((el) => el.getClientRects().length).length;
+        const visible = [...document.querySelectorAll('.dashboard__main > section, .dashboard__main > .lower > section, .dashboard__main .area-controls')].filter((el) => el.getClientRects().length).length;
         return { hscroll: document.documentElement.scrollWidth > innerWidth, minTouch: Math.min(...nav), visible };`);
       if (m.hscroll || m.minTouch < 44 || m.visible === 0) throw new Error(`${label}: ${JSON.stringify(m)}`);
       notes.push(label);
@@ -357,7 +363,7 @@ async function run(browser, ports) {
   await check(18, 'Theme can be changed', async () => {
     // the Appearance module's theme select is the one listing the default theme
     const id = await p.evaluate(`
-      window.__themeSelect = [...document.querySelectorAll('.control-strip select')].find((x) => [...x.options].some((o) => o.value === 'liqueamp-default'));
+      window.__themeSelect = [...document.querySelectorAll('.area-appearance select')].find((x) => [...x.options].some((o) => o.value === 'liqueamp-default'));
       return [...window.__themeSelect.options].map((o) => o.value).find((v) => v !== window.__themeSelect.value);`);
     await p.evaluate(`const s = window.__themeSelect; Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, ${JSON.stringify(id)}); s.dispatchEvent(new Event('change', { bubbles: true })); return 1;`);
     const bg = await waitFor(`const v = getComputedStyle(document.documentElement).getPropertyValue('--la-bg').trim(); return v !== '#0b100e' && v`);
@@ -368,7 +374,7 @@ async function run(browser, ports) {
     await goto('');
     const after = await p.evaluate(`return getComputedStyle(document.documentElement).getPropertyValue('--la-bg').trim()`);
     if (after !== bg) throw new Error(`${bg} before, ${after} after`);
-    await p.evaluate(`const s = [...document.querySelectorAll('.control-strip select')].find((x) => [...x.options].some((o) => o.value === 'liqueamp-default')); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, 'liqueamp-default'); s.dispatchEvent(new Event('change', { bubbles: true })); return 1;`);
+    await p.evaluate(`const s = [...document.querySelectorAll('.area-appearance select')].find((x) => [...x.options].some((o) => o.value === 'liqueamp-default')); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, 'liqueamp-default'); s.dispatchEvent(new Event('change', { bubbles: true })); return 1;`);
     return `--la-bg ${after} after reload (restored to default afterwards)`;
   });
 

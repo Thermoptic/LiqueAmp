@@ -1,17 +1,26 @@
 import type { ReactNode } from 'react';
-import { BarChart3, Blend, Headphones, Palette, SlidersHorizontal } from 'lucide-react';
+import { BarChart3, Headphones, Palette, Settings2, SlidersHorizontal } from 'lucide-react';
 import { useSettings } from '../../stores/settingsStore';
 import { useThemes } from '../../stores/themeStore';
 import type { RepeatMode } from '../../types/settings';
-import { Field, PendingTag, Segmented, Toggle } from '../ui/controls';
+import { Field, Segmented, Toggle } from '../ui/controls';
 import { VolumeControl } from '../player/VolumeControl';
 import { EqControls } from '../audio/EqControls';
 import { Link } from 'react-router';
 import { VisualizerQuickControls } from '../visualizer/VisualizerControls';
 
-function Module({ title, icon, action, children }: { title: string; icon: ReactNode; action?: ReactNode; children: ReactNode }) {
+interface ModuleProps {
+  title: string;
+  icon: ReactNode;
+  /** Grid placement class (area-audio, area-player, …); area-controls marks it as a settings module on mobile. */
+  area: string;
+  action?: ReactNode;
+  children: ReactNode;
+}
+
+function Module({ title, icon, area, action, children }: ModuleProps) {
   return (
-    <section className="panel control-module" aria-label={title}>
+    <section className={`panel control-module area-controls ${area}`} aria-label={title}>
       <header className="control-module__header">
         {icon}
         <h3 className="panel__title panel__title--small">{title}</h3>
@@ -24,18 +33,9 @@ function Module({ title, icon, action, children }: { title: string; icon: ReactN
 
 export function AudioModule() {
   return (
-    <Module title="Audio" icon={<Headphones size={15} aria-hidden="true" />}>
+    <Module title="Audio" area="area-audio" icon={<Headphones size={15} aria-hidden="true" />}>
       <VolumeControl compact />
       <EqControls compact />
-    </Module>
-  );
-}
-
-export function CrossfadeModule() {
-  return (
-    <Module title="Crossfade" icon={<Blend size={15} aria-hidden="true" />}>
-      <p className="control-module__note">Crossfade between tracks is not implemented yet. It will only be possible for direct and radio streams.</p>
-      <PendingTag />
     </Module>
   );
 }
@@ -51,7 +51,7 @@ export function PlayerModule() {
   const repeat = useSettings((s) => s.repeat);
   const update = useSettings((s) => s.update);
   return (
-    <Module title="Player" icon={<SlidersHorizontal size={15} aria-hidden="true" />}>
+    <Module title="Player" area="area-player" icon={<SlidersHorizontal size={15} aria-hidden="true" />}>
       <div className="field">
         <span className="field__label">Shuffle</span>
         <Toggle checked={shuffle} onChange={(v) => update({ shuffle: v })} label="Shuffle" />
@@ -81,7 +81,7 @@ export function AppearanceModule() {
   ).value;
 
   return (
-    <Module title="Appearance" icon={<Palette size={15} aria-hidden="true" />}>
+    <Module title="Appearance" area="area-appearance" icon={<Palette size={15} aria-hidden="true" />}>
       <Field label="Theme">
         {(id) => (
           <select id={id} className="select" value={activeThemeId} onChange={(e) => update({ activeThemeId: e.currentTarget.value })}>
@@ -105,10 +105,12 @@ export function VisualizerModule() {
   return (
     <Module
       title="Visualizer"
+      area="area-visualizer"
       icon={<BarChart3 size={15} aria-hidden="true" />}
       action={
-        <Link to="/control/visualizers" className="control-module__link control-module__action">
-          More settings →
+        // icon only: the module sits in a narrow column, a text link would wrap the header
+        <Link to="/control/visualizers" className="control-module__link control-module__action" aria-label="More visualizer settings" title="More visualizer settings">
+          <Settings2 size={14} aria-hidden="true" />
         </Link>
       }
     >
@@ -117,14 +119,3 @@ export function VisualizerModule() {
   );
 }
 
-export function ControlStrip() {
-  return (
-    <div className="control-strip area-controls">
-      <AudioModule />
-      <CrossfadeModule />
-      <PlayerModule />
-      <AppearanceModule />
-      <VisualizerModule />
-    </div>
-  );
-}
