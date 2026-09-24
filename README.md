@@ -1,35 +1,3 @@
-````markdown
-<div align="center">
-
-<img src="liqueamp_logo_color.png" alt="LiqueAmp" width="420">
-
-# `LIQUEAMP`
-
-### `// It really Liques the Llamas Ass!`
-
-**STREAM // RADIO // WORLDWIDE**
-
-<br>
-
-[![LIVE](https://img.shields.io/badge/●%20LIVE-DEMO-ff9f68?style=for-the-badge&labelColor=171925)](https://thermoptic.github.io/LiqueAmp/)
-[![PWA](https://img.shields.io/badge/PWA-READY-ff9f68?style=for-the-badge&labelColor=171925)](#)
-[![OFFLINE](https://img.shields.io/badge/OFFLINE-FIRST-ff9f68?style=for-the-badge&labelColor=171925)](#)
-
-</div>
-
----
-
-```text
-┌──────────────────────────────────────────────────────────────────────────────┐
-│  LIQUEAMP // MUSIC SYSTEM                                                    │
-│                                                                              │
-│  A weirdly over-engineered music player for music, radio and everything     │
-│  in between.                                                                │
-│                                                                              │
-│  [ SYSTEM ONLINE ]   [ AUDIO ENGINE ]   [ RADIO ]   [ LOCAL STORAGE ]       │
-└──────────────────────────────────────────────────────────────────────────────┘
-````
-
 ## `> WHAT_IS_LIQUEAMP`
 
 **LiqueAmp** is a browser-based music player and internet radio application
