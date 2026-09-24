@@ -179,9 +179,13 @@ export function validHistory(v: unknown): HistoryEntry | null {
 
 const THEME_FORMATS = ['base16', 'base24', 'tinted8', 'liqueamp'] as const;
 
-/** Custom themes only; built-in themes ship with the app and are never imported. */
+/**
+ * Custom themes only; built-in themes ship with the app and are never
+ * imported. Accepts version 2 (Base16 palette) and version 1 (25 colors,
+ * migrated to a palette by normalizeTheme).
+ */
 export function validTheme(v: unknown): LiqueAmpTheme | null {
-  if (!isObj(v) || !isObj(v.colors) || v.source === 'builtin') return null;
+  if (!isObj(v) || (!isObj(v.palette) && !isObj(v.colors)) || v.source === 'builtin') return null;
   const id = str(v.id, 200);
   const name = str(v.name, 100);
   if (!id || !name) return null;
@@ -190,15 +194,14 @@ export function validTheme(v: unknown): LiqueAmpTheme | null {
   const theme = normalizeTheme({
     id,
     name,
-    version: num(v.version) ?? 1,
     source: v.source === 'imported' ? 'imported' : 'user',
-    colors: v.colors as unknown as LiqueAmpTheme['colors'],
-    effects: (isObj(v.effects) ? v.effects : undefined) as unknown as LiqueAmpTheme['effects'],
-    palette: stringRecord(v.palette) as LiqueAmpTheme['palette'],
-    mapping: stringRecord(v.mapping) as LiqueAmpTheme['mapping'],
+    palette: stringRecord(v.palette),
+    colors: stringRecord(v.colors),
     format: THEME_FORMATS.find((f) => f === v.format),
+    effects: (isObj(v.effects) ? v.effects : undefined) as unknown as LiqueAmpTheme['effects'],
     author: optStr(v.author, 200),
     variant: v.variant === 'light' || v.variant === 'dark' ? v.variant : undefined,
+    origin: optStr(v.origin, 200),
     createdAt: isoDate(v.createdAt),
     updatedAt: isoDate(v.updatedAt),
   });

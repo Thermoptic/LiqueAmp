@@ -93,6 +93,29 @@ ARCH §59 requires conflicts to be resolved explicitly. Proposed resolutions:
    played `MediaItem`.
 7. **Primary platform.** SPEC §4 says mobile-first; MASTER §10 describes the
    desktop dashboard. → One responsive layout, built mobile-first from Phase 2 rather than adapted at the end.
+9. **Themes are Base16 palettes (2026-09-24, user decision).** THEMING
+   describes 25 freely chosen semantic colors plus an editable mapping from
+   an imported palette. → A theme *is* 16 Base16 colors (base00–base0F); the
+   25 `--la-*` colors are derived from them by one fixed rule
+   (`services/themes/base16.ts`, `deriveColors`). Consequences:
+   - the per-theme mapping editor (THEMING §18) is removed; the editor edits
+     the 16 palette colors;
+   - Base24 imports use base00–base0F; base10–base17 have no role;
+   - Tinted8 imports are converted to the 16 slots on import;
+   - Base16 export is exact (no longer an approximation);
+   - the rule only mixes palette colors, with one guard: small UI text
+     (text, secondary/muted text, accent text) is moved towards the scheme's
+     own foreground until it reaches WCAG AA on every surface, because many
+     published schemes keep base03/base04 dim on purpose (editor comments);
+   - one derived role was added, `onPrimary` (`--la-on-primary`, text on the
+     accent color), since light schemes cannot use the background there.
+     26 derived roles in total;
+   - stored version-1 themes (25 colors) are migrated once to the closest
+     palette (theme version 2); backups accept both versions.
+   20 popular schemes from tinted-theming/schemes (MIT) ship as permanent
+   built-ins next to LiqueAmp Default and Amber Night
+   (`scripts/import-base16-themes.mjs` → `base16Schemes.ts`), including 5
+   light themes (previously "light theme" was deferred).
 
 ---
 
@@ -203,7 +226,7 @@ Each phase ends with typecheck, tests, build and a look at the running app
 | 6 ✅ | Library | Categories, favorites, history recording, playlists, queue UI incl. reorder. |
 | 7 ✅ | URL import | Import pipeline with preview + duplicate detection. |
 | 8 ✅ | Providers | YouTube, YT Music, SoundCloud, Spotify adapters (embedded/external modes). |
-| 9 ✅ | Themes | Theme editor, Base16/Base24/Tinted8 import, mapping editor, export. |
+| 9 ✅ | Themes | Theme editor, Base16/Base24/Tinted8 import, mapping editor, export. (Base16 model since 2026-09-24, see §3.9.) |
 | 10 ✅ | Audio analysis | Analyser service, normalized frames, EQ/bass/mid/treble DSP. |
 | 11 ✅ | Visualizers | Spectrum Bars, Waveform, Terminal Spectrum, Minimal Meter, Oscilloscope. |
 | 12 ✅ | Integration | Media Session, keyboard shortcuts, accessibility pass. |

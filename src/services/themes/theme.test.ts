@@ -32,29 +32,32 @@ describe('theme', () => {
     for (const theme of BUILTIN_THEMES) {
       const issues = validateTheme(theme);
       expect(issues.filter((i) => i.level === 'error')).toEqual([]);
-      expect(contrastRatio(theme.colors.text, theme.colors.bg)).toBeGreaterThanOrEqual(7);
+      // WCAG AA; the published Base16 schemes are used unchanged (Solarized is ~6:1)
+      expect(contrastRatio(theme.colors.text, theme.colors.bg)).toBeGreaterThanOrEqual(4.5);
     }
+    for (const theme of [LIQUEAMP_DEFAULT, AMBER_NIGHT]) expect(contrastRatio(theme.colors.text, theme.colors.bg)).toBeGreaterThanOrEqual(7);
   });
 
   it('rejects invalid colors and warns on low contrast without rejecting', () => {
-    const broken = { ...LIQUEAMP_DEFAULT, colors: { ...LIQUEAMP_DEFAULT.colors, bg: 'nope' } };
+    const broken = { ...LIQUEAMP_DEFAULT, palette: { ...LIQUEAMP_DEFAULT.palette, base00: 'nope' } };
     expect(validateTheme(broken).some((i) => i.level === 'error')).toBe(true);
 
-    const lowContrast = { ...LIQUEAMP_DEFAULT, colors: { ...LIQUEAMP_DEFAULT.colors, text: '#15201b' } };
+    const lowContrast = { ...LIQUEAMP_DEFAULT, palette: { ...LIQUEAMP_DEFAULT.palette, base05: '#15201b', base06: '#15201b', base07: '#15201b' } };
     const issues = validateTheme(lowContrast);
     expect(issues.some((i) => i.level === 'error')).toBe(false);
     expect(issues.some((i) => i.level === 'warning' && i.message.startsWith('Primary text'))).toBe(true);
   });
 
-  it('normalizeTheme fills gaps from the default and clamps effects', () => {
+  it('normalizeTheme derives colors from the palette and clamps effects', () => {
     const partial = normalizeTheme({
       ...AMBER_NIGHT,
       id: 'x',
       source: 'user',
-      colors: { ...AMBER_NIGHT.colors, accent: 'garbage' },
+      colors: { ...AMBER_NIGHT.colors, accent: '#000000' }, // stale derived colors are ignored
       effects: { glowEnabled: true, glowIntensity: 7, borderRadius: -3 },
     });
-    expect(partial.colors.accent).toBe(LIQUEAMP_DEFAULT.colors.accent);
+    expect(partial.colors).toEqual(AMBER_NIGHT.colors);
+    expect(partial.variant).toBe('dark');
     expect(partial.effects.glowIntensity).toBe(1);
     expect(partial.effects.borderRadius).toBe(0);
   });

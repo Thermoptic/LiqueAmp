@@ -1,13 +1,12 @@
 import { useId, useMemo, useState } from 'react';
 import { Upload } from 'lucide-react';
-import { buildTheme, defaultMapping, parseLiqueAmpJson, parseScheme, ThemeImportError, type ParsedScheme } from '../../../services/themes/tinted';
+import { buildTheme, parseLiqueAmpJson, parseScheme, schemeNotes, ThemeImportError, type ParsedScheme } from '../../../services/themes/tinted';
 import { useSettings } from '../../../stores/settingsStore';
 import { useThemes } from '../../../stores/themeStore';
 import { useUi } from '../../../stores/uiStore';
-import { THEME_COLOR_KEYS, type LiqueAmpTheme, type ThemeColorKey } from '../../../types/theme';
+import { BASE16_KEYS, type LiqueAmpTheme } from '../../../types/theme';
 import { Status } from '../../ui/controls';
 import { ThemePreview } from './ThemePreview';
-import { TOKEN_LABEL } from './ThemeEditor';
 
 const FORMAT_LABEL = { base16: 'Base16', base24: 'Base24', tinted8: 'Tinted8' } as const;
 
@@ -15,13 +14,12 @@ type Parsed = { kind: 'scheme'; scheme: ParsedScheme } | { kind: 'liqueamp'; the
 
 /**
  * Tinted Theming import (THEMING §15–18): read → detect → validate → parse →
- * map (editable) → preview → save → optionally activate.
+ * convert to a Base16 palette → preview → save → optionally activate.
  */
 export function ThemeImporter({ onClose }: { onClose(): void }) {
   const [text, setText] = useState('');
   const [parsed, setParsed] = useState<Parsed | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [mapping, setMapping] = useState<Partial<Record<ThemeColorKey, string>>>({});
   const [name, setName] = useState('');
   const saveTheme = useThemes((s) => s.saveTheme);
   const activate = useSettings((s) => s.update);
@@ -40,7 +38,6 @@ export function ThemeImporter({ onClose }: { onClose(): void }) {
     try {
       const scheme = parseScheme(source);
       setParsed({ kind: 'scheme', scheme });
-      setMapping(defaultMapping(scheme));
       setName(scheme.name);
     } catch (err) {
       setError(err instanceof ThemeImportError ? err.message : String(err));
@@ -50,8 +47,8 @@ export function ThemeImporter({ onClose }: { onClose(): void }) {
   const theme = useMemo(() => {
     if (!parsed) return null;
     if (parsed.kind === 'liqueamp') return { ...parsed.theme, name: name || parsed.theme.name };
-    return buildTheme(parsed.scheme, mapping, name || parsed.scheme.name);
-  }, [parsed, mapping, name]);
+    return buildTheme(parsed.scheme, name || parsed.scheme.name);
+  }, [parsed, name]);
 
   async function save(andActivate: boolean) {
     if (!theme) return;
@@ -133,31 +130,17 @@ export function ThemeImporter({ onClose }: { onClose(): void }) {
               </label>
               <input id={ids.name} className="input" value={name} maxLength={60} onChange={(e) => setName(e.currentTarget.value)} />
             </div>
-            {parsed.kind === 'scheme' && (
-              <>
-                <div className="palette-strip" aria-label="Imported palette">
-                  {Object.entries(parsed.scheme.palette).map(([k, v]) => (
-                    <span key={k} className="palette-strip__chip" title={`${k} ${v}`} style={{ background: v }} />
-                  ))}
-                </div>
-                <fieldset className="theme-editor__group">
-                  <legend className="settings-group__title">Semantic mapping</legend>
-                  <p className="muted control-note">Which palette color LIQUEAMP uses for each role. Change any mapping; the preview updates.</p>
-                  {THEME_COLOR_KEYS.map((key) => (
-                    <MappingRow
-                      key={key}
-                      token={key}
-                      palette={parsed.scheme.palette}
-                      value={mapping[key] ?? ''}
-                      onChange={(v) => setMapping({ ...mapping, [key]: v })}
-                    />
-                  ))}
-                  <button type="button" className="btn btn--ghost" onClick={() => setMapping(defaultMapping(parsed.scheme))}>
-                    Reset mapping
-                  </button>
-                </fieldset>
-              </>
-            )}
+            {parsed.kind === 'scheme' &&
+              schemeNotes(parsed.scheme).map((n) => (
+                <p key={n} className="muted control-note">
+                  {n}
+                </p>
+              ))}
+            <div className="palette-strip" aria-label="Base16 palette">
+              {BASE16_KEYS.map((k) => (
+                <span key={k} className="palette-strip__chip" title={`${k} ${theme.palette[k]}`} style={{ background: theme.palette[k] }} />
+              ))}
+            </div>
           </div>
           <div className="theme-editor__side">
             <ThemePreview theme={theme} />
@@ -175,25 +158,6 @@ export function ThemeImporter({ onClose }: { onClose(): void }) {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function MappingRow({ token, palette, value, onChange }: { token: ThemeColorKey; palette: Record<string, string>; value: string; onChange(v: string): void }) {
-  const id = useId();
-  return (
-    <div className="mapping-row">
-      <label htmlFor={id} className="truncate" title={token}>
-        {TOKEN_LABEL[token]}
-      </label>
-      <span className="mapping-row__chip" style={{ background: palette[value] }} aria-hidden="true" />
-      <select id={id} className="select" value={value} onChange={(e) => onChange(e.currentTarget.value)}>
-        {Object.entries(palette).map(([k, v]) => (
-          <option key={k} value={k}>
-            {k} · {v}
-          </option>
-        ))}
-      </select>
     </div>
   );
 }

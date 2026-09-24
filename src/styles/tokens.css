@@ -7,29 +7,30 @@
   /* colors — mirrored from services/themes/builtin.ts LIQUEAMP_DEFAULT */
   --la-bg: #0b100e;
   --la-surface: #101815;
-  --la-surface-2: #15201b;
+  --la-surface-2: #16201c;
   --la-surface-3: #1b2923;
-  --la-border: #2a3b33;
-  --la-border-subtle: #1d2a24;
+  --la-border: #2d4036;
+  --la-border-subtle: #1b2923;
   --la-border-strong: #3f5749;
   --la-text: #efe5d5;
   --la-text-secondary: #c3b9a7;
-  --la-text-muted: #8a978d;
-  --la-text-disabled: #56635a;
+  --la-text-muted: #818878;
+  --la-text-disabled: #536657;
   --la-primary: #ff7a3d;
+  --la-on-primary: #0b100e;
   --la-secondary: #8fcfa9;
-  --la-accent: #ff8a4c;
-  --la-accent-bright: #ffb07a;
+  --la-accent: #ff8d58;
+  --la-accent-bright: #ffb48e;
   --la-success: #7fd49a;
   --la-warning: #f2b544;
   --la-danger: #ff5a4f;
   --la-info: #72b9d6;
-  --la-live: #ff5a3c;
+  --la-live: #ff5a4f;
   --la-visualizer: #ff7a3d;
-  --la-visualizer-secondary: #d6d86a;
+  --la-visualizer-secondary: #f2b544;
   --la-glow: #ff7a3d;
-  --la-glow-strong: #ffa066;
-  --la-focus: #ffb07a;
+  --la-glow-strong: #ffa073;
+  --la-focus: #ffb48e;
 
   /* effects (theme-controlled) */
   --la-glow-amount: 0.6;

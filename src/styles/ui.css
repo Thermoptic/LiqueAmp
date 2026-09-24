@@ -100,7 +100,7 @@
 .btn--primary {
   background: var(--la-primary);
   border-color: var(--la-primary);
-  color: var(--la-bg);
+  color: var(--la-on-primary);
   font-weight: 700;
   box-shadow: var(--la-glow-box);
 }
@@ -228,7 +228,7 @@
 
 .tab[aria-selected='true'] {
   background: var(--la-primary);
-  color: var(--la-bg);
+  color: var(--la-on-primary);
   font-weight: 700;
 }
 
@@ -412,7 +412,7 @@
 
 .segmented button[aria-checked='true'] {
   background: var(--la-primary);
-  color: var(--la-bg);
+  color: var(--la-on-primary);
   font-weight: 700;
 }
 
@@ -479,7 +479,7 @@
 
 .row[aria-current='true'] {
   background: var(--la-primary);
-  color: var(--la-bg);
+  color: var(--la-on-primary);
 }
 
 /* ---------- Dialog ---------- */

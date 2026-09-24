@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { BarChart3, Headphones, Palette, Settings2, SlidersHorizontal } from 'lucide-react';
 import { useSettings } from '../../stores/settingsStore';
+import { groupThemes } from '../../services/themes/builtin';
 import { useThemes } from '../../stores/themeStore';
 import type { RepeatMode } from '../../types/settings';
 import { Field, Segmented, Toggle } from '../ui/controls';
@@ -85,10 +86,14 @@ export function AppearanceModule() {
       <Field label="Theme">
         {(id) => (
           <select id={id} className="select" value={activeThemeId} onChange={(e) => update({ activeThemeId: e.currentTarget.value })}>
-            {themes.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
+            {groupThemes(themes).map((g) => (
+              <optgroup key={g.label} label={g.label}>
+                {g.themes.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         )}

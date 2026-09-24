@@ -22,7 +22,10 @@ export const useThemes = create<ThemeStore>((set, get) => ({
   themes: [...BUILTIN_THEMES],
 
   async hydrate() {
-    const stored = (await repositories.themes.getAll()).map(normalizeTheme);
+    const raw = await repositories.themes.getAll();
+    const stored = raw.map(normalizeTheme);
+    // Version-1 themes (25 free colors) are migrated to a Base16 palette once.
+    await Promise.all(stored.filter((_, i) => raw[i]!.version !== 2).map((t) => repositories.themes.put(t)));
     const builtinIds = new Set(BUILTIN_THEMES.map((t) => t.id));
     set({ themes: [...BUILTIN_THEMES, ...stored.filter((t) => !builtinIds.has(t.id))] });
   },

@@ -1,4 +1,5 @@
-import { THEME_COLOR_KEYS, type LiqueAmpTheme, type ThemeColorKey } from '../../types/theme';
+import { BASE16_KEYS, THEME_COLOR_KEYS, type Base16Palette, type LiqueAmpTheme, type ThemeColorKey, type ThemeColors } from '../../types/theme';
+import { deriveColors, paletteFromLegacyColors, paletteFromTinted8, paletteVariant, pickBase16 } from './base16';
 import { contrastRatio, gradeContrast, normalizeHex } from './color';
 import { LIQUEAMP_DEFAULT } from './builtin';
 
@@ -13,20 +14,20 @@ export interface ThemeIssue {
 }
 
 /**
- * Validates a theme candidate. Errors block saving; warnings (e.g. low
- * contrast) are informational and never reject an artistic theme (THEMING §21).
+ * Validates a theme. Errors (an invalid palette) block saving; warnings (low
+ * contrast in the derived colors) are informational and never reject an
+ * artistic theme (THEMING §21).
  */
 export function validateTheme(theme: LiqueAmpTheme): ThemeIssue[] {
   const issues: ThemeIssue[] = [];
   if (!theme.id.trim()) issues.push({ level: 'error', message: 'Theme has no id.' });
   if (!theme.name.trim()) issues.push({ level: 'error', message: 'Theme has no name.' });
-  for (const key of THEME_COLOR_KEYS) {
-    if (!normalizeHex(theme.colors[key])) {
-      issues.push({ level: 'error', message: `Color "${key}" is not a valid hex color.` });
-    }
+  for (const key of BASE16_KEYS) {
+    if (!normalizeHex(theme.palette?.[key])) issues.push({ level: 'error', message: `${key} is not a valid hex color.` });
   }
   if (issues.some((i) => i.level === 'error')) return issues;
 
+  const colors = deriveColors(theme.palette);
   const pairs: Array<[ThemeColorKey, ThemeColorKey, string]> = [
     ['text', 'bg', 'Primary text'],
     ['text', 'surface', 'Primary text on panels'],
@@ -35,7 +36,7 @@ export function validateTheme(theme: LiqueAmpTheme): ThemeIssue[] {
     ['focus', 'surface', 'Focus outline'],
   ];
   for (const [fg, bg, label] of pairs) {
-    const ratio = contrastRatio(theme.colors[fg], theme.colors[bg]);
+    const ratio = contrastRatio(colors[fg], colors[bg]);
     const threshold = fg === 'text' ? 4.5 : 3;
     if (ratio < threshold) {
       issues.push({
@@ -47,23 +48,50 @@ export function validateTheme(theme: LiqueAmpTheme): ThemeIssue[] {
   return issues;
 }
 
-/** Fills missing/invalid colors from the default theme and clamps effects. */
-export function normalizeTheme(input: LiqueAmpTheme): LiqueAmpTheme {
-  const colors = { ...LIQUEAMP_DEFAULT.colors };
-  for (const key of THEME_COLOR_KEYS) {
-    const v = normalizeHex(input.colors?.[key]);
-    if (v) colors[key] = v;
-  }
+/** Loose input: a current theme, a stored/imported version-1 theme, or partial data. */
+export type ThemeInput = Partial<Omit<LiqueAmpTheme, 'palette' | 'colors'>> & {
+  palette?: Record<string, unknown>;
+  colors?: Record<string, unknown>;
+  /** version-1 field: which format the palette came from */
+  format?: string;
+};
+
+/**
+ * Brings any theme into the Base16 model (version 2): the palette is the
+ * theme, the semantic colors are derived. Version-1 themes are migrated:
+ * Base16/Base24 imports keep their exact palette, Tinted8 imports are
+ * converted, hand-made themes (25 free colors) get the closest Base16 palette.
+ */
+export function normalizeTheme(input: ThemeInput): LiqueAmpTheme {
+  const fallback = LIQUEAMP_DEFAULT.palette;
+  const rawPalette = (input.palette ?? {}) as Record<string, string>;
+  const palette: Base16Palette =
+    pickBase16(rawPalette) ??
+    (input.format === 'tinted8' && rawPalette.black ? paletteFromTinted8(rawPalette, fallback) : null) ??
+    (input.colors ? paletteFromLegacyColors(input.colors as Partial<ThemeColors>, fallback) : null) ??
+    { ...fallback };
   const fx = input.effects ?? LIQUEAMP_DEFAULT.effects;
-  return {
-    ...input,
-    colors,
+  const theme: LiqueAmpTheme = {
+    id: String(input.id ?? ''),
+    name: String(input.name ?? ''),
+    version: 2,
+    source: input.source === 'builtin' || input.source === 'imported' ? input.source : 'user',
+    palette,
+    colors: deriveColors(palette),
     effects: {
       glowEnabled: Boolean(fx.glowEnabled),
       glowIntensity: clamp(Number(fx.glowIntensity) || 0, 0, 1),
       borderRadius: clamp(Number(fx.borderRadius) || 0, 0, 8),
     },
+    variant: input.variant === 'light' || input.variant === 'dark' ? input.variant : paletteVariant(palette),
   };
+  if (input.author) theme.author = input.author;
+  if (input.origin) theme.origin = input.origin;
+  else if (input.format === 'base24') theme.origin = 'Base24 import';
+  else if (input.format === 'tinted8') theme.origin = 'Tinted8 import';
+  if (input.createdAt) theme.createdAt = input.createdAt;
+  if (input.updatedAt) theme.updatedAt = input.updatedAt;
+  return theme;
 }
 
 function clamp(v: number, min: number, max: number) {

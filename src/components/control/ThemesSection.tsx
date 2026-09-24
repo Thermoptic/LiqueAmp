@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Check, Copy, Download, Pencil, Plus, RotateCcw, Trash2, Type, Upload } from 'lucide-react';
-import { LIQUEAMP_DEFAULT } from '../../services/themes/builtin';
+import { groupThemes, LIQUEAMP_DEFAULT } from '../../services/themes/builtin';
 import { exportBase16Yaml, exportLiqueAmpJson } from '../../services/themes/tinted';
 import { validateTheme } from '../../services/themes/theme';
 import { useSettings } from '../../stores/settingsStore';
 import { useThemes } from '../../stores/themeStore';
 import { useUi } from '../../stores/uiStore';
-import { THEME_COLOR_KEYS, type LiqueAmpTheme } from '../../types/theme';
+import { BASE16_KEYS, type LiqueAmpTheme } from '../../types/theme';
 import { Dialog } from '../ui/Dialog';
 import { NameDialog } from '../ui/NameDialog';
 import { Status } from '../ui/controls';
@@ -86,92 +86,103 @@ export function ThemesSection() {
         {mode.kind === 'edit' && <ThemeEditor initial={mode.theme} onClose={() => setMode({ kind: 'list' })} />}
         {mode.kind === 'import' && <ThemeImporter onClose={() => setMode({ kind: 'list' })} />}
         {mode.kind === 'list' && (
-          <div className="theme-grid">
-            {themes.map((theme) => {
-              const warnings = validateTheme(theme).filter((i) => i.level === 'warning');
-              const active = theme.id === activeThemeId;
-              return (
-                <article key={theme.id} className={`theme-card ${active ? 'theme-card--active' : ''}`} aria-label={theme.name}>
-                  <div className="theme-card__swatches" aria-hidden="true">
-                    {THEME_COLOR_KEYS.slice(0, 16).map((k) => (
-                      <span key={k} style={{ background: theme.colors[k] }} title={k} />
-                    ))}
-                  </div>
-                  <div className="theme-card__meta">
-                    <strong className="truncate">{theme.name}</strong>
-                    <span className="muted">
-                      {SOURCE_LABEL[theme.source]}
-                      {theme.format && theme.format !== 'liqueamp' ? ` · ${theme.format.toUpperCase()}` : ''}
-                    </span>
-                  </div>
-                  {warnings.length > 0 ? (
-                    <ul className="theme-card__warnings">
-                      {warnings.map((w) => (
-                        <li key={w.message}>
-                          <Status tone="warn">{w.message}</Status>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <Status tone="ok">Contrast OK</Status>
-                  )}
-                  <div className="theme-card__actions">
-                    <button
-                      type="button"
-                      className={`btn ${active ? '' : 'btn--accent-outline'}`}
-                      disabled={active}
-                      onClick={() => update({ activeThemeId: theme.id })}
-                    >
-                      {active ? (
-                        <>
-                          <Check size={14} aria-hidden="true" /> Active
-                        </>
+          <div className="theme-groups">
+            {groupThemes(themes).map((group) => (
+              <section key={group.label} className="theme-group" aria-label={group.label}>
+                <h3 className="settings-group__title">
+                  {group.label} <span className="muted">· {group.themes.length}</span>
+                </h3>
+              <div className="theme-grid">
+                {group.themes.map((theme) => {
+                  const warnings = validateTheme(theme).filter((i) => i.level === 'warning');
+                  const active = theme.id === activeThemeId;
+                  return (
+                    <article key={theme.id} className={`theme-card ${active ? 'theme-card--active' : ''}`} aria-label={theme.name}>
+                      <div className="theme-card__swatches" aria-hidden="true">
+                        {BASE16_KEYS.map((k) => (
+                          <span key={k} style={{ background: theme.palette[k] }} title={`${k} ${theme.palette[k]}`} />
+                        ))}
+                      </div>
+                      <div className="theme-card__meta">
+                        <strong className="truncate" title={theme.author ? `${theme.name} — ${theme.author}` : theme.name}>
+                          {theme.name}
+                        </strong>
+                        <span className="muted">
+                          {SOURCE_LABEL[theme.source]}
+                          {theme.variant ? ` · ${theme.variant.toUpperCase()}` : ''}
+                        </span>
+                      </div>
+                      {warnings.length > 0 ? (
+                        <ul className="theme-card__warnings">
+                          {warnings.map((w) => (
+                            <li key={w.message}>
+                              <Status tone="warn">{w.message}</Status>
+                            </li>
+                          ))}
+                        </ul>
                       ) : (
-                        'Activate'
+                        <Status tone="ok">Contrast OK</Status>
                       )}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn--icon"
-                      aria-label={theme.source === 'builtin' ? `Edit a copy of ${theme.name}` : `Edit ${theme.name}`}
-                      title={theme.source === 'builtin' ? 'Edit a copy' : 'Edit'}
-                      onClick={() => void edit(theme)}
-                    >
-                      <Pencil size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn--icon"
-                      aria-label={`Duplicate ${theme.name}`}
-                      title="Duplicate"
-                      onClick={() => void duplicateTheme(theme.id).then(() => toast('Theme duplicated', 'success'))}
-                    >
-                      <Copy size={14} />
-                    </button>
-                    {theme.source !== 'builtin' && (
-                      <button type="button" className="btn btn--icon" aria-label={`Rename ${theme.name}`} title="Rename" onClick={() => setRenaming(theme)}>
-                        <Type size={14} />
-                      </button>
-                    )}
-                    <button type="button" className="btn btn--icon" aria-label={`Export ${theme.name}`} title="Export" onClick={() => setExporting(theme)}>
-                      <Download size={14} />
-                    </button>
-                    {theme.source !== 'builtin' && (
-                      <button
-                        type="button"
-                        className="btn btn--icon btn--danger"
-                        aria-label={`Delete ${theme.name}`}
-                        title={active ? 'Activate another theme first' : 'Delete'}
-                        disabled={active}
-                        onClick={() => setDeleting(theme)}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
+                      <div className="theme-card__actions">
+                        <button
+                          type="button"
+                          className={`btn ${active ? '' : 'btn--accent-outline'}`}
+                          disabled={active}
+                          onClick={() => update({ activeThemeId: theme.id })}
+                        >
+                          {active ? (
+                            <>
+                              <Check size={14} aria-hidden="true" /> Active
+                            </>
+                          ) : (
+                            'Activate'
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn--icon"
+                          aria-label={theme.source === 'builtin' ? `Edit a copy of ${theme.name}` : `Edit ${theme.name}`}
+                          title={theme.source === 'builtin' ? 'Edit a copy' : 'Edit'}
+                          onClick={() => void edit(theme)}
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn--icon"
+                          aria-label={`Duplicate ${theme.name}`}
+                          title="Duplicate"
+                          onClick={() => void duplicateTheme(theme.id).then(() => toast('Theme duplicated', 'success'))}
+                        >
+                          <Copy size={14} />
+                        </button>
+                        {theme.source !== 'builtin' && (
+                          <button type="button" className="btn btn--icon" aria-label={`Rename ${theme.name}`} title="Rename" onClick={() => setRenaming(theme)}>
+                            <Type size={14} />
+                          </button>
+                        )}
+                        <button type="button" className="btn btn--icon" aria-label={`Export ${theme.name}`} title="Export" onClick={() => setExporting(theme)}>
+                          <Download size={14} />
+                        </button>
+                        {theme.source !== 'builtin' && (
+                          <button
+                            type="button"
+                            className="btn btn--icon btn--danger"
+                            aria-label={`Delete ${theme.name}`}
+                            title={active ? 'Activate another theme first' : 'Delete'}
+                            disabled={active}
+                            onClick={() => setDeleting(theme)}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+              </section>
+            ))}
           </div>
         )}
       </div>
@@ -204,12 +215,12 @@ export function ThemesSection() {
         {exporting && (
           <div className="theme-export">
             <button type="button" className="btn btn--block" onClick={() => download(`${fileSlug(exporting.name)}.liqueamp.json`, exportLiqueAmpJson(exporting), 'application/json')}>
-              <Download size={14} aria-hidden="true" /> LIQUEAMP JSON — every color and effect
+              <Download size={14} aria-hidden="true" /> LIQUEAMP JSON — palette and effects
             </button>
             <button type="button" className="btn btn--block" onClick={() => download(`${fileSlug(exporting.name)}.yaml`, exportBase16Yaml(exporting), 'text/yaml')}>
-              <Download size={14} aria-hidden="true" /> Base16 YAML — closest 16-color version
+              <Download size={14} aria-hidden="true" /> Base16 YAML — the 16 palette colors
             </button>
-            <p className="muted control-note">Base16 has 16 colors and LIQUEAMP uses 25, so the Base16 file is an approximation.</p>
+            <p className="muted control-note">Every LIQUEAMP theme is a Base16 palette, so the Base16 file is exact; the JSON file also keeps glow and corner radius.</p>
           </div>
         )}
       </Dialog>

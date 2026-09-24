@@ -1,77 +1,20 @@
 import { useId, useMemo, useState } from 'react';
 import { normalizeHex } from '../../../services/themes/color';
-import { validateTheme } from '../../../services/themes/theme';
+import { BASE16_ROLES } from '../../../services/themes/base16';
+import { normalizeTheme, validateTheme } from '../../../services/themes/theme';
 import { useSettings } from '../../../stores/settingsStore';
 import { useThemes } from '../../../stores/themeStore';
 import { useUi } from '../../../stores/uiStore';
-import type { LiqueAmpTheme, ThemeColorKey } from '../../../types/theme';
+import { BASE16_KEYS, type Base16Key, type LiqueAmpTheme } from '../../../types/theme';
 import { Slider, Status, Toggle } from '../../ui/controls';
 import { ThemePreview } from './ThemePreview';
 
-export const THEME_GROUPS: ReadonlyArray<{ title: string; keys: ReadonlyArray<[ThemeColorKey, string]> }> = [
-  {
-    title: 'Background & surfaces',
-    keys: [
-      ['bg', 'Background'],
-      ['surface', 'Surface'],
-      ['surface2', 'Surface 2'],
-      ['surface3', 'Surface 3'],
-    ],
-  },
-  {
-    title: 'Borders',
-    keys: [
-      ['borderSubtle', 'Subtle'],
-      ['border', 'Normal'],
-      ['borderStrong', 'Strong'],
-    ],
-  },
-  {
-    title: 'Text',
-    keys: [
-      ['text', 'Primary'],
-      ['textSecondary', 'Secondary'],
-      ['textMuted', 'Muted'],
-      ['textDisabled', 'Disabled'],
-    ],
-  },
-  {
-    title: 'Accents',
-    keys: [
-      ['primary', 'Primary'],
-      ['accent', 'Accent'],
-      ['accentBright', 'Accent bright'],
-      ['secondary', 'Secondary'],
-      ['focus', 'Focus outline'],
-    ],
-  },
-  {
-    title: 'Status',
-    keys: [
-      ['success', 'Success'],
-      ['warning', 'Warning'],
-      ['danger', 'Danger'],
-      ['info', 'Info'],
-      ['live', 'Live'],
-    ],
-  },
-  {
-    title: 'Visualizer & glow',
-    keys: [
-      ['visualizer', 'Visualizer'],
-      ['visualizerSecondary', 'Visualizer 2'],
-      ['glow', 'Glow'],
-      ['glowStrong', 'Glow strong'],
-    ],
-  },
+const PALETTE_GROUPS: ReadonlyArray<{ title: string; keys: readonly Base16Key[] }> = [
+  { title: 'Base16 · background → foreground', keys: BASE16_KEYS.slice(0, 8) },
+  { title: 'Base16 · accents', keys: BASE16_KEYS.slice(8) },
 ];
 
-/** "Text · Muted" style labels for semantic tokens. */
-export const TOKEN_LABEL: Record<ThemeColorKey, string> = Object.fromEntries(
-  THEME_GROUPS.flatMap((g) => g.keys.map(([key, label]) => [key, `${g.title.split(' ')[0]} · ${label}`])),
-) as Record<ThemeColorKey, string>;
-
-function ColorField({ label, value, onChange }: { label: string; value: string; onChange(v: string): void }) {
+function ColorField({ label, hint, value, onChange }: { label: string; hint?: string; value: string; onChange(v: string): void }) {
   const id = useId();
   const [text, setText] = useState(value);
   const [lastValue, setLastValue] = useState(value);
@@ -82,7 +25,10 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
   const valid = normalizeHex(text) !== null;
   return (
     <div className="color-field">
-      <label htmlFor={id}>{label}</label>
+      <label htmlFor={id} title={hint}>
+        {label}
+        {hint && <span className="color-field__hint">{hint}</span>}
+      </label>
       <input type="color" value={value} aria-label={`${label} color picker`} onChange={(e) => onChange(e.currentTarget.value)} />
       <input
         id={id}
@@ -103,7 +49,8 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
 }
 
 /**
- * Edits a theme with a live preview (THEMING §19). Built-in themes are
+ * Edits a theme's 16 Base16 colors with a live preview (THEMING §19); the
+ * UI colors are derived from them by one fixed rule. Built-in themes are
  * edited as a copy; the app's own colors change only when saved + activated.
  */
 export function ThemeEditor({ initial, onClose }: { initial: LiqueAmpTheme; onClose(): void }) {
@@ -112,14 +59,16 @@ export function ThemeEditor({ initial, onClose }: { initial: LiqueAmpTheme; onCl
   const toast = useUi((s) => s.toast);
   const [draft, setDraft] = useState<LiqueAmpTheme>(() => structuredClone(initial));
   const nameId = useId();
-  const issues = useMemo(() => validateTheme(draft), [draft]);
+  // colors follow the palette, so the preview and contrast check use the derived theme
+  const derived = useMemo(() => normalizeTheme(draft), [draft]);
+  const issues = useMemo(() => validateTheme(derived), [derived]);
   const errors = issues.filter((i) => i.level === 'error');
 
-  const setColor = (key: ThemeColorKey, v: string) => setDraft((d) => ({ ...d, colors: { ...d.colors, [key]: v } }));
+  const setColor = (key: Base16Key, v: string) => setDraft((d) => ({ ...d, palette: { ...d.palette, [key]: v } }));
   const setEffects = (patch: Partial<LiqueAmpTheme['effects']>) => setDraft((d) => ({ ...d, effects: { ...d.effects, ...patch } }));
 
   async function save(andActivate: boolean) {
-    await saveTheme({ ...draft, source: draft.source === 'builtin' ? 'user' : draft.source, updatedAt: new Date().toISOString() });
+    await saveTheme({ ...derived, source: draft.source === 'builtin' ? 'user' : draft.source, updatedAt: new Date().toISOString() });
     if (andActivate) activate({ activeThemeId: draft.id });
     toast(andActivate ? 'Theme saved and activated' : 'Theme saved', 'success');
     onClose();
@@ -134,11 +83,11 @@ export function ThemeEditor({ initial, onClose }: { initial: LiqueAmpTheme; onCl
           </label>
           <input id={nameId} className="input" value={draft.name} maxLength={60} onChange={(e) => setDraft({ ...draft, name: e.currentTarget.value })} />
         </div>
-        {THEME_GROUPS.map((g) => (
+        {PALETTE_GROUPS.map((g) => (
           <fieldset key={g.title} className="theme-editor__group">
             <legend className="settings-group__title">{g.title}</legend>
-            {g.keys.map(([key, label]) => (
-              <ColorField key={key} label={label} value={draft.colors[key]} onChange={(v) => setColor(key, v)} />
+            {g.keys.map((key) => (
+              <ColorField key={key} label={key} hint={BASE16_ROLES[key]} value={draft.palette[key]} onChange={(v) => setColor(key, v)} />
             ))}
           </fieldset>
         ))}
@@ -173,7 +122,7 @@ export function ThemeEditor({ initial, onClose }: { initial: LiqueAmpTheme; onCl
         </fieldset>
       </div>
       <div className="theme-editor__side">
-        <ThemePreview theme={draft} />
+        <ThemePreview theme={derived} />
         <ul className="theme-card__warnings" aria-live="polite">
           {issues.length === 0 && (
             <li>

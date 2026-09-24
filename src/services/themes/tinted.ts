@@ -8,7 +8,8 @@
 
 import { parse as parseYaml } from 'yaml';
 import { createId, nowIso } from '../../lib/id';
-import { THEME_COLOR_KEYS, type LiqueAmpTheme, type ThemeColorKey } from '../../types/theme';
+import { BASE16_KEYS, type Base16Palette, type LiqueAmpTheme } from '../../types/theme';
+import { paletteFromTinted8, pickBase16 } from './base16';
 import { LIQUEAMP_DEFAULT } from './builtin';
 import { normalizeHex } from './color';
 import { normalizeTheme } from './theme';
@@ -28,7 +29,6 @@ export interface ParsedScheme {
 export class ThemeImportError extends Error {}
 
 const MAX_BYTES = 256 * 1024;
-export const BASE16_KEYS = Array.from({ length: 16 }, (_, i) => `base0${i.toString(16).toUpperCase()}`);
 export const BASE24_EXTRA_KEYS = Array.from({ length: 8 }, (_, i) => `base1${i}`);
 const TINTED8_COLORS = ['black', 'white', 'red', 'yellow', 'green', 'cyan', 'blue', 'magenta', 'gray', 'orange'];
 
@@ -111,78 +111,23 @@ export function parseScheme(text: string): ParsedScheme {
   };
 }
 
-// ---- semantic mapping ----------------------------------------------------------
-
-/** Candidate palette keys per semantic token; the first one present is used. */
-const BASE_MAPPING: Record<ThemeColorKey, string[]> = {
-  bg: ['base00'],
-  surface: ['base01'],
-  surface2: ['base01'],
-  surface3: ['base02'],
-  border: ['base02'],
-  borderSubtle: ['base01'],
-  borderStrong: ['base03'],
-  text: ['base05'],
-  textSecondary: ['base04'],
-  textMuted: ['base03'],
-  textDisabled: ['base02'],
-  primary: ['base09'],
-  secondary: ['base0C'],
-  accent: ['base09'],
-  accentBright: ['base0A'],
-  success: ['base0B'],
-  warning: ['base0A'],
-  danger: ['base08'],
-  info: ['base0D'],
-  live: ['base08'],
-  visualizer: ['base09'],
-  visualizerSecondary: ['base0B'],
-  glow: ['base09'],
-  glowStrong: ['base0A'],
-  focus: ['base0A'],
-};
-
-const TINTED8_MAPPING: Record<ThemeColorKey, string[]> = {
-  bg: ['black-dim', 'black'],
-  surface: ['black'],
-  surface2: ['black-bright', 'black'],
-  surface3: ['black-bright', 'gray-dim', 'gray'],
-  border: ['black-bright', 'gray-dim', 'gray'],
-  borderSubtle: ['black-bright', 'black'],
-  borderStrong: ['gray', 'gray-dim', 'white-dim'],
-  text: ['white', 'white-bright'],
-  textSecondary: ['white-dim', 'white'],
-  textMuted: ['gray', 'gray-bright', 'white-dim'],
-  textDisabled: ['gray-dim', 'gray', 'black-bright'],
-  primary: ['orange', 'yellow', 'red'],
-  secondary: ['cyan', 'green', 'blue'],
-  accent: ['orange', 'yellow', 'red'],
-  accentBright: ['orange-bright', 'yellow-bright', 'orange', 'yellow'],
-  success: ['green', 'green-bright'],
-  warning: ['yellow', 'orange'],
-  danger: ['red', 'red-bright'],
-  info: ['blue', 'cyan'],
-  live: ['red-bright', 'red'],
-  visualizer: ['orange', 'yellow', 'red'],
-  visualizerSecondary: ['green', 'cyan'],
-  glow: ['orange', 'yellow', 'red'],
-  glowStrong: ['orange-bright', 'yellow-bright', 'orange'],
-  focus: ['yellow-bright', 'yellow', 'orange'],
-};
+// ---- scheme → theme ----------------------------------------------------------------
 
 /**
- * The default semantic mapping for a scheme (THEMING §18). Every token maps
- * to a palette entry that exists; tokens with no candidate fall back to the
- * scheme's text or background color.
+ * The Base16 palette a scheme becomes. Base16 is used as is; Base24 keeps its
+ * first 16 slots (base10–base17 have no role in LIQUEAMP); Tinted8 names are
+ * converted to the matching Base16 slots.
  */
-export function defaultMapping(scheme: ParsedScheme): Record<ThemeColorKey, string> {
-  const table = scheme.format === 'tinted8' ? TINTED8_MAPPING : BASE_MAPPING;
-  const fallback = scheme.format === 'tinted8' ? ['white', 'black'] : ['base05', 'base00'];
-  const out = {} as Record<ThemeColorKey, string>;
-  for (const key of THEME_COLOR_KEYS) {
-    out[key] = [...table[key], ...fallback].find((k) => scheme.palette[k])!;
-  }
-  return out;
+export function schemePalette(scheme: ParsedScheme): Base16Palette {
+  if (scheme.format === 'tinted8') return paletteFromTinted8(scheme.palette, LIQUEAMP_DEFAULT.palette);
+  return pickBase16(scheme.palette) ?? { ...LIQUEAMP_DEFAULT.palette };
+}
+
+/** Import notes shown next to the palette preview. */
+export function schemeNotes(scheme: ParsedScheme): string[] {
+  if (scheme.format === 'base24') return ['Base24: base00–base0F are used; base10–base17 have no role in LIQUEAMP.'];
+  if (scheme.format === 'tinted8') return ['Tinted8: the named colors were converted to the 16 Base16 slots.'];
+  return [];
 }
 
 function slug(name: string) {
@@ -195,27 +140,18 @@ function slug(name: string) {
   );
 }
 
-/** Builds a LIQUEAMP theme from a parsed scheme and a (possibly edited) mapping. */
-export function buildTheme(scheme: ParsedScheme, mapping: Partial<Record<ThemeColorKey, string>> = {}, name = scheme.name): LiqueAmpTheme {
-  const full = { ...defaultMapping(scheme), ...mapping };
-  const colors = { ...LIQUEAMP_DEFAULT.colors };
-  for (const key of THEME_COLOR_KEYS) {
-    const value = scheme.palette[full[key]];
-    if (value) colors[key] = value;
-  }
+/** Builds a LIQUEAMP theme from a parsed scheme. */
+export function buildTheme(scheme: ParsedScheme, name = scheme.name): LiqueAmpTheme {
   const now = nowIso();
   return normalizeTheme({
     id: createId(`theme-${slug(name)}`).slice(0, 64),
     name: name.trim() || scheme.name,
-    version: 1,
     source: 'imported',
-    colors,
-    effects: { glowEnabled: true, glowIntensity: scheme.variant === 'light' ? 0.25 : 0.5, borderRadius: 2 },
-    palette: scheme.palette,
-    format: scheme.format,
-    mapping: full,
+    palette: schemePalette(scheme),
+    effects: { glowEnabled: true, glowIntensity: scheme.variant === 'light' ? 0.2 : 0.5, borderRadius: 2 },
     author: scheme.author,
     variant: scheme.variant,
+    origin: scheme.format === 'base16' ? undefined : `${scheme.format === 'base24' ? 'Base24' : 'Tinted8'} import`,
     createdAt: now,
     updatedAt: now,
   });
@@ -223,36 +159,14 @@ export function buildTheme(scheme: ParsedScheme, mapping: Partial<Record<ThemeCo
 
 // ---- export ------------------------------------------------------------------------
 
-/** LIQUEAMP's own JSON format: every semantic color, effects and metadata (THEMING §70). */
+/** LIQUEAMP's own JSON format: the Base16 palette, effects and metadata (THEMING §70). */
 export function exportLiqueAmpJson(theme: LiqueAmpTheme): string {
-  const { id, name, version, colors, effects, palette, format, mapping, author, variant } = theme;
-  return JSON.stringify({ liqueamp: 'theme', id, name, version, colors, effects, palette, format, mapping, author, variant }, null, 2);
+  const { id, name, palette, effects, author, variant } = theme;
+  return JSON.stringify({ liqueamp: 'theme', id, name, version: 2, palette, effects, author, variant }, null, 2);
 }
 
-/**
- * Base16 export. Base16 has 16 slots and LIQUEAMP 25 tokens, so this is the
- * closest valid representation (THEMING §34), in the current 0.11 layout.
- */
+/** Base16 export in the current 0.11 layout — exact, since a theme is a Base16 palette. */
 export function exportBase16Yaml(theme: LiqueAmpTheme): string {
-  const c = theme.colors;
-  const palette: Record<string, string> = {
-    base00: c.bg,
-    base01: c.surface,
-    base02: c.surface3,
-    base03: c.textMuted,
-    base04: c.textSecondary,
-    base05: c.text,
-    base06: c.text,
-    base07: c.accentBright,
-    base08: c.danger,
-    base09: c.primary,
-    base0A: c.warning,
-    base0B: c.success,
-    base0C: c.secondary,
-    base0D: c.info,
-    base0E: c.visualizerSecondary,
-    base0F: c.glowStrong,
-  };
   const q = (s: string) => JSON.stringify(s);
   const lines = [
     `system: "base16"`,
@@ -260,12 +174,12 @@ export function exportBase16Yaml(theme: LiqueAmpTheme): string {
     `author: ${q(theme.author ?? 'LIQUEAMP export')}`,
     `variant: ${q(theme.variant ?? 'dark')}`,
     'palette:',
-    ...BASE16_KEYS.map((k) => `  ${k}: "${palette[k]}"`),
+    ...BASE16_KEYS.map((k) => `  ${k}: "${theme.palette[k]}"`),
   ];
   return `${lines.join('\n')}\n`;
 }
 
-/** Imports a LIQUEAMP JSON theme export. */
+/** Imports a LIQUEAMP JSON theme export (version 2 palette, or version 1 colors). */
 export function parseLiqueAmpJson(text: string): LiqueAmpTheme | null {
   let obj: unknown;
   try {
@@ -273,15 +187,14 @@ export function parseLiqueAmpJson(text: string): LiqueAmpTheme | null {
   } catch {
     return null;
   }
-  if (!isObj(obj) || obj.liqueamp !== 'theme' || !isObj(obj.colors) || !str(obj.name)) return null;
+  if (!isObj(obj) || obj.liqueamp !== 'theme' || !str(obj.name)) return null;
+  if (!isObj(obj.palette) && !isObj(obj.colors)) return null;
   const now = nowIso();
   return normalizeTheme({
-    ...(obj as unknown as LiqueAmpTheme),
+    ...(obj as Record<string, never>),
     id: createId(`theme-${slug(String(obj.name))}`).slice(0, 64),
     name: String(obj.name).trim(),
-    version: 1,
     source: 'imported',
-    format: 'liqueamp',
     createdAt: now,
     updatedAt: now,
   });

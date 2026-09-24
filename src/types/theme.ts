@@ -15,6 +15,7 @@ export const THEME_COLOR_KEYS = [
   'textMuted',
   'textDisabled',
   'primary',
+  'onPrimary',
   'secondary',
   'accent',
   'accentBright',
@@ -42,21 +43,50 @@ export interface ThemeEffects {
   borderRadius: number;
 }
 
+/** The 16 Base16 slots (tinted-theming spec 0.11). */
+export const BASE16_KEYS = [
+  'base00',
+  'base01',
+  'base02',
+  'base03',
+  'base04',
+  'base05',
+  'base06',
+  'base07',
+  'base08',
+  'base09',
+  'base0A',
+  'base0B',
+  'base0C',
+  'base0D',
+  'base0E',
+  'base0F',
+] as const;
+
+export type Base16Key = (typeof BASE16_KEYS)[number];
+
+export type Base16Palette = Record<Base16Key, string>;
+
+/**
+ * A LIQUEAMP theme is a Base16 scheme: 16 colors plus effects. The 25
+ * semantic colors the UI uses are always derived from the palette with one
+ * fixed rule (services/themes/base16.ts) and are never edited on their own.
+ */
 export interface LiqueAmpTheme {
   id: string;
   name: string;
+  /** 2 = Base16 model. Version-1 themes (25 free colors) are migrated on load. */
   version: number;
   source: ThemeSource;
+  /** The theme itself. */
+  palette: Base16Palette;
+  /** Derived from `palette` by deriveColors(); kept on the object for consumers. */
   colors: ThemeColors;
   effects: ThemeEffects;
-  /** Original imported palette (base00… or tinted8 names), kept for remapping (THEMING §6). */
-  palette?: Record<string, string>;
-  /** Format the theme was imported from. */
-  format?: 'base16' | 'base24' | 'tinted8' | 'liqueamp';
-  /** Which palette entry feeds each semantic token (imported themes). */
-  mapping?: Partial<Record<ThemeColorKey, string>>;
   author?: string;
   variant?: 'dark' | 'light';
+  /** Where the palette came from, e.g. "tinted-theming/schemes (MIT)" or "Base24 import". */
+  origin?: string;
   createdAt?: string;
   updatedAt?: string;
 }

@@ -4,12 +4,13 @@ import { resetDbForTests } from '../storage/db';
 import { useThemes } from '../../stores/themeStore';
 import { useSettings } from '../../stores/settingsStore';
 import { DEFAULT_SETTINGS } from '../../types/settings';
-import { THEME_COLOR_KEYS } from '../../types/theme';
-import { LIQUEAMP_DEFAULT } from './builtin';
-import { validateTheme } from './theme';
+import { BASE16_KEYS } from '../../types/theme';
+import { deriveColors } from './base16';
+import { contrastRatio } from './color';
+import { BUILTIN_THEMES, groupThemes, LIQUEAMP_DEFAULT } from './builtin';
+import { normalizeTheme, validateTheme } from './theme';
 import {
   buildTheme,
-  defaultMapping,
   exportBase16Yaml,
   exportLiqueAmpJson,
   parseLiqueAmpJson,
@@ -154,55 +155,86 @@ describe('parseScheme', () => {
   });
 });
 
-describe('mapping and building', () => {
-  it('maps every semantic token to an existing palette color', () => {
-    for (const text of [GRUVBOX, LEGACY, NORD_T8]) {
-      const s = parseScheme(text);
-      const m = defaultMapping(s);
-      for (const key of THEME_COLOR_KEYS) expect(s.palette[m[key]]).toBeDefined();
-    }
-  });
-
-  it('follows THEMING §18 for Base16 (orange accent, red danger, green success)', () => {
-    const t = buildTheme(parseScheme(GRUVBOX));
+describe('scheme to Base16 theme', () => {
+  it('keeps a Base16 palette exactly and derives the UI colors from it', () => {
+    const s = parseScheme(GRUVBOX);
+    const t = buildTheme(s);
+    for (const k of BASE16_KEYS) expect(t.palette[k]).toBe(s.palette[k]);
+    expect(t.colors).toEqual(deriveColors(t.palette));
     expect(t.colors.bg).toBe('#1d2021');
     expect(t.colors.primary).toBe('#fe8019');
     expect(t.colors.danger).toBe('#fb4934');
     expect(t.colors.success).toBe('#b8bb26');
     expect(t.source).toBe('imported');
-    expect(t.format).toBe('base16');
+    expect(t.version).toBe(2);
     expect(validateTheme(t).filter((i) => i.level === 'error')).toEqual([]);
   });
 
-  it('applies an edited mapping and keeps the full palette for later remapping', () => {
-    const s = parseScheme(GRUVBOX);
-    const t = buildTheme(s, { primary: 'base0D' }, 'My Gruvbox');
-    expect(t.colors.primary).toBe('#83a598');
+  it('uses the first 16 slots of a Base24 scheme', () => {
+    const s = parseScheme(GRUVBOX.replace('system: "base16"', 'system: "base24"') + BASE24_EXTRA);
+    const t = buildTheme(s, 'My Gruvbox');
     expect(t.name).toBe('My Gruvbox');
-    expect(t.palette).toEqual(s.palette);
-    expect(t.mapping?.primary).toBe('base0D');
+    expect(Object.keys(t.palette).sort()).toEqual([...BASE16_KEYS].sort());
+    expect(t.origin).toBe('Base24 import');
   });
 
-  it('uses Tinted8 fallbacks when optional variants are missing', () => {
+  it('converts Tinted8 names to Base16 slots with fallbacks', () => {
     const t = buildTheme(parseScheme(NORD_T8));
-    expect(t.colors.bg).toBe('#2e3440'); // no black-dim → black
-    expect(t.colors.accentBright).toBe('#d08770'); // no orange-bright → orange
-    expect(t.colors.textSecondary).toBe('#d8dee9'); // white-dim
+    expect(t.palette.base00).toBe('#2e3440'); // no black-dim → black
+    expect(t.palette.base09).toBe('#d08770'); // orange
+    expect(t.palette.base04).toBe('#d8dee9'); // white-dim
+    expect(t.origin).toBe('Tinted8 import');
+  });
+});
+
+describe('built-in themes', () => {
+  it('ships the two LIQUEAMP themes plus 20 Base16 schemes, all valid', () => {
+    expect(BUILTIN_THEMES).toHaveLength(22);
+    expect(new Set(BUILTIN_THEMES.map((t) => t.id)).size).toBe(22);
+    for (const t of BUILTIN_THEMES) {
+      expect(t.source).toBe('builtin');
+      expect(validateTheme(t).filter((i) => i.level === 'error')).toEqual([]);
+      expect(t.colors).toEqual(deriveColors(t.palette));
+      // the derivation guard keeps small text readable on every surface
+      for (const fg of [t.colors.text, t.colors.textSecondary, t.colors.textMuted, t.colors.accentBright]) {
+        for (const bg of [t.colors.bg, t.colors.surface, t.colors.surface2, t.colors.surface3]) expect(contrastRatio(fg, bg)).toBeGreaterThanOrEqual(4.5);
+      }
+      expect(contrastRatio(t.colors.onPrimary, t.colors.primary)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('groups themes for the pickers', () => {
+    const groups = groupThemes([...BUILTIN_THEMES, buildTheme(parseScheme(GRUVBOX))]);
+    expect(groups.map((g) => [g.label, g.themes.length])).toEqual([
+      ['LiqueAmp', 2],
+      ['Base16 · dark', 15],
+      ['Base16 · light', 5],
+      ['Your themes', 1],
+    ]);
+  });
+
+  it('migrates a version-1 theme (25 free colors) to a Base16 palette', () => {
+    const v1 = { id: 'old', name: 'Old', version: 1, source: 'user' as const, colors: { ...LIQUEAMP_DEFAULT.colors, bg: '#010203', primary: '#123456' }, effects: LIQUEAMP_DEFAULT.effects };
+    const t = normalizeTheme(v1);
+    expect(t.version).toBe(2);
+    expect(t.palette.base00).toBe('#010203');
+    expect(t.palette.base09).toBe('#123456');
+    expect(t.colors.primary).toBe('#123456');
   });
 });
 
 describe('export', () => {
-  it('Base16 export parses back as a valid Base16 scheme', () => {
+  it('Base16 export is exact and parses back', () => {
     const yaml = exportBase16Yaml(LIQUEAMP_DEFAULT);
     const s = parseScheme(yaml);
     expect(s.format).toBe('base16');
     expect(s.name).toBe('LiqueAmp Default');
-    expect(s.palette.base00).toBe(LIQUEAMP_DEFAULT.colors.bg);
-    expect(s.palette.base09).toBe(LIQUEAMP_DEFAULT.colors.primary);
+    for (const k of BASE16_KEYS) expect(s.palette[k]).toBe(LIQUEAMP_DEFAULT.palette[k]);
   });
 
-  it('LIQUEAMP JSON round-trips every color as a new imported theme', () => {
+  it('LIQUEAMP JSON round-trips the palette as a new imported theme', () => {
     const back = parseLiqueAmpJson(exportLiqueAmpJson(LIQUEAMP_DEFAULT))!;
+    expect(back.palette).toEqual(LIQUEAMP_DEFAULT.palette);
     expect(back.colors).toEqual(LIQUEAMP_DEFAULT.colors);
     expect(back.source).toBe('imported');
     expect(back.id).not.toBe(LIQUEAMP_DEFAULT.id);
@@ -239,13 +271,16 @@ describe('theme library operations', () => {
     expect(useThemes.getState().themes.some((x) => x.id === t.id)).toBe(false);
   });
 
-  it('persists imported themes with their palette and mapping', async () => {
+  it('persists imported themes with their Base16 palette', async () => {
     const t = buildTheme(parseScheme(NORD_T8));
     await useThemes.getState().saveTheme(t);
     await useThemes.getState().hydrate();
     const stored = useThemes.getState().themes.find((x) => x.id === t.id)!;
-    expect(stored.format).toBe('tinted8');
-    expect(stored.palette?.orange).toBe('#d08770');
-    expect(stored.mapping?.primary).toBe('orange');
+    expect(stored.palette.base09).toBe('#d08770');
+    expect(stored.colors.primary).toBe('#d08770');
+  });
+
+  it('lists all 22 built-ins after hydrate', () => {
+    expect(useThemes.getState().themes.filter((t) => t.source === 'builtin')).toHaveLength(22);
   });
 });
