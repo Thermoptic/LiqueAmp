@@ -440,8 +440,8 @@
 
 .theme-import__drop:hover,
 .theme-import__drop:focus-within {
-  border-color: var(--la-primary);
-  color: var(--la-accent-bright);
+  border-color: var(--la-hover);
+  color: var(--la-hover-text);
 }
 
 .theme-import__text {

@@ -7,14 +7,14 @@
   /* colors — mirrored from services/themes/builtin.ts LIQUEAMP_DEFAULT */
   --la-bg: #0b100e;
   --la-surface: #101815;
-  --la-surface-2: #16201c;
+  --la-surface-2: #16211c;
   --la-surface-3: #1b2923;
   --la-border: #2d4036;
   --la-border-subtle: #1b2923;
   --la-border-strong: #3f5749;
   --la-text: #efe5d5;
   --la-text-secondary: #c3b9a7;
-  --la-text-muted: #818878;
+  --la-text-muted: #8c9181;
   --la-text-disabled: #536657;
   --la-primary: #ff7a3d;
   --la-on-primary: #0b100e;
@@ -30,7 +30,23 @@
   --la-visualizer-secondary: #f2b544;
   --la-glow: #ff7a3d;
   --la-glow-strong: #ffa073;
-  --la-focus: #ffb48e;
+  --la-focus: #72b9d6;
+  --la-heading: #f5ede1;
+  --la-strong: #fffaf2;
+  --la-hover: #f2b544;
+  --la-hover-text: #f2b544;
+  --la-on-hover: #0b100e;
+  --la-link: #72b9d6;
+  --la-icon: #8fcfa9;
+  --la-selection: #d38fbf;
+  --la-on-selection: #0b100e;
+  --la-tag: #b8835b;
+  --la-toggle-on: #7fd49a;
+  --la-on-toggle-on: #0b100e;
+  --la-toggle-off: #ff5a4f;
+  --la-on-danger: #0b100e;
+  --la-toggle-on-text: #7fd49a;
+  --la-toggle-off-text: #ff5a4f;
 
   /* effects (theme-controlled) */
   --la-glow-amount: 0.6;

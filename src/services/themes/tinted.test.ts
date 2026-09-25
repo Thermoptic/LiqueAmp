@@ -196,10 +196,19 @@ describe('built-in themes', () => {
       expect(validateTheme(t).filter((i) => i.level === 'error')).toEqual([]);
       expect(t.colors).toEqual(deriveColors(t.palette));
       // the derivation guard keeps small text readable on every surface
-      for (const fg of [t.colors.text, t.colors.textSecondary, t.colors.textMuted, t.colors.accentBright]) {
-        for (const bg of [t.colors.bg, t.colors.surface, t.colors.surface2, t.colors.surface3]) expect(contrastRatio(fg, bg)).toBeGreaterThanOrEqual(4.5);
+      const c = t.colors;
+      const surfaces = [c.bg, c.surface, c.surface2, c.surface3];
+      for (const fg of [c.text, c.textSecondary, c.textMuted, c.accentBright, c.heading, c.strong, c.hoverText, c.link, c.tag, c.toggleOnText, c.toggleOffText]) {
+        for (const bg of surfaces) expect(contrastRatio(fg, bg)).toBeGreaterThanOrEqual(4.5);
       }
-      expect(contrastRatio(t.colors.onPrimary, t.colors.primary)).toBeGreaterThanOrEqual(4.5);
+      for (const fg of [c.icon, c.focus]) for (const bg of surfaces) expect(contrastRatio(fg, bg)).toBeGreaterThanOrEqual(3);
+      for (const [fg, fill] of [
+        [c.onPrimary, c.primary],
+        [c.onHover, c.hover],
+        [c.onSelection, c.selection],
+        [c.onToggleOn, c.toggleOn],
+        [c.onDanger, c.danger],
+      ]) expect(contrastRatio(fg!, fill!)).toBeGreaterThanOrEqual(4.5);
     }
   });
 

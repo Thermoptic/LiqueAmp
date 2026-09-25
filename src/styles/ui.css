@@ -31,7 +31,7 @@
   font-size: var(--la-text-lg);
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--la-text);
+  color: var(--la-heading);
   white-space: nowrap;
 }
 
@@ -87,8 +87,9 @@
 }
 
 .btn:hover:not(:disabled) {
-  border-color: var(--la-border-strong);
+  border-color: var(--la-hover);
   background: var(--la-surface-3);
+  color: var(--la-hover-text);
 }
 
 .btn:disabled {
@@ -106,8 +107,9 @@
 }
 
 .btn--primary:hover:not(:disabled) {
-  background: var(--la-accent-bright);
-  border-color: var(--la-accent-bright);
+  background: var(--la-hover);
+  border-color: var(--la-hover);
+  color: var(--la-on-hover);
 }
 
 .btn--ghost {
@@ -116,13 +118,19 @@
 }
 
 .btn--accent-outline {
-  border-color: color-mix(in srgb, var(--la-primary) 70%, transparent);
-  color: var(--la-accent-bright);
+  border-color: var(--la-link);
+  color: var(--la-link);
 }
 
 .btn--danger {
-  border-color: color-mix(in srgb, var(--la-danger) 60%, transparent);
+  border-color: var(--la-danger);
   color: var(--la-danger);
+}
+
+.btn--danger:hover:not(:disabled) {
+  background: var(--la-danger);
+  border-color: var(--la-danger);
+  color: var(--la-on-danger);
 }
 
 .btn--icon {
@@ -136,8 +144,8 @@
 }
 
 .btn[aria-pressed='true'] {
-  border-color: var(--la-primary);
-  color: var(--la-accent-bright);
+  border-color: var(--la-toggle-on);
+  color: var(--la-toggle-on-text);
 }
 
 /* ---------- Badge / status ---------- */
@@ -146,7 +154,7 @@
   align-items: center;
   gap: 4px;
   font-size: var(--la-text-sm);
-  color: var(--la-accent-bright);
+  color: var(--la-tag);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -154,12 +162,10 @@
 
 .badge::before {
   content: '[';
-  color: var(--la-primary);
 }
 
 .badge::after {
   content: ']';
-  color: var(--la-primary);
 }
 
 .status {
@@ -222,7 +228,7 @@
 }
 
 .tab:hover {
-  color: var(--la-text);
+  color: var(--la-hover-text);
   background: var(--la-surface-2);
 }
 
@@ -353,12 +359,14 @@
   font-size: var(--la-text-sm);
 }
 
+/* off = base08, on = base0B */
 .toggle__track {
   position: relative;
   width: 30px;
   height: 16px;
   border-radius: 8px;
-  background: var(--la-border);
+  background: var(--la-surface-3);
+  box-shadow: inset 0 0 0 1px var(--la-toggle-off);
   transition: background-color var(--la-transition-fast);
 }
 
@@ -370,19 +378,32 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: var(--la-text-muted);
+  background: var(--la-toggle-off);
   transition:
     transform var(--la-transition-fast),
     background-color var(--la-transition-fast);
 }
 
 .toggle[aria-checked='true'] .toggle__track {
-  background: color-mix(in srgb, var(--la-primary) 55%, var(--la-border));
+  background: var(--la-toggle-on);
+  box-shadow: none;
 }
 
 .toggle[aria-checked='true'] .toggle__track::after {
   transform: translateX(14px);
-  background: var(--la-primary);
+  background: var(--la-on-toggle-on);
+}
+
+.toggle__track + span {
+  color: var(--la-toggle-off-text);
+}
+
+.toggle[aria-checked='true'] .toggle__track + span {
+  color: var(--la-toggle-on-text);
+}
+
+.toggle:hover:not(:disabled) .toggle__track {
+  box-shadow: inset 0 0 0 1px var(--la-hover);
 }
 
 /* Segmented control */
@@ -408,6 +429,10 @@
 
 .segmented button:last-child {
   border-right: 0;
+}
+
+.segmented button:hover:not([aria-checked='true']) {
+  color: var(--la-hover-text);
 }
 
 .segmented button[aria-checked='true'] {
@@ -446,10 +471,10 @@
 
 .pending-tag {
   font-size: var(--la-text-xs);
-  color: var(--la-text-muted);
+  color: var(--la-tag);
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  border: var(--la-border-width) solid var(--la-border-subtle);
+  border: var(--la-border-width) solid var(--la-tag);
   padding: 1px 6px;
   white-space: nowrap;
 }

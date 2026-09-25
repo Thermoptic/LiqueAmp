@@ -73,6 +73,7 @@
 
 .app-header__time {
   font-variant-numeric: tabular-nums;
+  color: var(--la-strong);
 }
 
 .app-header__sub {
@@ -167,7 +168,8 @@
 
 .nav-item:hover {
   background: var(--la-surface-2);
-  border-color: var(--la-border);
+  border-color: var(--la-hover);
+  color: var(--la-hover-text);
 }
 
 .nav-item.active,
@@ -395,7 +397,7 @@
   font-size: clamp(1.5rem, 2.6vw, var(--la-text-3xl));
   font-weight: 700;
   line-height: 1.1;
-  color: var(--la-text);
+  color: var(--la-strong);
 }
 
 .now-playing__artist {
@@ -504,8 +506,9 @@
 }
 
 .transport__btn:hover:not(:disabled) {
-  border-color: var(--la-border-strong);
+  border-color: var(--la-hover);
   background: var(--la-surface-3);
+  color: var(--la-hover-text);
 }
 
 .transport__btn:disabled {
@@ -515,8 +518,8 @@
 }
 
 .transport__btn[aria-pressed='true'] {
-  color: var(--la-accent-bright);
-  border-color: var(--la-primary);
+  color: var(--la-toggle-on-text);
+  border-color: var(--la-toggle-on);
 }
 
 .transport__btn--play {
@@ -528,8 +531,9 @@
 }
 
 .transport__btn--play:hover:not(:disabled) {
-  background: var(--la-accent-bright);
-  border-color: var(--la-accent-bright);
+  background: var(--la-hover);
+  border-color: var(--la-hover);
+  color: var(--la-on-hover);
 }
 
 .transport__btn--play:disabled {
@@ -703,11 +707,12 @@
 
 .status-bar__control {
   margin-left: auto;
-  color: var(--la-accent-bright);
+  color: var(--la-link);
   text-decoration: none;
 }
 
 .status-bar__control:hover {
+  color: var(--la-hover-text);
   text-decoration: underline;
 }
 
@@ -1006,7 +1011,7 @@
 }
 
 .queue-row__main:hover {
-  color: var(--la-accent-bright);
+  color: var(--la-hover-text);
 }
 
 .row[aria-current='true'] .queue-row__main:hover {
@@ -1151,9 +1156,25 @@
   font-size: var(--la-text-sm);
 }
 
+/* rows: hover marks with base0A, the selected station with base0E */
+:is(.station-row, .media-row, .queue-row):hover:not([aria-current='true'], [data-selected]) {
+  background: var(--la-surface-2);
+  box-shadow: inset 2px 0 0 var(--la-hover);
+}
+
 .station-row[data-selected] {
-  background: var(--la-surface-3);
-  box-shadow: inset 2px 0 0 var(--la-primary);
+  background: var(--la-selection);
+  color: var(--la-on-selection);
+  box-shadow: inset 2px 0 0 var(--la-selection);
+}
+
+.station-row[data-selected]:not([aria-current='true']) :is(.row__index, .station-row__meta, .station-row__flag) {
+  color: var(--la-on-selection);
+  border-color: var(--la-on-selection);
+}
+
+.station-row[data-selected]:not([aria-current='true']) .btn:not(:hover) {
+  color: var(--la-on-selection);
 }
 
 .station-row[aria-current='true'] {
@@ -1188,7 +1209,7 @@
 }
 
 .station-row__meta {
-  color: var(--la-text-muted);
+  color: var(--la-tag);
   font-size: var(--la-text-xs);
   text-transform: uppercase;
 }
@@ -1212,8 +1233,13 @@
 }
 
 .station-row__fav[aria-pressed='true'] svg {
-  fill: var(--la-primary);
-  color: var(--la-primary);
+  fill: var(--la-danger);
+  color: var(--la-danger);
+}
+
+.station-row[data-selected] .station-row__fav[aria-pressed='true'] svg {
+  fill: var(--la-on-selection);
+  color: var(--la-on-selection);
 }
 
 .station-row[aria-current='true'] .station-row__fav[aria-pressed='true'] svg {
@@ -1257,7 +1283,7 @@
 }
 
 .count-row__main:hover {
-  color: var(--la-accent-bright);
+  color: var(--la-hover-text);
 }
 
 .count-row__code {
@@ -1289,7 +1315,7 @@
 }
 
 .mood-card:hover {
-  border-color: var(--la-primary);
+  border-color: var(--la-hover);
 }
 
 .mood-card__label {
@@ -1387,7 +1413,7 @@
 
 .menu__item:hover:not(:disabled) {
   background: var(--la-surface-3);
-  color: var(--la-accent-bright);
+  color: var(--la-hover-text);
 }
 
 /* ---------- Library (phase 6) ---------- */
@@ -1461,7 +1487,7 @@
 }
 
 .media-row__main:hover .media-row__title {
-  color: var(--la-accent-bright);
+  color: var(--la-hover-text);
 }
 
 .media-row[aria-current='true'] .media-row__main:hover .media-row__title {
@@ -1666,7 +1692,7 @@ button.category-item {
 }
 
 button.category-item:hover {
-  color: var(--la-text);
+  color: var(--la-hover-text);
   background: var(--la-surface-2);
 }
 
@@ -1851,7 +1877,7 @@ button.category-item[aria-pressed='true'] {
 
 .control-module__link:hover,
 .control-module__link:focus-visible {
-  color: var(--la-accent);
+  color: var(--la-hover-text);
 }
 
 /* ---------- keyboard shortcuts list ---------- */

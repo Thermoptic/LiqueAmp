@@ -47,7 +47,11 @@ button:disabled {
 }
 
 a {
-  color: var(--la-accent-bright);
+  color: var(--la-link);
+}
+
+a:hover {
+  color: var(--la-hover-text);
 }
 
 :focus-visible {
@@ -56,8 +60,40 @@ a {
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--la-primary) 45%, transparent);
-  color: var(--la-text);
+  background: var(--la-selection);
+  color: var(--la-on-selection);
+}
+
+/* Icons (lucide draws with currentColor) take the icon color (base0C). Where an
+   icon sits on a colored fill or shows a state, it follows the text instead. */
+:where(svg[stroke='currentColor']) {
+  color: var(--la-icon);
+}
+
+:where(
+    .btn--primary,
+    .btn--danger,
+    .btn:hover,
+    .btn:disabled,
+    .btn[aria-pressed='true'],
+    .transport__btn:hover,
+    .transport__btn:disabled,
+    .transport__btn--play,
+    .transport__btn[aria-pressed='true'],
+    .nav-item:hover,
+    .nav-item[aria-current='page'],
+    .tab[aria-selected='true'],
+    .row[aria-current='true'],
+    .station-row[data-selected],
+    .menu__item:hover,
+    .toast,
+    .notice,
+    .status,
+    .form-error,
+    .filter-chip
+  )
+  svg {
+  color: inherit;
 }
 
 /* thin themed scrollbars inside panels */

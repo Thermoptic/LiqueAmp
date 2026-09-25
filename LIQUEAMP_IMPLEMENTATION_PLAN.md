@@ -108,8 +108,15 @@ ARCH §59 requires conflicts to be resolved explicitly. Proposed resolutions:
      own foreground until it reaches WCAG AA on every surface, because many
      published schemes keep base03/base04 dim on purpose (editor comments);
    - one derived role was added, `onPrimary` (`--la-on-primary`, text on the
-     accent color), since light schemes cannot use the background there.
-     26 derived roles in total;
+     accent color), since light schemes cannot use the background there;
+   - every one of the 16 slots has its own job (2026-09-25, user decision,
+     after the "Base16 Rollkarta" demo): base06 headings, base07 track title
+     and clock, base08 errors/LIVE/delete/favourites/switches off, base0A
+     hover (borders, markers, fills; a readable `hoverText` for text),
+     base0B switches on, base0C every icon, base0D links, outline buttons
+     and focus, base0E text selection and the selected station, base0F tags
+     and formats. Text on a colored fill (`on*` roles) is the ramp color
+     that reads best on it. 42 derived roles in total;
    - stored version-1 themes (25 colors) are migrated once to the closest
      palette (theme version 2); backups accept both versions.
    20 popular schemes from tinted-theming/schemes (MIT) ship as permanent

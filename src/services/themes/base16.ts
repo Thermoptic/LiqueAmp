@@ -44,11 +44,18 @@ export function deriveColors(p: Base16Palette): ThemeColors {
   // base07, some (Rosé Pine, Catppuccin) use base07 for something else.
   const far = [p.base07, p.base06, p.base05].reduce((a, b) => (contrastRatio(b, p.base00) > contrastRatio(a, p.base00) ? b : a));
   const text = readable(p.base05, far, surfaces, 4.5);
-  // text on the primary accent: the ramp color that reads best on it, pushed
-  // to black/white only when no palette color reaches AA
+  // Text on a colored fill: the ramp color that reads best on it, pushed to
+  // black/white only when no palette color reaches AA.
   const ramp = [p.base00, p.base01, p.base02, p.base03, p.base04, p.base05, p.base06, p.base07];
-  const best = ramp.reduce((a, b) => (contrastRatio(b, p.base09) > contrastRatio(a, p.base09) ? b : a));
-  const onPrimary = readable(best, relativeLuminance(best) > relativeLuminance(p.base09) ? '#ffffff' : '#000000', [p.base09], 4.5);
+  const on = (fill: string) => {
+    const best = ramp.reduce((a, b) => (contrastRatio(b, fill) > contrastRatio(a, fill) ? b : a));
+    const extreme = contrastRatio('#ffffff', fill) > contrastRatio('#000000', fill) ? '#ffffff' : '#000000';
+    return readable(best, extreme, [fill], 4.5);
+  };
+  // Colors used as text or icons on panels keep their hue but are moved
+  // towards the foreground until they are readable (AA text, 3:1 icons).
+  const asText = (c: string) => readable(c, far, surfaces, 4.5);
+  const asIcon = (c: string) => readable(c, far, surfaces, 3);
   return {
     bg: p.base00,
     surface: p.base01,
@@ -61,8 +68,10 @@ export function deriveColors(p: Base16Palette): ThemeColors {
     textSecondary: readable(p.base04, text, surfaces, 4.5),
     textMuted: readable(mixHex(p.base03, p.base04, 0.5), text, surfaces, 4.5),
     textDisabled: mixHex(p.base03, p.base04, 0.15),
+    heading: asText(p.base06),
+    strong: asText(p.base07),
     primary: p.base09,
-    onPrimary,
+    onPrimary: on(p.base09),
     accent: readable(mixHex(p.base09, far, 0.15), far, surfaces, 4.5),
     accentBright: readable(mixHex(p.base09, far, 0.45), far, surfaces, 4.5),
     secondary: p.base0C,
@@ -75,7 +84,22 @@ export function deriveColors(p: Base16Palette): ThemeColors {
     visualizerSecondary: p.base0A,
     glow: p.base09,
     glowStrong: mixHex(p.base09, far, 0.3),
-    focus: mixHex(p.base09, far, 0.45),
+    // one role per remaining slot, so every Base16 color has a job
+    hover: p.base0A,
+    hoverText: asText(p.base0A),
+    onHover: on(p.base0A),
+    link: asText(p.base0D),
+    focus: asIcon(p.base0D),
+    icon: asIcon(p.base0C),
+    selection: p.base0E,
+    onSelection: on(p.base0E),
+    tag: asText(p.base0F),
+    toggleOn: p.base0B,
+    onToggleOn: on(p.base0B),
+    toggleOff: p.base08,
+    toggleOnText: asText(p.base0B),
+    toggleOffText: asText(p.base08),
+    onDanger: on(p.base08),
   };
 }
 
@@ -83,20 +107,20 @@ export function deriveColors(p: Base16Palette): ThemeColors {
 export const BASE16_ROLES: Record<Base16Key, string> = {
   base00: 'Background',
   base01: 'Panels',
-  base02: 'Raised surfaces, subtle borders',
-  base03: 'Strong borders, muted text (mixed)',
-  base04: 'Secondary text',
+  base02: 'Fields, raised surfaces, subtle borders',
+  base03: 'Borders, metadata',
+  base04: 'Labels, secondary text',
   base05: 'Text',
-  base06: 'Light foreground',
-  base07: 'Lightest — brightens the accents',
-  base08: 'Red — errors, LIVE',
-  base09: 'Orange — primary accent, visualizer, glow',
-  base0A: 'Yellow — warnings, visualizer 2',
-  base0B: 'Green — success',
-  base0C: 'Cyan — secondary accent',
-  base0D: 'Blue — info',
-  base0E: 'Magenta — kept for exports',
-  base0F: 'Brown — kept for exports',
+  base06: 'Headings',
+  base07: 'Track title, clock',
+  base08: 'Red — errors, LIVE, delete, switches off',
+  base09: 'Orange — accent, active items, visualizer, glow',
+  base0A: 'Yellow — hover, warnings, visualizer peaks',
+  base0B: 'Green — switches on, online, success',
+  base0C: 'Cyan — icons',
+  base0D: 'Blue — links, outline buttons, focus',
+  base0E: 'Magenta — selected text and rows',
+  base0F: 'Brown — tags and formats',
 };
 
 export function isBase16Palette(value: unknown): value is Base16Palette {
