@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { takeAuthReturnPath, useAccount } from '../stores/accountStore';
 import { UsernameSetupDialog } from '../components/settings/UsernameSetupDialog';
+import { SetNewPasswordDialog } from '../components/settings/EmailAuthDialog';
 import { LIBRARY_SECTIONS, sectionFromPath } from './sections';
 import { useUi, type LibraryTab } from '../stores/uiStore';
 import { Header } from '../components/layout/Header';
@@ -76,6 +77,7 @@ export function Dashboard() {
       )}
       <BottomNav />
       <UsernameSetupDialog />
+      <SetNewPasswordDialog />
     </div>
   );
 }

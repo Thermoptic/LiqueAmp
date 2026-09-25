@@ -9,6 +9,10 @@
 //   duplicates (23505), not oneself (23514); adding B lets me READ B's users
 //   and profiles rows (one-way); lookup_username(): exact, case-insensitive
 // - delete_my_account(): deletes the user and cascades
+// - email + password auth like the real project (checked 2026-09-26: email
+//   enabled, sign-up allowed, confirmation required): sign-up gives no session
+//   until the confirmation link is opened; an already registered address gets
+//   a user without identities; the AuthApiError codes Supabase returns
 // It is not the real thing: SQL, OAuth and networking are verified against a
 // real project (see docs/LIQUEAMP_IMPLEMENTATION_PLAN.md, checkpoint 5).
 import type { SupabaseLike, SupabaseSession } from '../services/cloud/supabaseClient';
@@ -19,7 +23,10 @@ type Err = { code: string; message: string } | null;
 const USERNAME = /^[A-Za-z0-9]{3,20}$/;
 const RESERVED = ['admin', 'administrator', 'liqueamp', 'support', 'system', 'root', 'moderator', 'official', 'null', 'undefined', 'anonymous', 'everyone'];
 
-export function createFakeSupabase() {
+type AuthError = { name: string; code?: string; status: number; message: string };
+const authError = (code: string, status: number, message: string): AuthError => ({ name: 'AuthApiError', code, status, message });
+
+export function createFakeSupabase({ confirmEmail = true }: { confirmEmail?: boolean } = {}) {
   const tables: { users: Row[]; profiles: Row[]; friendships: Row[]; [name: string]: Row[] } = { users: [], profiles: [], friendships: [] };
   let session: SupabaseSession | null = null;
   // Like Supabase Auth (verified against the real project): the first
@@ -32,6 +39,11 @@ export function createFakeSupabase() {
   let clock = 0;
   const listeners = new Set<(event: string, s: SupabaseSession | null) => void>();
   const oauthCalls: Array<{ provider: string; redirectTo?: string }> = [];
+  // email accounts: Supabase's side (the password lives only in "Supabase")
+  const emailAccounts = new Map<string, { userId: string; password: string; confirmed: boolean }>();
+  const emailsSent: Array<{ kind: 'confirm' | 'reset'; email: string; redirectTo?: string }> = [];
+  let rateLimited = false;
+  let nextEmailUser = 0;
 
   const uid = () => session?.user.id ?? null;
   const now = () => `2026-09-25T14:00:${String(++clock).padStart(2, '0')}.000Z`;
@@ -133,8 +145,72 @@ export function createFakeSupabase() {
     return builder;
   }
 
+  /** Establishes a session (as a callback or a password login would). */
+  function establish(userId: string, provider: string, event = 'SIGNED_IN') {
+    const account = accounts.get(userId) ?? { firstProvider: provider, identities: [] };
+    accounts.set(userId, account);
+    const at = `2026-09-25T15:${String(Math.floor(++signIns / 60)).padStart(2, '0')}:${String(signIns % 60).padStart(2, '0')}.000Z`;
+    const identity = account.identities.find((i) => i.provider === provider);
+    if (identity) identity.updated_at = at;
+    else account.identities.push({ provider, last_sign_in_at: at, updated_at: at });
+    session = { user: { id: userId, app_metadata: { provider: account.firstProvider }, identities: account.identities.map((i) => ({ ...i })) } };
+    listeners.forEach((l) => l(event, session));
+  }
+
+  const validEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const weak = (password: string) => (password.length < 6 ? authError('weak_password', 422, 'Password should be at least 6 characters.') : null);
+
   const client: SupabaseLike = {
     auth: {
+      signUp: async ({ email, password, options }) => {
+        await net(null);
+        if (rateLimited) return { data: { user: null, session: null }, error: authError('over_email_send_rate_limit', 429, 'email rate limit exceeded') };
+        const key = email.toLowerCase();
+        if (!validEmail(key)) return { data: { user: null, session: null }, error: authError('validation_failed', 400, 'Unable to validate email address: invalid format') };
+        const tooWeak = weak(password);
+        if (tooWeak) return { data: { user: null, session: null }, error: tooWeak };
+        const existing = emailAccounts.get(key);
+        if (existing) {
+          // confirmation on: an obfuscated user, no identities, no email sent; off: an error
+          if (confirmEmail) return { data: { user: { id: `obfuscated-${++nextEmailUser}`, identities: [] }, session: null }, error: null };
+          return { data: { user: null, session: null }, error: authError('user_already_exists', 422, 'User already registered') };
+        }
+        const userId = `eeeeeeee-0000-4000-8000-${String(++nextEmailUser).padStart(12, '0')}`;
+        emailAccounts.set(key, { userId, password, confirmed: !confirmEmail });
+        if (confirmEmail) {
+          emailsSent.push({ kind: 'confirm', email: key, redirectTo: options?.emailRedirectTo });
+          return { data: { user: { id: userId, identities: [{ provider: 'email' }] }, session: null }, error: null };
+        }
+        establish(userId, 'email');
+        return { data: { user: session!.user, session }, error: null };
+      },
+      signInWithPassword: async ({ email, password }) => {
+        await net(null);
+        if (rateLimited) return { data: { session: null }, error: authError('over_request_rate_limit', 429, 'Request rate limit reached') };
+        const account = emailAccounts.get(email.toLowerCase());
+        if (!account || account.password !== password) return { data: { session: null }, error: authError('invalid_credentials', 400, 'Invalid login credentials') };
+        if (!account.confirmed) return { data: { session: null }, error: authError('email_not_confirmed', 400, 'Email not confirmed') };
+        establish(account.userId, 'email');
+        return { data: { session }, error: null };
+      },
+      resetPasswordForEmail: async (email, options) => {
+        await net(null);
+        if (rateLimited) return { error: authError('over_email_send_rate_limit', 429, 'email rate limit exceeded') };
+        // same answer whether or not the address exists
+        if (emailAccounts.has(email.toLowerCase())) emailsSent.push({ kind: 'reset', email: email.toLowerCase(), redirectTo: options?.redirectTo });
+        return { error: null };
+      },
+      updateUser: async ({ password }) => {
+        await net(null);
+        const account = [...emailAccounts.values()].find((a) => a.userId === uid());
+        if (!session) return { error: { name: 'AuthSessionMissingError', status: 400, message: 'Auth session missing!' } };
+        if (!account) return { error: authError('validation_failed', 400, 'no email identity') };
+        if (account.password === password) return { error: authError('same_password', 422, 'New password should be different from the old password.') };
+        const tooWeak = weak(password);
+        if (tooWeak) return { error: tooWeak };
+        account.password = password;
+        return { error: null };
+      },
       getSession: () => net({ data: { session }, error: null }),
       onAuthStateChange(cb) {
         listeners.add(cb);
@@ -187,14 +263,24 @@ export function createFakeSupabase() {
     oauthCalls,
     /** Completes an OAuth sign-in, as the callback would. */
     signInAs(userId: string, provider: 'google' | 'github' = 'github') {
-      const account = accounts.get(userId) ?? { firstProvider: provider, identities: [] };
-      accounts.set(userId, account);
-      const at = `2026-09-25T15:${String(Math.floor(++signIns / 60)).padStart(2, '0')}:${String(signIns % 60).padStart(2, '0')}.000Z`;
-      const identity = account.identities.find((i) => i.provider === provider);
-      if (identity) identity.updated_at = at;
-      else account.identities.push({ provider, last_sign_in_at: at, updated_at: at });
-      session = { user: { id: userId, app_metadata: { provider: account.firstProvider }, identities: account.identities.map((i) => ({ ...i })) } };
-      listeners.forEach((l) => l('SIGNED_IN', session));
+      establish(userId, provider);
+    },
+    /** Email sent by "Supabase" (confirmation / reset), newest last. */
+    emailsSent,
+    /** The user opens the confirmation link: confirmed, and signed in through the callback. */
+    openConfirmationLink(email: string) {
+      const account = emailAccounts.get(email.toLowerCase())!;
+      account.confirmed = true;
+      establish(account.userId, 'email');
+    },
+    /** The user opens the password reset link: signed in, PASSWORD_RECOVERY. */
+    openResetLink(email: string) {
+      establish(emailAccounts.get(email.toLowerCase())!.userId, 'email', 'PASSWORD_RECOVERY');
+    },
+    /** For inspection only: what "Supabase" holds for an address. */
+    emailAccount: (email: string) => emailAccounts.get(email.toLowerCase()),
+    setRateLimited(v: boolean) {
+      rateLimited = v;
     },
     /** The access token expired and could not be refreshed. */
     expireSession() {

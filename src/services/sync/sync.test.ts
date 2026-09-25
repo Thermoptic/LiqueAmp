@@ -344,7 +344,10 @@ function fakeProvider(user: AccountUser | null, cloud?: ReturnType<typeof fakeCl
     getSession: async () => session(),
     getCurrentUser: async () => current,
     signIn: async () => undefined,
-    signUp: async () => undefined,
+    signUp: async () => 'signed-in' as const,
+    requestPasswordReset: async () => undefined,
+    updatePassword: async () => undefined,
+    onPasswordRecovery: () => () => undefined,
     claimUsername: async () => session()!,
     signOut: async () => {
       calls.push('signOut');

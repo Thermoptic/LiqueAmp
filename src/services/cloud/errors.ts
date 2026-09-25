@@ -46,6 +46,40 @@ export function toAccountError(err: unknown, fallback: AccountErrorCode = 'unkno
   return accountError(fallback, err);
 }
 
+/**
+ * Email/password errors from Supabase Auth (AuthApiError codes). Password
+ * rules are Supabase's own: its message (e.g. the minimum length) is shown as
+ * is. Neither the password nor the request is ever logged here.
+ */
+export function toEmailAuthError(err: unknown): AccountError {
+  if (err instanceof AccountError) return err;
+  const e = err as { code?: string; status?: number; message?: string } | null;
+  const own = typeof e?.message === 'string' && e.message.length <= 200 ? e.message : undefined;
+  switch (e?.code) {
+    case 'validation_failed':
+    case 'email_address_invalid':
+      return accountError('email-invalid', err);
+    case 'weak_password':
+    case 'same_password':
+      return accountError('password-invalid', err, own);
+    case 'user_already_exists':
+    case 'email_exists':
+      return accountError('email-taken', err);
+    case 'invalid_credentials':
+      return accountError('wrong-credentials', err);
+    case 'email_not_confirmed':
+      return accountError('email-not-confirmed', err);
+    case 'over_email_send_rate_limit':
+    case 'over_request_rate_limit':
+      return accountError('rate-limited', err);
+    case 'signup_disabled':
+    case 'email_provider_disabled':
+      return accountError('unavailable', err);
+  }
+  if (e?.status === 429) return accountError('rate-limited', err);
+  return toAccountError(err, 'auth-failed');
+}
+
 /** OAuth errors come back in the callback URL (?error=access_denied&error_description=…). */
 export function oauthErrorFromUrl(href: string): AccountError | null {
   let url: URL;

@@ -1,5 +1,14 @@
 import { create } from 'zustand';
-import { AccountError, createLocalAccountProvider, type AccountProvider, type AccountState, type AccountUser, type AuthMethod } from '../services/account/account';
+import {
+  AccountError,
+  createLocalAccountProvider,
+  type AccountProvider,
+  type AccountState,
+  type AccountUser,
+  type AuthMethod,
+  type OAuthMethod,
+  type SignUpResult,
+} from '../services/account/account';
 import type { SharingDecision, SharingFinding } from '../services/profile/sharing';
 import { onOwnProfileWrite } from '../services/storage/repository';
 import type { CloudProfileStore } from '../services/sync/cloudProfile';
@@ -35,8 +44,20 @@ interface AccountStore {
   /** The last account error, in words a LiqueAmp user understands. */
   error: string | null;
   sync: SyncView;
+  /** The user arrived through a password reset link and should choose a new password. */
+  passwordRecovery: boolean;
   init(provider: AccountProvider, cloud?: CloudProfileStore | null, problem?: string | null): Promise<void>;
-  signIn(method: AuthMethod): Promise<void>;
+  /** Google / GitHub: leaves for the provider (errors land in `error`). */
+  signIn(method: OAuthMethod): Promise<void>;
+  /** Email + password. Rejects with an AccountError for the form; the password is never kept. */
+  signInWithEmail(email: string, password: string): Promise<void>;
+  /** Creates an email account: signed in at once, or 'confirm-email' (no session until the link is opened). */
+  signUpWithEmail(email: string, password: string): Promise<SignUpResult>;
+  requestPasswordReset(email: string): Promise<void>;
+  /** Sets the new password after a reset link; ends the recovery state. */
+  updatePassword(password: string): Promise<void>;
+  /** Closes the recovery prompt without changing the password. */
+  dismissPasswordRecovery(): void;
   claimUsername(username: string): Promise<void>;
   /** Log out (D14): disconnects the session; every local thing stays exactly as it is. */
   signOut(): Promise<void>;
@@ -53,6 +74,7 @@ interface AccountStore {
 let provider: AccountProvider = createLocalAccountProvider();
 let cloudStore: CloudProfileStore | null = null;
 let unsubscribe: (() => void) | null = null;
+let unsubscribeRecovery: (() => void) | null = null;
 let userSignedOut = false;
 
 /** The signed-in user, or null. */
@@ -74,6 +96,16 @@ export function takeAuthReturnPath(): string {
     return path && path.startsWith('/') ? path : '/settings';
   } catch {
     return '/settings';
+  }
+}
+
+/** Links that come back through <base>/auth/callback (OAuth, email confirmation, password reset) return here. */
+function rememberReturnPath() {
+  try {
+    const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+    sessionStorage.setItem(RETURN_KEY, location.pathname.slice(base.length) || '/settings');
+  } catch {
+    // no session storage: return to Settings
   }
 }
 
@@ -129,6 +161,13 @@ export const useAccount = create<AccountStore>((set, get) => {
   });
   if (typeof window !== 'undefined') window.addEventListener('online', () => void (accountUser(get().state) && runSync()));
 
+  /** A new account state from the provider; a newly signed-in user is synced. */
+  function adopt(state: AccountState) {
+    const before = get().state;
+    setState(state);
+    if (state.status === 'signed-in' && accountUser(before)?.userId !== state.session.user.userId) void runSync();
+  }
+
   function setState(state: AccountState) {
     const wasSignedIn = get().state.status !== 'signed-out';
     // the session ended without the user logging out: it expired
@@ -145,18 +184,17 @@ export const useAccount = create<AccountStore>((set, get) => {
     state: { status: 'signed-out' },
     error: null,
     sync: { state: 'idle' },
+    passwordRecovery: false,
 
     async init(next, cloud = null, problem = null) {
       unsubscribe?.();
+      unsubscribeRecovery?.();
       provider = next;
       cloudStore = cloud;
       const oauthError = typeof location !== 'undefined' ? oauthErrorFromUrl(location.href) : null;
-      set({ providerId: next.id, available: next.available, problem, loading: true, error: oauthError?.message ?? null });
-      unsubscribe = next.onChange((state) => {
-        const before = get().state;
-        setState(state);
-        if (state.status === 'signed-in' && accountUser(before)?.userId !== state.session.user.userId) void runSync();
-      });
+      set({ providerId: next.id, available: next.available, problem, loading: true, error: oauthError?.message ?? null, passwordRecovery: false });
+      unsubscribe = next.onChange(adopt);
+      unsubscribeRecovery = next.onPasswordRecovery(() => set({ passwordRecovery: true }));
       try {
         const state = await next.getState();
         set({ state, loading: false });
@@ -169,17 +207,38 @@ export const useAccount = create<AccountStore>((set, get) => {
     async signIn(method) {
       set({ error: null });
       try {
-        try {
-          const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-          sessionStorage.setItem(RETURN_KEY, location.pathname.slice(base.length) || '/settings');
-        } catch {
-          // no session storage: return to Settings
-        }
+        rememberReturnPath();
         await provider.signIn({ method });
       } catch (err) {
         set({ error: message(err) });
       }
     },
+
+    async signInWithEmail(email, password) {
+      set({ error: null });
+      await provider.signIn({ method: 'email', email, password }); // errors reach the form
+      adopt(await provider.getState());
+    },
+
+    async signUpWithEmail(email, password) {
+      set({ error: null });
+      rememberReturnPath();
+      const result = await provider.signUp({ method: 'email', email, password });
+      if (result === 'signed-in') adopt(await provider.getState()); // → username onboarding, as after OAuth
+      return result;
+    },
+
+    async requestPasswordReset(email) {
+      rememberReturnPath();
+      await provider.requestPasswordReset(email);
+    },
+
+    async updatePassword(password) {
+      await provider.updatePassword(password);
+      set({ passwordRecovery: false });
+    },
+
+    dismissPasswordRecovery: () => set({ passwordRecovery: false }),
 
     async claimUsername(username) {
       set({ error: null });
@@ -198,7 +257,7 @@ export const useAccount = create<AccountStore>((set, get) => {
         console.warn('[account] sign-out:', err);
       }
       pendingDecisions = {};
-      set({ state: { status: 'signed-out' }, sync: { state: 'idle' } });
+      set({ state: { status: 'signed-out' }, sync: { state: 'idle' }, passwordRecovery: false });
     },
 
     async deleteAccount({ confirmed }) {

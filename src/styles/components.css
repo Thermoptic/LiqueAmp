@@ -718,6 +718,14 @@
   margin-top: var(--la-space-2);
 }
 
+/* email log-in / sign-up / reset: the switches under the form */
+.email-auth__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--la-space-1);
+  margin-left: calc(-1 * var(--la-space-2));
+}
+
 .account__sync {
   margin: var(--la-space-2) 0 0;
   display: grid;

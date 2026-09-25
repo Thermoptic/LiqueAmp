@@ -15,6 +15,11 @@ export interface SupabaseLike {
     onAuthStateChange(callback: (event: string, session: SupabaseSession | null) => void): { data: { subscription: { unsubscribe(): void } } };
     signInWithOAuth(options: { provider: 'google' | 'github'; options?: { redirectTo?: string } }): Promise<{ error: unknown }>;
     signOut(options?: { scope?: 'global' | 'local' | 'others' }): Promise<{ error: unknown }>;
+    // email + password: the password is passed straight to Supabase Auth, never kept
+    signUp(credentials: { email: string; password: string; options?: { emailRedirectTo?: string } }): Promise<{ data: { user: SupabaseSession['user'] | null; session: SupabaseSession | null }; error: unknown }>;
+    signInWithPassword(credentials: { email: string; password: string }): Promise<{ data: { session: SupabaseSession | null }; error: unknown }>;
+    resetPasswordForEmail(email: string, options?: { redirectTo?: string }): Promise<{ error: unknown }>;
+    updateUser(attributes: { password: string }): Promise<{ error: unknown }>;
   };
   from(table: string): SupabaseQuery;
   rpc(fn: string, args?: Record<string, unknown>): PromiseLike<{ data: unknown; error: PostgrestErrorLike | null }>;

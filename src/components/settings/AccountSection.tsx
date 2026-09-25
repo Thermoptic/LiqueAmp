@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { AUTH_METHOD_LABEL, AUTH_METHODS } from '../../services/account/account';
+import { AUTH_METHOD_LABEL, OAUTH_METHODS } from '../../services/account/account';
 import type { SharingDecision } from '../../services/profile/sharing';
 import { accountAuthMethod, accountUser, useAccount } from '../../stores/accountStore';
 import { Status } from '../ui/controls';
 import { Dialog } from '../ui/Dialog';
+import { EmailAuthDialog, type EmailAuthMode } from './EmailAuthDialog';
 
 /**
  * Settings › Account (D5, D14, D15). Accounts are optional; the username is
@@ -21,6 +22,7 @@ export function AccountSection() {
   const user = accountUser(state);
   const method = accountAuthMethod(state);
   const [deleting, setDeleting] = useState(false);
+  const [emailMode, setEmailMode] = useState<EmailAuthMode | null>(null);
 
   return (
     <section className="settings-group" aria-labelledby="set-account">
@@ -49,12 +51,21 @@ export function AccountSection() {
         <>
           <p className="account__status">Not logged in</p>
           <div className="account__actions">
-            {AUTH_METHODS.map((m) => (
+            {OAUTH_METHODS.map((m) => (
               <button key={m} type="button" className="btn" disabled={!available} onClick={() => void signIn(m)}>
                 Continue with {AUTH_METHOD_LABEL[m]}
               </button>
             ))}
           </div>
+          <div className="account__actions">
+            <button type="button" className="btn" disabled={!available} onClick={() => setEmailMode('sign-in')}>
+              Log in with Email
+            </button>
+            <button type="button" className="btn" disabled={!available} onClick={() => setEmailMode('sign-up')}>
+              Create account with Email
+            </button>
+          </div>
+          {available && <EmailAuthDialog mode={emailMode} onClose={() => setEmailMode(null)} />}
           <p className="settings-group__note">
             {available
               ? 'An account keeps your Lique in the cloud and lets friends add it. LiqueAmp keeps working without one.'

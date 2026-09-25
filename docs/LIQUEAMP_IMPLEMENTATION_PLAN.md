@@ -1427,6 +1427,8 @@ See D16.
 
 ## D5 — Authentication: Google + GitHub OAuth; account UI
 
+> **Extended 2026-09-26:** email + password (Supabase Email auth, which stays enabled) is the third sign-in method, next to Google and GitHub. It leads to the same kind of account (auth user, `public.users`, username, profile, Friend Liques). No magic links. The status line reads `Logged in with Email`. See §31, "Email authentication".
+
 **Decided 2026-09-25 (final):** authentication is **Google OAuth and GitHub OAuth through Supabase Auth**. No email/password, no magic links, no avatars. Accounts are optional. Settings › ACCOUNT — logged out: `Not logged in  [ CONTINUE WITH GOOGLE ] [ CONTINUE WITH GITHUB ]`; logged in: `@johan  Logged in with Google (or GitHub)  [ LOG OUT ]` (plus Delete account, D15). The status bar shows `NOT LOGGED IN` or `@johan` to the right of `STORAGE: LOCAL`. The app talks to accounts only through `AccountProvider` (`src/services/account/account.ts`); the Supabase implementation is `src/services/cloud/supabaseAccount.ts`.
 
 ## D6 — Username
@@ -1614,3 +1616,40 @@ All locations use one implementation, `useItemActions()` in `src/components/acti
   - `src/app/Dashboard.test.tsx` covers the Home regions, which are intact without an account.
   - Summary validation and `readSummary` are covered in `src/services/friends/friends.test.ts`.
 - **Next:** Friend Lique activation/restoration (spec §13–§21, §47), presence (D11), Block (D17).
+
+---
+
+## Email authentication (2026-09-26)
+
+**Status:** implemented. No database, RLS, migration, OAuth or Friend Liques changes.
+
+- **Supabase project settings**, read from the public `/auth/v1/settings` endpoint on 2026-09-26:
+  - `external.email: true`, `disable_signup: false`;
+  - `mailer_autoconfirm: false`: **email confirmation is required**, so a new email account has no session until the link in the email is opened.
+- **UI**, Settings › Account when logged out:
+  - `[ Continue with Google ] [ Continue with GitHub ]` and `[ Log in with Email ] [ Create account with Email ]`.
+  - **One dialog, `EmailAuthDialog`,** has three modes:
+    - log in: Email, Password, "Forgot password?", "Create an account";
+    - create account: Email, Password, Confirm password;
+    - reset password: Email.
+    - Its client checks are only an email format, a password being present and the confirmation matching. Password rules are Supabase's, and its message is shown.
+  - After sign-up: "Check your email" (not logged in). The link returns to `<base>/auth/callback`, then the existing username onboarding runs. If confirmation is off, onboarding starts at once.
+  - After a reset link: Supabase signs the user in (`PASSWORD_RECOVERY`), and `SetNewPasswordDialog` asks for the new password (`updateUser`). "Not now" leaves the old password.
+- **Provider label:**
+  - An email login is recorded when it succeeds.
+  - Confirmation and reset links use the existing pending record, with the link lifetime (24 h / 1 h instead of 15 min).
+  - The Google/GitHub mechanism is unchanged, and logout clears everything.
+  - Only the method name is stored, never an address or a password.
+- **Errors:** invalid email, weak/same password (Supabase's text), already registered (Supabase answers with a user without identities and sends no email), wrong email or password, email not confirmed, rate limit, offline.
+- **Security:** passwords go straight to Supabase Auth. They exist only in the open form's state and are never stored in localStorage or IndexedDB or logged. Tests check that browser storage holds neither the password nor the address.
+- **Files:**
+  - `src/services/account/account.ts`: `AUTH_METHODS` gains `email`; `OAUTH_METHODS`; email credentials; `SignUpResult`; `checkEmail`; `requestPasswordReset`; `updatePassword`; `onPasswordRecovery`; new error codes.
+  - `src/services/cloud/supabaseAccount.ts`, `supabaseClient.ts`, `errors.ts` (`toEmailAuthError`).
+  - `src/stores/accountStore.ts`.
+  - `src/components/settings/EmailAuthDialog.tsx`, `AccountSection.tsx`, `src/app/Dashboard.tsx`.
+  - `src/test/fakeSupabase.ts`, which now simulates email auth.
+- **Tests:** `src/services/account/emailAuth.test.tsx`.
+- **Limitations:**
+  - The confirmation/reset link must be opened **in the same browser** (PKCE keeps the code verifier there). Opened elsewhere, the address is still confirmed, and the user logs in with email and password; the dialog says so.
+  - Supabase's default email sender is rate-limited and meant for testing. A custom SMTP server (Authentication › Emails) is recommended before real use.
+  - The same address with email and with Google/GitHub is whatever Supabase does (no custom linking).
