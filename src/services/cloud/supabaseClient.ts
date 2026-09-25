@@ -23,9 +23,8 @@ export interface SupabaseLike {
 export interface SupabaseSession {
   user: {
     id: string;
-    /** `provider` is the FIRST provider the account was created with, not the current sign-in. */
+    /** `provider` is the FIRST provider the account was created with — not the current login (see supabaseAccount.ts). */
     app_metadata?: { provider?: string };
-    /** Linked sign-in identities (google, github …); `last_sign_in_at` moves with each sign-in. */
     identities?: Array<{ provider: string; last_sign_in_at?: string }>;
   };
 }

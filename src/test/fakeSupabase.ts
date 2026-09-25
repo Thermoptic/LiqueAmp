@@ -19,9 +19,11 @@ const RESERVED = ['admin', 'administrator', 'liqueamp', 'support', 'system', 'ro
 export function createFakeSupabase() {
   const tables: { users: Row[]; profiles: Row[]; [name: string]: Row[] } = { users: [], profiles: [] };
   let session: SupabaseSession | null = null;
-  // like Supabase Auth: the first provider stays in app_metadata; every
-  // sign-in updates that provider's identity (last_sign_in_at)
-  const accounts = new Map<string, { firstProvider: string; identities: Array<{ provider: string; last_sign_in_at: string }> }>();
+  // Like Supabase Auth (verified against the real project): the first
+  // provider stays in app_metadata; an identity's last_sign_in_at is set when
+  // it is linked and NOT updated on later sign-ins (only updated_at moves).
+  // Nothing in the session says which provider the current login used.
+  const accounts = new Map<string, { firstProvider: string; identities: Array<{ provider: string; last_sign_in_at: string; updated_at: string }> }>();
   let signIns = 0;
   let offline = false;
   let clock = 0;
@@ -159,8 +161,8 @@ export function createFakeSupabase() {
       accounts.set(userId, account);
       const at = `2026-09-25T15:${String(Math.floor(++signIns / 60)).padStart(2, '0')}:${String(signIns % 60).padStart(2, '0')}.000Z`;
       const identity = account.identities.find((i) => i.provider === provider);
-      if (identity) identity.last_sign_in_at = at;
-      else account.identities.push({ provider, last_sign_in_at: at });
+      if (identity) identity.updated_at = at;
+      else account.identities.push({ provider, last_sign_in_at: at, updated_at: at });
       session = { user: { id: userId, app_metadata: { provider: account.firstProvider }, identities: account.identities.map((i) => ({ ...i })) } };
       listeners.forEach((l) => l('SIGNED_IN', session));
     },

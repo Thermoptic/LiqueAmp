@@ -68,6 +68,7 @@ function connect(fake: ReturnType<typeof createFakeSupabase>) {
 
 beforeEach(async () => {
   await freshDevice();
+  localStorage.clear(); // browser storage (auth session, recorded login provider) is per test
   startDirtyTracking();
 });
 afterEach(async () => {
@@ -93,6 +94,7 @@ describe('Supabase auth adapter (D5, D6)', () => {
     const fake = createFakeSupabase();
     const { provider } = connect(fake);
     expect(await provider.getState()).toEqual({ status: 'signed-out' });
+    await provider.signIn({ method: 'google' });
     fake.signInAs(A, 'google');
     expect(await provider.getState()).toEqual({ status: 'needs-username', userId: A, authMethod: 'google' });
     const session = await provider.claimUsername('Johan');
@@ -102,30 +104,79 @@ describe('Supabase auth adapter (D5, D6)', () => {
     expect(Object.keys(fake.tables.users[0]!).sort()).toEqual(['created_at', 'id', 'updated_at', 'username']);
   });
 
-  it('the label follows the provider of the CURRENT sign-in, not the one the account was created with', async () => {
+  // "Continue with …" → OAuth round trip, as the app does it: the button
+  // starts OAuth (recording the provider), the provider signs the user in,
+  // and the app starts again on the callback URL.
+  async function loginWith(fake: ReturnType<typeof createFakeSupabase>, method: 'google' | 'github') {
+    await connect(fake).provider.signIn({ method });
+    fake.signInAs(A, method);
+    return connect(fake).provider; // a fresh page load on the callback URL
+  }
+
+  it('the label shows the provider chosen for the CURRENT login: Google → GitHub → Google', async () => {
     const fake = createFakeSupabase();
-    const { provider } = connect(fake);
-    fake.signInAs(A, 'google'); // account created with Google
+    // 1. Continue with Google → Google
+    let provider = await loginWith(fake, 'google');
     await provider.claimUsername('Johan');
-    expect(await provider.getState()).toMatchObject({ status: 'signed-in', session: { authMethod: 'google' } });
-
+    expect(await provider.getState()).toMatchObject({ status: 'signed-in', session: { user: { userId: A, username: 'Johan' }, authMethod: 'google' } });
+    // 2. log out
     await provider.signOut();
-    fake.signInAs(A, 'github'); // same account, now through GitHub
+    expect(await provider.getState()).toEqual({ status: 'signed-out' });
+    // 3. Continue with GitHub → the same account, GitHub
+    provider = await loginWith(fake, 'github');
     expect(await provider.getState()).toMatchObject({ status: 'signed-in', session: { user: { userId: A, username: 'Johan' }, authMethod: 'github' } });
-
+    // 4. log out
     await provider.signOut();
-    fake.signInAs(A, 'google'); // and back
+    // 5. Continue with Google again → Google (although GitHub is the most recently linked identity)
+    provider = await loginWith(fake, 'google');
+    const { data } = await fake.client.auth.getSession();
+    expect(data.session!.user.app_metadata?.provider).toBe('google'); // first provider, always
+    expect(data.session!.user.identities!.map((i) => i.provider)).toEqual(['google', 'github']); // both linked to one account
     expect(await provider.getState()).toMatchObject({ session: { authMethod: 'google' } });
   });
 
-  it('without identity data the first provider is the fallback', async () => {
+  it('with Google and GitHub linked, a GitHub-created account logging in with Google says Google', async () => {
+    const fake = createFakeSupabase();
+    let provider = await loginWith(fake, 'github'); // account created with GitHub
+    await provider.claimUsername('Johan');
+    await provider.signOut();
+    provider = await loginWith(fake, 'google');
+    expect(await provider.getState()).toMatchObject({ session: { authMethod: 'google' } });
+  });
+
+  it('6. the recorded provider stays stable across reloads and repeated session checks', async () => {
+    const fake = createFakeSupabase();
+    const first = await loginWith(fake, 'github');
+    await first.claimUsername('Johan');
+    for (let i = 0; i < 3; i++) {
+      const reloaded = connect(fake).provider; // page reload: new provider, same browser storage
+      expect(await reloaded.getState()).toMatchObject({ session: { authMethod: 'github' } });
+      expect((await reloaded.getSession())?.authMethod).toBe('github');
+    }
+  });
+
+  it('7. logging out clears the stored current-login provider', async () => {
+    const fake = createFakeSupabase();
+    const provider = await loginWith(fake, 'google');
+    await provider.claimUsername('Johan');
+    expect(localStorage.getItem('liqueamp.authMethod')).toContain('google');
+    await provider.signOut();
+    expect(localStorage.getItem('liqueamp.authMethod')).toBeNull();
+    expect(localStorage.getItem('liqueamp.authMethod.pending')).toBeNull();
+    // a session restored without a recorded login does not guess
+    fake.signInAs(A, 'github');
+    expect(await connect(fake).provider.getState()).toMatchObject({ session: { authMethod: null } });
+  });
+
+  it('an abandoned OAuth start does not label a later, unrelated session', async () => {
     const fake = createFakeSupabase();
     const { provider } = connect(fake);
-    fake.signInAs(A, 'github');
-    await provider.claimUsername('Johan');
-    const { data } = await fake.client.auth.getSession();
-    delete data.session!.user.identities;
-    expect(await provider.getState()).toMatchObject({ session: { authMethod: 'github' } });
+    await provider.signIn({ method: 'google' }); // user leaves Google's page without signing in
+    const pending = JSON.parse(localStorage.getItem('liqueamp.authMethod.pending')!) as { startedAt: number };
+    localStorage.setItem('liqueamp.authMethod.pending', JSON.stringify({ ...pending, startedAt: pending.startedAt - 60 * 60 * 1000 }));
+    fake.signInAs(A, 'github'); // much later, a session appears some other way
+    await connect(fake).provider.claimUsername('Johan');
+    expect(await connect(fake).provider.getState()).toMatchObject({ session: { authMethod: null } });
   });
 
   it('usernames are unique case-insensitively — enforced by the database, not by a check before insert', async () => {
@@ -178,7 +229,8 @@ describe('first login: the local Lique becomes the account’s first cloud profi
     await seedLocalLique();
     const before = await dumpDb(true);
     const fake = createFakeSupabase();
-    const { init } = connect(fake);
+    const { init, provider } = connect(fake);
+    await provider.signIn({ method: 'github' });
     fake.signInAs(A, 'github');
     await init();
     expect(useAccount.getState().state).toEqual({ status: 'needs-username', userId: A, authMethod: 'github' });

@@ -14,21 +14,57 @@ import { checkUsername } from '../account/username';
 import { backendCall, toAccountError } from './errors';
 import type { SupabaseLike, SupabaseSession } from './supabaseClient';
 
-const isAuthMethod = (p: string | undefined): p is AuthMethod => (AUTH_METHODS as readonly string[]).includes(p ?? '');
+const isAuthMethod = (p: unknown): p is AuthMethod => (AUTH_METHODS as readonly string[]).includes(String(p));
 
-/**
- * The provider used for the current sign-in: the Google/GitHub identity that
- * signed in most recently. (`app_metadata.provider` is the provider the
- * account was first created with, so it would keep saying "Google" after a
- * GitHub sign-in.) Falls back to it only when no identities are available.
- */
-function authMethodOf(session: SupabaseSession): AuthMethod | null {
-  const latest = (session.user.identities ?? [])
-    .filter((i) => isAuthMethod(i.provider))
-    .reduce<{ provider: string; last_sign_in_at?: string } | null>((best, i) => (!best || (i.last_sign_in_at ?? '') > (best.last_sign_in_at ?? '') ? i : best), null);
-  if (latest) return latest.provider as AuthMethod;
-  const first = session.user.app_metadata?.provider;
-  return isAuthMethod(first) ? first : null;
+// ---- the provider of the current login ---------------------------------------
+//
+// Supabase does not say which provider the CURRENT session signed in with:
+// `app_metadata.provider` is the provider the account was first created with,
+// and an identity's `last_sign_in_at` is when it was linked. So LiqueAmp
+// records the provider it sends the user to, and binds it to the user id once
+// the OAuth callback has established the session. Stored locally (like the
+// Supabase session, `liqueamp-auth`), so it survives the redirect and reloads;
+// cleared on logout.
+
+/** Set when OAuth starts; only honoured for a short while (an abandoned or cancelled attempt must not stick). */
+const PENDING_KEY = 'liqueamp.authMethod.pending';
+/** The current login's provider, bound to the signed-in user id. */
+const CURRENT_KEY = 'liqueamp.authMethod';
+const PENDING_MAX_AGE_MS = 15 * 60 * 1000;
+
+function readJson(key: string): Record<string, unknown> | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(key) ?? 'null') as unknown;
+    return v && typeof v === 'object' ? (v as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+function write(key: string, value: object | null) {
+  try {
+    if (value) localStorage.setItem(key, JSON.stringify(value));
+    else localStorage.removeItem(key);
+  } catch {
+    // no storage: the label falls back to "Logged in"
+  }
+}
+
+/** The provider of the current login for this user; binds a pending OAuth start to the new session. */
+function currentAuthMethod(userId: string): AuthMethod | null {
+  const pending = readJson(PENDING_KEY);
+  if (pending && isAuthMethod(pending.method) && typeof pending.startedAt === 'number' && Date.now() - pending.startedAt < PENDING_MAX_AGE_MS) {
+    write(CURRENT_KEY, { userId, method: pending.method });
+    write(PENDING_KEY, null);
+    return pending.method;
+  }
+  write(PENDING_KEY, null);
+  const current = readJson(CURRENT_KEY);
+  return current && current.userId === userId && isAuthMethod(current.method) ? current.method : null;
+}
+
+function clearAuthMethod() {
+  write(CURRENT_KEY, null);
 }
 
 export function createSupabaseAccountProvider(client: SupabaseLike, { redirectTo }: { redirectTo: () => string }): AccountProvider {
@@ -39,8 +75,11 @@ export function createSupabaseAccountProvider(client: SupabaseLike, { redirectTo
   }
 
   async function stateFor(session: SupabaseSession | null): Promise<AccountState> {
-    if (!session) return { status: 'signed-out' };
-    const authMethod = authMethodOf(session);
+    if (!session) {
+      clearAuthMethod();
+      return { status: 'signed-out' };
+    }
+    const authMethod = currentAuthMethod(session.user.id);
     const { data, error } = await backendCall(client.from('users').select('username').eq('id', session.user.id).maybeSingle());
     if (error) throw toAccountError(error);
     const username = typeof data?.username === 'string' ? data.username : null;
@@ -49,9 +88,14 @@ export function createSupabaseAccountProvider(client: SupabaseLike, { redirectTo
   }
 
   async function signIn({ method }: AuthCredentials): Promise<void> {
-    if (!(AUTH_METHODS as readonly string[]).includes(method)) throw accountError('auth-failed');
+    if (!isAuthMethod(method)) throw accountError('auth-failed');
+    // remember where the user is being sent; bound to the session after the callback
+    write(PENDING_KEY, { method, startedAt: Date.now() });
     const { error } = await backendCall(client.auth.signInWithOAuth({ provider: method, options: { redirectTo: redirectTo() } }));
-    if (error) throw toAccountError(error, 'auth-failed');
+    if (error) {
+      write(PENDING_KEY, null);
+      throw toAccountError(error, 'auth-failed');
+    }
     // the browser now leaves for Google/GitHub and returns to the callback URL
   }
 
@@ -80,10 +124,11 @@ export function createSupabaseAccountProvider(client: SupabaseLike, { redirectTo
       if (error?.code === '23505') throw accountError('username-taken', error); // unique index on lower(username)
       if (error?.code === '23514') throw accountError('username-invalid', error); // format / reserved check
       if (error) throw toAccountError(error);
-      return { user: { userId: session.user.id, username: String(data?.username ?? check.username) }, authMethod: authMethodOf(session) };
+      return { user: { userId: session.user.id, username: String(data?.username ?? check.username) }, authMethod: currentAuthMethod(session.user.id) };
     },
 
     async signOut() {
+      clearAuthMethod();
       // this device only: other devices stay signed in
       const { error } = await backendCall(client.auth.signOut({ scope: 'local' }));
       if (error) throw toAccountError(error);
@@ -92,6 +137,7 @@ export function createSupabaseAccountProvider(client: SupabaseLike, { redirectTo
     async deleteAccount() {
       const { error } = await backendCall(client.rpc('delete_my_account'));
       if (error) throw toAccountError(error);
+      clearAuthMethod();
       await client.auth.signOut({ scope: 'local' }).then(
         () => undefined,
         () => undefined,
