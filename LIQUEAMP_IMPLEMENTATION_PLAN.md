@@ -123,6 +123,16 @@ ARCH §59 requires conflicts to be resolved explicitly. Proposed resolutions:
    built-ins next to LiqueAmp Default and Amber Night
    (`scripts/import-base16-themes.mjs` → `base16Schemes.ts`), including 5
    light themes (previously "light theme" was deferred).
+10. **Profile settings vs device settings (2026-09-25, social checkpoint 1,
+   user decision D2).** `docs/LIQUEAMP_PROFILE_SPEC.md` §7 lists shuffle and
+   repeat as profile-setting candidates. In the code they only steer
+   Next/Previous through the personal queue (`engine.ts` `next`/`previous`),
+   so they are **device** settings: a Friend Lique never changes how the
+   viewer's own queue plays. EQ stays a profile setting, as in the spec.
+   Profile: `activeThemeId`, `glowLevel`, `visualizer`, `eq`, `artwork`.
+   Device: `volume`, `muted`, `shuffle`, `repeat`, `motion`, `shortcuts`,
+   `providers`, `analysis`, `render`. Stored as kv `profile.settings` and
+   kv `settings`; the old single `settings` record is migrated, not deleted.
 
 ---
 

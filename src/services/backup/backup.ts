@@ -4,11 +4,11 @@
 // failure leaves the existing data exactly as it was.
 import { mediaIdentity } from '../../stores/libraryStore';
 import { pickSettings, sanitizeSettings } from '../../stores/settingsStore';
-import type { Settings } from '../../types/settings';
+import { pickDeviceSettings, pickProfileSettings, type Settings } from '../../types/settings';
 import type { Category, Favorite, HistoryEntry, MediaItem, Playlist, RadioStation } from '../../types/media';
 import type { LiqueAmpTheme } from '../../types/theme';
-import { getDb } from '../storage/db';
-import { repositories } from '../storage/repository';
+import { profileKvKey, profileDb, repositories } from '../storage/repository';
+import { assertWritableScope } from '../storage/scope';
 import { validCategory, validFavorite, validHistory, validMedia, validPlaylist, validStation, validTheme } from './validate';
 
 export const BACKUP_FORMAT = 'liqueamp-backup';
@@ -119,8 +119,19 @@ export function parseBackup(text: string): ParseResult {
   const file = raw as { version?: unknown; exportedAt?: unknown; data?: unknown };
   if (typeof file.version !== 'number' || !Number.isInteger(file.version) || file.version < 1) return { ok: false, error: 'The backup has no valid version.' };
   if (file.version > BACKUP_VERSION) return { ok: false, error: `The backup was made by a newer LIQUEAMP (format ${file.version}); this version reads format ${BACKUP_VERSION}.` };
-  if (typeof file.data !== 'object' || file.data === null || Array.isArray(file.data)) return { ok: false, error: 'The backup contains no data section.' };
-  const data = file.data as Record<string, unknown>;
+  const result = validateBackupData(file.data);
+  if (!result.ok) return result;
+  return { ok: true, backup: { ...result.backup, exportedAt: typeof file.exportedAt === 'string' ? file.exportedAt : null } };
+}
+
+/**
+ * Validates the data section of a backup (or of a profile, which carries the
+ * same data): every record passes the validators in validate.ts, invalid and
+ * duplicate records are counted and dropped. Untrusted input in, checked data out.
+ */
+export function validateBackupData(value: unknown): ParseResult {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return { ok: false, error: 'The backup contains no data section.' };
+  const data = value as Record<string, unknown>;
   for (const key of COLLECTIONS) {
     if (key in data && !Array.isArray(data[key])) return { ok: false, error: `“${key}” in the backup is not a list.` };
   }
@@ -130,7 +141,7 @@ export function parseBackup(text: string): ParseResult {
   return {
     ok: true,
     backup: {
-      exportedAt: typeof file.exportedAt === 'string' ? file.exportedAt : null,
+      exportedAt: null,
       settings: settings && Object.keys(settings).length ? settings : null,
       themes: check(list('themes'), validTheme, byId),
       categories: check(list('categories'), validCategory, byId),
@@ -265,7 +276,9 @@ export function planImport(backup: ParsedBackup, existing: ExistingData, options
  * clear back too. The queue is never touched.
  */
 export async function applyImport(plan: ImportPlan, mode: ImportMode): Promise<void> {
-  const db = await getDb();
+  // An import writes into the user's own profile; never into a friend's.
+  assertWritableScope();
+  const db = await profileDb();
   if (!db) throw new Error('Local storage is unavailable, so nothing was imported or changed.');
   const { write } = plan;
   const stores = ['themes', 'categories', 'media', 'playlists', 'favorites', 'stations', 'kv', 'history'] as const;
@@ -286,7 +299,16 @@ export async function applyImport(plan: ImportPlan, mode: ImportMode): Promise<v
     for (const f of write.favorites) ops.push(tx.objectStore('favorites').put(f));
     for (const st of write.stations) ops.push(tx.objectStore('stations').put(st));
     for (const h of write.history ?? []) ops.push(tx.objectStore('history').put(h));
-    if (write.settings) ops.push(tx.objectStore('kv').put(write.settings, 'settings'));
+    if (write.settings) {
+      // Backups keep one flat settings object (format 1); stored, it is split
+      // into the device record and the profile record, like settingsStore does.
+      // A record is only written when the import has fields for it, so a
+      // profile (which has no device settings) never resets this device's.
+      const device = pickDeviceSettings(write.settings);
+      const profile = pickProfileSettings(write.settings);
+      if (Object.keys(device).length) ops.push(tx.objectStore('kv').put(device, 'settings'));
+      if (Object.keys(profile).length) ops.push(tx.objectStore('kv').put(profile, profileKvKey('settings')));
+    }
     await Promise.all([...ops, tx.done]);
   } catch (err) {
     try {

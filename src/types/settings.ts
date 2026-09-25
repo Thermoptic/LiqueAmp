@@ -43,6 +43,50 @@ export interface Settings {
   render: RenderConfigSettings;
 }
 
+/**
+ * Settings that travel with a LiqueAmp profile: how this LiqueAmp looks and
+ * sounds. A Friend Lique brings these along (docs/LIQUEAMP_PROFILE_SPEC.md §7).
+ */
+export const PROFILE_SETTING_KEYS = ['activeThemeId', 'glowLevel', 'visualizer', 'eq', 'artwork'] as const;
+
+/**
+ * Settings that stay with the device and the viewer's own session: output
+ * level, accessibility, performance, provider switches, and the shuffle/repeat
+ * modes of the personal queue (they only steer Next/Previous in the queue).
+ */
+export const DEVICE_SETTING_KEYS = ['volume', 'muted', 'shuffle', 'repeat', 'motion', 'shortcuts', 'providers', 'analysis', 'render'] as const;
+
+export type ProfileSettingKey = (typeof PROFILE_SETTING_KEYS)[number];
+export type DeviceSettingKey = (typeof DEVICE_SETTING_KEYS)[number];
+export type ProfileSettings = Pick<Settings, ProfileSettingKey>;
+export type DeviceSettings = Pick<Settings, DeviceSettingKey>;
+
+// Compile-time check: the two lists cover every setting, and no setting is in both.
+type Missing = Exclude<keyof Settings, ProfileSettingKey | DeviceSettingKey>;
+type Overlap = ProfileSettingKey & DeviceSettingKey;
+const _settingsSplitIsComplete: [Missing, Overlap] extends [never, never] ? true : never = true;
+void _settingsSplitIsComplete;
+
+function pick<K extends keyof Settings>(s: Partial<Settings>, keys: readonly K[]): Partial<Pick<Settings, K>> {
+  const out: Partial<Pick<Settings, K>> = {};
+  for (const key of keys) if (key in s && s[key] !== undefined) out[key] = s[key];
+  return out;
+}
+
+/** The fields of (possibly partial) settings that travel with a profile. */
+export function pickProfileSettings(s: Settings): ProfileSettings;
+export function pickProfileSettings(s: Partial<Settings>): Partial<ProfileSettings>;
+export function pickProfileSettings(s: Partial<Settings>): Partial<ProfileSettings> {
+  return pick(s, PROFILE_SETTING_KEYS);
+}
+
+/** The fields of (possibly partial) settings that stay with the device. */
+export function pickDeviceSettings(s: Settings): DeviceSettings;
+export function pickDeviceSettings(s: Partial<Settings>): Partial<DeviceSettings>;
+export function pickDeviceSettings(s: Partial<Settings>): Partial<DeviceSettings> {
+  return pick(s, DEVICE_SETTING_KEYS);
+}
+
 export const DEFAULT_SETTINGS: Settings = {
   activeThemeId: 'liqueamp-default',
   motion: 'system',

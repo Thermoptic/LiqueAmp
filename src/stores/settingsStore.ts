@@ -1,10 +1,35 @@
 import { create } from 'zustand';
-import { kv } from '../services/storage/repository';
+import { kv, profileKv } from '../services/storage/repository';
 import { sanitizeVisualizer } from '../types/visualizer';
 import { sanitizeAnalysis, sanitizeProviders, sanitizeRender } from '../types/advanced';
-import { DEFAULT_SETTINGS, EQ_LIMIT_DB, type EqSettings, type Settings } from '../types/settings';
+import {
+  DEFAULT_SETTINGS,
+  DEVICE_SETTING_KEYS,
+  EQ_LIMIT_DB,
+  PROFILE_SETTING_KEYS,
+  pickDeviceSettings,
+  pickProfileSettings,
+  type EqSettings,
+  type ProfileSettings,
+  type Settings,
+} from '../types/settings';
 
-const KEY = 'settings';
+/**
+ * Storage (docs/LIQUEAMP_PROFILE_SPEC.md §7):
+ * - device settings: kv `settings` (the record every earlier version used)
+ * - profile settings: kv `profile.settings`, in the active profile scope
+ *
+ * Before the split, `settings` held everything. On first start after the
+ * split, the profile fields are copied from it into `profile.settings`. The
+ * old record is never deleted or emptied: its profile fields are kept as
+ * they were (only its device fields are updated from then on), so nothing a
+ * user had is lost, and an older app version can still read it.
+ */
+const DEVICE_KEY = 'settings';
+const PROFILE_KEY = 'settings';
+
+/** Profile fields found in the old single record, kept untouched when device settings are written. */
+let legacyProfileFields: Partial<ProfileSettings> = {};
 
 interface SettingsStore extends Settings {
   hydrated: boolean;
@@ -19,19 +44,51 @@ export function pickSettings(s: Settings): Settings {
   return out as unknown as Settings;
 }
 
+const touches = (patch: Partial<Settings>, keys: readonly (keyof Settings)[]) => keys.some((k) => k in patch);
+
+/**
+ * Reads both records and, the first time, migrates the profile fields out of
+ * the old single record. Idempotent: once `profile.settings` exists, it is the
+ * only source of profile settings and nothing is migrated again.
+ */
+export async function loadSettings(): Promise<Partial<Settings>> {
+  const device = await kv.get<Partial<Settings>>(DEVICE_KEY);
+  let profile = await profileKv.get<Partial<Settings>>(PROFILE_KEY);
+  legacyProfileFields = device && typeof device === 'object' ? pickProfileSettings(device) : {};
+  if (profile === undefined && Object.keys(legacyProfileFields).length > 0) {
+    profile = sanitizeSettings(legacyProfileFields);
+    await profileKv.set(PROFILE_KEY, pickProfileSettings(profile));
+  }
+  return {
+    ...pickDeviceSettings(sanitizeSettings(device)),
+    ...pickProfileSettings(sanitizeSettings(profile)),
+  };
+}
+
+/** Writes the device record, keeping any profile fields the old single record still holds. */
+function saveDevice(s: Settings): Promise<void> {
+  return kv.set(DEVICE_KEY, { ...legacyProfileFields, ...pickDeviceSettings(s) });
+}
+
+function saveProfile(s: Settings): Promise<void> {
+  return profileKv.set(PROFILE_KEY, pickProfileSettings(s));
+}
+
 export const useSettings = create<SettingsStore>((set, get) => ({
   ...DEFAULT_SETTINGS,
   hydrated: false,
 
   async hydrate() {
-    const stored = await kv.get<Partial<Settings>>(KEY);
-    set({ ...DEFAULT_SETTINGS, ...sanitizeSettings(stored), hydrated: true });
+    set({ ...DEFAULT_SETTINGS, ...(await loadSettings()), hydrated: true });
   },
 
   update(patch) {
     set(patch);
     // UI updates immediately; persistence happens in the background (THEMING §81).
-    void kv.set(KEY, pickSettings(get()));
+    // Each half is written only when it changed, to its own record.
+    const s = pickSettings(get());
+    if (touches(patch, DEVICE_SETTING_KEYS)) void saveDevice(s);
+    if (touches(patch, PROFILE_SETTING_KEYS)) void saveProfile(s);
   },
 }));
 

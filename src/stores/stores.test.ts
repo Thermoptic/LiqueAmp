@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { resetDbForTests, getStorageStatus } from '../services/storage/db';
-import { kv, repositories } from '../services/storage/repository';
+import { kv, profileKv, repositories } from '../services/storage/repository';
 import { DEFAULT_SETTINGS } from '../types/settings';
 import { useSettings } from './settingsStore';
 import { useLibrary, countByCategory } from './libraryStore';
@@ -53,7 +53,8 @@ describe('settings persistence', () => {
     await useSettings.getState().hydrate();
     expect(useSettings.getState().artwork).toBe(false);
 
-    await kv.set('settings', { artwork: 'no' });
+    // artwork is a profile setting: it is stored in the profile record
+    await profileKv.set('settings', { artwork: 'no' });
     await useSettings.getState().hydrate();
     expect(useSettings.getState().artwork).toBe(true);
   });
