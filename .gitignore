@@ -10,3 +10,6 @@ e2e/output/
 .env
 .env.*
 !.env.example
+
+# Supabase CLI local state (linked project ref, versions; created by `supabase link`)
+supabase/.temp/
