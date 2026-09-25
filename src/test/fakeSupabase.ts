@@ -19,6 +19,10 @@ const RESERVED = ['admin', 'administrator', 'liqueamp', 'support', 'system', 'ro
 export function createFakeSupabase() {
   const tables: { users: Row[]; profiles: Row[]; [name: string]: Row[] } = { users: [], profiles: [] };
   let session: SupabaseSession | null = null;
+  // like Supabase Auth: the first provider stays in app_metadata; every
+  // sign-in updates that provider's identity (last_sign_in_at)
+  const accounts = new Map<string, { firstProvider: string; identities: Array<{ provider: string; last_sign_in_at: string }> }>();
+  let signIns = 0;
   let offline = false;
   let clock = 0;
   const listeners = new Set<(event: string, s: SupabaseSession | null) => void>();
@@ -151,7 +155,13 @@ export function createFakeSupabase() {
     oauthCalls,
     /** Completes an OAuth sign-in, as the callback would. */
     signInAs(userId: string, provider: 'google' | 'github' = 'github') {
-      session = { user: { id: userId, app_metadata: { provider } } };
+      const account = accounts.get(userId) ?? { firstProvider: provider, identities: [] };
+      accounts.set(userId, account);
+      const at = `2026-09-25T15:${String(Math.floor(++signIns / 60)).padStart(2, '0')}:${String(signIns % 60).padStart(2, '0')}.000Z`;
+      const identity = account.identities.find((i) => i.provider === provider);
+      if (identity) identity.last_sign_in_at = at;
+      else account.identities.push({ provider, last_sign_in_at: at });
+      session = { user: { id: userId, app_metadata: { provider: account.firstProvider }, identities: account.identities.map((i) => ({ ...i })) } };
       listeners.forEach((l) => l('SIGNED_IN', session));
     },
     /** The access token expired and could not be refreshed. */

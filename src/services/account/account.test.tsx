@@ -151,6 +151,13 @@ describe('Settings › Account and the username dialog', () => {
     expect(useAccount.getState().error).toBeNull(); // a deliberate log out is not an "expired session"
   });
 
+  it('a GitHub session says "Logged in with GitHub"', async () => {
+    await act(() => useAccount.getState().init(fake({ status: 'signed-in', session: { user: { userId: 'u-1', username: 'johan' }, authMethod: 'github' } })));
+    render(<AccountSection />);
+    expect(screen.getByText('Logged in with GitHub')).toBeTruthy();
+    expect(screen.queryByText('Logged in with Google')).toBeNull();
+  });
+
   it('an OAuth error in the callback URL is shown in plain words', async () => {
     window.history.replaceState(null, '', '/LiqueAmp/auth/callback?error=access_denied&error_description=The+user+denied');
     await act(() => useAccount.getState().init(fake({ status: 'signed-out' })));

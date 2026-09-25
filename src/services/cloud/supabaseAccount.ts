@@ -14,9 +14,21 @@ import { checkUsername } from '../account/username';
 import { backendCall, toAccountError } from './errors';
 import type { SupabaseLike, SupabaseSession } from './supabaseClient';
 
+const isAuthMethod = (p: string | undefined): p is AuthMethod => (AUTH_METHODS as readonly string[]).includes(p ?? '');
+
+/**
+ * The provider used for the current sign-in: the Google/GitHub identity that
+ * signed in most recently. (`app_metadata.provider` is the provider the
+ * account was first created with, so it would keep saying "Google" after a
+ * GitHub sign-in.) Falls back to it only when no identities are available.
+ */
 function authMethodOf(session: SupabaseSession): AuthMethod | null {
-  const p = session.user.app_metadata?.provider;
-  return (AUTH_METHODS as readonly string[]).includes(p ?? '') ? (p as AuthMethod) : null;
+  const latest = (session.user.identities ?? [])
+    .filter((i) => isAuthMethod(i.provider))
+    .reduce<{ provider: string; last_sign_in_at?: string } | null>((best, i) => (!best || (i.last_sign_in_at ?? '') > (best.last_sign_in_at ?? '') ? i : best), null);
+  if (latest) return latest.provider as AuthMethod;
+  const first = session.user.app_metadata?.provider;
+  return isAuthMethod(first) ? first : null;
 }
 
 export function createSupabaseAccountProvider(client: SupabaseLike, { redirectTo }: { redirectTo: () => string }): AccountProvider {

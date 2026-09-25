@@ -102,6 +102,32 @@ describe('Supabase auth adapter (D5, D6)', () => {
     expect(Object.keys(fake.tables.users[0]!).sort()).toEqual(['created_at', 'id', 'updated_at', 'username']);
   });
 
+  it('the label follows the provider of the CURRENT sign-in, not the one the account was created with', async () => {
+    const fake = createFakeSupabase();
+    const { provider } = connect(fake);
+    fake.signInAs(A, 'google'); // account created with Google
+    await provider.claimUsername('Johan');
+    expect(await provider.getState()).toMatchObject({ status: 'signed-in', session: { authMethod: 'google' } });
+
+    await provider.signOut();
+    fake.signInAs(A, 'github'); // same account, now through GitHub
+    expect(await provider.getState()).toMatchObject({ status: 'signed-in', session: { user: { userId: A, username: 'Johan' }, authMethod: 'github' } });
+
+    await provider.signOut();
+    fake.signInAs(A, 'google'); // and back
+    expect(await provider.getState()).toMatchObject({ session: { authMethod: 'google' } });
+  });
+
+  it('without identity data the first provider is the fallback', async () => {
+    const fake = createFakeSupabase();
+    const { provider } = connect(fake);
+    fake.signInAs(A, 'github');
+    await provider.claimUsername('Johan');
+    const { data } = await fake.client.auth.getSession();
+    delete data.session!.user.identities;
+    expect(await provider.getState()).toMatchObject({ session: { authMethod: 'github' } });
+  });
+
   it('usernames are unique case-insensitively — enforced by the database, not by a check before insert', async () => {
     const fake = createFakeSupabase();
     const { provider } = connect(fake);
