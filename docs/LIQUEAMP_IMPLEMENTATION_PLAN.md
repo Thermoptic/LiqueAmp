@@ -1455,7 +1455,7 @@ See D16.
 
 ## D12 — Privacy: one-way access
 
-**Decided (final, 2026-09-25): one-way access.** When user A adds user B, **A gains read-only access to B's Lique**; B does **not** automatically gain access to A's Lique. Example: Johan adds Alice → Johan can see and activate Alice's Lique; Alice cannot see Johan's unless she adds him. A Lique is private by default (nothing is public); Friend Liques never grant write access; Block (by B) removes A's access and overrides everything. No friend requests, no accept/decline (D17). No per-item privacy in the first implementation. (Checkpoint 5 RLS: users read only their own rows; the friend read policy is added in the Friend Liques checkpoint.)
+**Decided (final, 2026-09-25): one-way access.** When user A adds user B, **A gains read-only access to B's Lique**; B does **not** automatically gain access to A's Lique. Example: Johan adds Alice → Johan can see and activate Alice's Lique; Alice cannot see Johan's unless she adds him. A Lique is private by default (nothing is public); Friend Liques never grant write access; Block (by B) removes A's access and overrides everything. No friend requests, no accept/decline (D17). No per-item privacy in the first implementation. (Checkpoint 5 RLS: users read only their own rows; the friend read policy is added in the Friend Liques checkpoint — done in checkpoint 6, §31.)
 
 ## D13 — Stream URLs before sharing
 
@@ -1571,3 +1571,23 @@ All locations use one implementation, `useItemActions()` in `src/components/acti
 5. GitHub: create an OAuth App (github.com › Settings › Developer settings) with the callback URL `https://<project-ref>.supabase.co/auth/v1/callback`; enable the GitHub provider in Supabase with its client ID/secret.
 6. GitHub repository › Settings › Secrets and variables › Actions › **Variables**: `VITE_SUPABASE_URL` = `https://<project-ref>.supabase.co`, `VITE_SUPABASE_PUBLISHABLE_KEY` = the project's publishable (anon) key. For local development put the same two values in `.env.local` (ignored by git).
 7. Never use the secret/service-role key in any of these places.
+
+---
+
+## Checkpoint 6 — Friend access foundation (2026-09-26)
+
+**Status:** database model, RLS and client service implemented and verified against the real Supabase project. **No UI, no Friend Lique activation, no blocks yet.** The existing profile schema, the account/OAuth flow and MY_LIQUE behaviour are unchanged.
+
+- **Migration** `supabase/migrations/20260926100000_liqueamp_friends.sql` (applied with `supabase db push`; the checkpoint 5 migration is untouched):
+  - `public.friendships (user_id, friend_id, created_at)`, "user_id added friend_id": primary key `(user_id, friend_id)` (no duplicates), check `user_id <> friend_id`, both columns `→ public.users on delete cascade` (deleting an account removes relationships in both directions), index on `friend_id`.
+  - RLS on `friendships`: select/insert/delete only where `user_id = auth.uid()`; **no update** policy or grant (a relationship is added or removed, never rewritten). `anon` has no access; `authenticated` has only select/insert/delete.
+  - `users: read people I added` and `profiles: read Liques I added`: extra **select-only** policies. If A added B, A reads B's `users` row (username) and `profiles` row; B gains nothing (D12). Insert/update/delete on `profiles` stay own-only, so a friend's Lique is read-only.
+  - `public.lookup_username(p_username)`: security definer, `search_path = ''`, signed-in users only (`anon` revoked); exact, case-insensitive match; returns only `user_id` and `username`.
+- **Client** (not wired to the UI): `src/services/friends/friends.ts` (provider-neutral `FriendDirectory`: `add(username)`, `list()`, `remove(friendUserId)`, `readProfile(friendUserId)`; `FriendError` codes `not-signed-in`, `username-invalid`, `not-found`, `self`, `already-added`; backend failures stay `AccountError`s), `src/services/cloud/supabaseFriends.ts` (Supabase implementation), `CloudServices.friends` (`null` without a backend).
+- **Tests:**
+  - `supabase/tests/friends_rls.test.sql`: pgTAP, 34 assertions. It covers the one-way add, read-only access, removal, impersonation, other users' rows, unrelated users, the lookup's columns, anon, own-profile rules and account deletion. Run it with `npm run db:test:remote -- friends` (`scripts/db-test-remote.mjs`: runs the file on the linked project inside a subtransaction that is always rolled back; no Docker) or with `npx supabase test db --linked` where Docker is available. Result on the real project: 34/34, and no fixtures or pgtap extension are left behind.
+  - `src/services/friends/friends.test.ts` runs the adapter against `src/test/fakeSupabase.ts`, which now enforces the friendships rules.
+- **Next:** Block (D17: `blocks` table; must override the two read policies), Friends UI (Add Friend, list, Remove), Friend Lique activation (the `friend:<userId>` scope from checkpoint 2, filled from `readProfile`).
+- **Open questions:**
+  - `lookup_username` confirms whether a username exists and returns its opaque id to any signed-in user. This is inherent to adding by exact username; rate limiting is not implemented.
+  - D5 still says "no email/password"; Supabase Email auth is kept enabled by decision of 2026-09-25 but is not used by the app.

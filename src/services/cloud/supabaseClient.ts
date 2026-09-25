@@ -36,7 +36,7 @@ export interface PostgrestErrorLike {
 
 type Result<T> = PromiseLike<{ data: T; error: PostgrestErrorLike | null }>;
 
-/** The chain of query-builder calls LiqueAmp makes (select/insert/update/delete + eq + single). */
+/** The chain of query-builder calls LiqueAmp makes (select/insert/update/delete + eq/in + single). */
 export interface SupabaseQuery {
   select(columns: string): SupabaseFilter;
   insert(values: Record<string, unknown>): { select(columns: string): { single(): Result<Record<string, unknown> | null> } };
@@ -46,6 +46,7 @@ export interface SupabaseQuery {
 
 export interface SupabaseFilter extends Result<Array<Record<string, unknown>> | null> {
   eq(column: string, value: unknown): SupabaseFilter;
+  in(column: string, values: readonly unknown[]): SupabaseFilter;
   select(columns: string): SupabaseFilter;
   maybeSingle(): Result<Record<string, unknown> | null>;
 }

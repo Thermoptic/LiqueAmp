@@ -1,10 +1,13 @@
 // An in-memory stand-in for the Supabase project, for tests only. It enforces
-// the same rules as supabase/migrations/*_liqueamp_accounts.sql, so the
+// the same rules as supabase/migrations/*_liqueamp_{accounts,friends}.sql, so the
 // adapters are tested against the server's behaviour, not just call shapes:
 // - RLS: every table call only sees/changes rows of the signed-in user
 // - users.username: format check + case-insensitive unique index (23505)
 // - profiles: owner check, revision 1 on insert / +1 on update (trigger),
 //   visibility forced PRIVATE, primary key (23505)
+// - friendships: own outgoing rows only (read/add/remove, no update), no
+//   duplicates (23505), not oneself (23514); adding B lets me READ B's users
+//   and profiles rows (one-way); lookup_username(): exact, case-insensitive
 // - delete_my_account(): deletes the user and cascades
 // It is not the real thing: SQL, OAuth and networking are verified against a
 // real project (see docs/LIQUEAMP_IMPLEMENTATION_PLAN.md, checkpoint 5).
@@ -17,7 +20,7 @@ const USERNAME = /^[A-Za-z0-9]{3,20}$/;
 const RESERVED = ['admin', 'administrator', 'liqueamp', 'support', 'system', 'root', 'moderator', 'official', 'null', 'undefined', 'anonymous', 'everyone'];
 
 export function createFakeSupabase() {
-  const tables: { users: Row[]; profiles: Row[]; [name: string]: Row[] } = { users: [], profiles: [] };
+  const tables: { users: Row[]; profiles: Row[]; friendships: Row[]; [name: string]: Row[] } = { users: [], profiles: [], friendships: [] };
   let session: SupabaseSession | null = null;
   // Like Supabase Auth (verified against the real project): the first
   // provider stays in app_metadata; an identity's last_sign_in_at is set when
@@ -33,7 +36,16 @@ export function createFakeSupabase() {
   const uid = () => session?.user.id ?? null;
   const now = () => `2026-09-25T14:00:${String(++clock).padStart(2, '0')}.000Z`;
   const net = <T>(v: T) => (offline ? Promise.reject(new TypeError('Failed to fetch')) : Promise.resolve(v));
-  const own = (table: string) => tables[table]!.filter((r) => (table === 'users' ? r.id : r.user_id) === uid());
+  const ownerOf = (table: string, r: Row) => (table === 'users' ? r.id : r.user_id);
+  const own = (table: string) => tables[table]!.filter((r) => ownerOf(table, r) === uid());
+  const added = (id: unknown) => tables.friendships.some((f) => f.user_id === uid() && f.friend_id === id);
+  /** select policies: own rows, plus users/profiles rows of the people I added (read-only). */
+  const readable = (table: string) => tables[table]!.filter((r) => ownerOf(table, r) === uid() || (table !== 'friendships' && added(ownerOf(table, r))));
+  const dropUser = (id: unknown) => {
+    tables.users = tables.users.filter((u) => u.id !== id);
+    tables.profiles = tables.profiles.filter((p) => p.user_id !== id);
+    tables.friendships = tables.friendships.filter((f) => f.user_id !== id && f.friend_id !== id);
+  };
   const pick = (row: Row, cols: string) => Object.fromEntries(cols.split(',').map((c) => c.trim()).map((c) => [c, row[c]]));
 
   function insertRow(table: string, values: Row): { row: Row | null; error: Err } {
@@ -46,6 +58,15 @@ export function createFakeSupabase() {
       if (tables.users!.some((u) => u.id === values.id)) return { row: null, error: { code: '23505', message: 'duplicate key' } };
       const row = { id: values.id, username: name, created_at: now(), updated_at: now() };
       tables.users!.push(row);
+      return { row, error: null };
+    }
+    if (table === 'friendships') {
+      if (values.user_id !== uid()) return { row: null, error: { code: '42501', message: 'new row violates row-level security policy' } };
+      if (values.friend_id === values.user_id) return { row: null, error: { code: '23514', message: 'violates check constraint "friendships_not_self"' } };
+      if (!tables.users.some((u) => u.id === values.friend_id)) return { row: null, error: { code: '23503', message: 'foreign key' } };
+      if (added(values.friend_id)) return { row: null, error: { code: '23505', message: 'duplicate key value violates unique constraint "friendships_pkey"' } };
+      const row = { user_id: values.user_id, friend_id: values.friend_id, created_at: now() };
+      tables.friendships.push(row);
       return { row, error: null };
     }
     // profiles
@@ -67,13 +88,14 @@ export function createFakeSupabase() {
   }
 
   function filter(table: string, op: 'select' | 'update' | 'delete', values?: Row) {
-    const eqs: Array<[string, unknown]> = [];
+    const eqs: Array<[string, (v: unknown) => boolean]> = [];
     let columns: string | null = op === 'select' ? '*' : null;
     let pending: Promise<{ data: Row[] | null; error: Err }> | null = null;
     const run = (): Promise<{ data: Row[] | null; error: Err }> => {
       pending ??= (async () => {
         await net(null);
-        const rows = own(table).filter((r) => eqs.every(([c, v]) => r[c] === v));
+        if (op === 'update' && table === 'friendships') return { data: null, error: { code: '42501', message: 'permission denied for table friendships' } };
+        const rows = (op === 'select' ? readable(table) : own(table)).filter((r) => eqs.every(([c, test]) => test(r[c])));
         if (op === 'update') {
           for (const r of rows) {
             const next = { ...r, ...values, user_id: r.user_id, revision: (r.revision as number) + 1, visibility: r.visibility, created_at: r.created_at, updated_at: now() };
@@ -83,8 +105,8 @@ export function createFakeSupabase() {
           }
         }
         if (op === 'delete') {
-          tables[table] = tables[table]!.filter((r) => !rows.includes(r));
-          if (table === 'users') tables.profiles = tables.profiles!.filter((p) => !rows.some((u) => u.id === p.user_id));
+          if (table === 'users') rows.forEach((u) => dropUser(u.id));
+          else tables[table] = tables[table]!.filter((r) => !rows.includes(r));
         }
         return { data: columns ? rows.map((r) => (columns === '*' ? { ...r } : pick(r, columns!))) : null, error: null };
       })();
@@ -92,7 +114,11 @@ export function createFakeSupabase() {
     };
     const builder = {
       eq(c: string, v: unknown) {
-        eqs.push([c, v]);
+        eqs.push([c, (x) => x === v]);
+        return builder;
+      },
+      in(c: string, vs: readonly unknown[]) {
+        eqs.push([c, (x) => vs.includes(x)]);
         return builder;
       },
       select(c: string) {
@@ -141,12 +167,16 @@ export function createFakeSupabase() {
         delete: () => filter(table, 'delete') as never,
       };
     },
-    rpc: async (fn) => {
+    rpc: async (fn, args) => {
       await net(null);
-      if (fn !== 'delete_my_account' || !uid()) return { data: null, error: { code: '28000', message: 'not authenticated' } };
-      const id = uid();
-      tables.users = tables.users!.filter((u) => u.id !== id);
-      tables.profiles = tables.profiles!.filter((p) => p.user_id !== id);
+      if (!uid()) return { data: null, error: { code: fn === 'lookup_username' ? '42501' : '28000', message: 'not authenticated' } };
+      if (fn === 'lookup_username') {
+        // only id + username, never anything else
+        const key = String(args?.p_username ?? '').trim().toLowerCase();
+        return { data: tables.users.filter((u) => String(u.username).toLowerCase() === key).slice(0, 1).map((u) => ({ user_id: u.id, username: u.username })), error: null };
+      }
+      if (fn !== 'delete_my_account') return { data: null, error: { code: 'PGRST202', message: 'function not found' } };
+      dropUser(uid());
       return { data: null, error: null };
     },
   };

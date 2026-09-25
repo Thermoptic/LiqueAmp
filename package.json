@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
     "test": "vitest run",
     "test:watch": "vitest",
+    "db:test:remote": "node scripts/db-test-remote.mjs",
     "e2e": "npm run build && node e2e/acceptance.mjs",
     "perf": "npm run build && node e2e/perf.mjs && node e2e/startup.mjs"
   },
