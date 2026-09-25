@@ -12,6 +12,7 @@ import { NowPlayingPanel } from '../components/player/NowPlayingPanel';
 import { MiniPlayer } from '../components/player/MiniPlayer';
 import { RadioBrowserPanel } from '../components/radio/RadioBrowserPanel';
 import { StationInfoPanel } from '../components/radio/StationInfoPanel';
+import { FriendLiquesPanel } from '../components/friends/FriendLiquesPanel';
 import { LibraryPanel } from '../components/library/LibraryPanel';
 import { QueuePanel } from '../components/queue/QueuePanel';
 import { AppearanceModule, AudioModule, PlayerModule, VisualizerModule } from '../components/settings/ControlModules';
@@ -55,11 +56,12 @@ export function Dashboard() {
           {/* under the sidebar, same width as the Library column */}
           <AudioModule />
           {/* Library spans both lower rows; the settings modules sit under the other three panels.
-              The fourth panel slot (.area-actions, next to Station Info) is reserved for Friend Liques. */}
+              The fourth panel slot (.area-actions, next to Station Info) is FRIEND LIQUES. */}
           <div className="lower area-lower">
             <LibraryPanel />
             <QueuePanel />
             <StationInfoPanel />
+            <FriendLiquesPanel />
             <PlayerModule />
             <AppearanceModule />
             <VisualizerModule />

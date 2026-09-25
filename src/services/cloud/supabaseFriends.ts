@@ -5,6 +5,7 @@
 // the server's answers into friendly errors.
 import { checkUsername } from '../account/username';
 import { friendError, type Friend, type FriendDirectory } from '../friends/friends';
+import { readStoredSummary, summarizeProfileText } from '../friends/friendSummary';
 import { backendCall, toAccountError } from './errors';
 import type { SupabaseLike } from './supabaseClient';
 import { createSupabaseProfileStore } from './supabaseProfiles';
@@ -60,5 +61,21 @@ export function createSupabaseFriendDirectory(client: SupabaseLike): FriendDirec
     },
 
     readProfile: (friendUserId) => profiles.download(friendUserId),
+
+    async readSummary(friendUserId) {
+      // the lightweight summary stored with the profile (spec §12: not the whole profile just for a preview)
+      const { data, error } = await backendCall(client.from('profiles').select('revision, updated_at, summary').eq('user_id', friendUserId).maybeSingle());
+      if (error) throw toAccountError(error);
+      if (!data || typeof data.revision !== 'number') return null;
+      const head = { revision: data.revision, updatedAt: String(data.updated_at ?? '') };
+      const stored = readStoredSummary(data.summary, head);
+      if (stored) return stored;
+      // no usable summary: validate and summarize the full profile instead
+      const doc = await profiles.download(friendUserId);
+      if (!doc) return null;
+      const derived = summarizeProfileText(doc.text, { revision: doc.revision, updatedAt: doc.updatedAt });
+      if (!derived) throw friendError('profile-invalid');
+      return derived;
+    },
   };
 }

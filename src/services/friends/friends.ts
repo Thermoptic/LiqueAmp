@@ -4,6 +4,7 @@
 // RLS); this interface only describes what the app can ask for. Activating a
 // Friend Lique (a friend: profile scope) and the Friends UI come later.
 import type { CloudProfileDocument } from '../sync/cloudProfile';
+import type { FriendLiqueSummary } from './friendSummary';
 
 export interface Friend {
   userId: string;
@@ -13,7 +14,7 @@ export interface Friend {
   addedAt: string;
 }
 
-export type FriendErrorCode = 'not-signed-in' | 'username-invalid' | 'not-found' | 'self' | 'already-added';
+export type FriendErrorCode = 'not-signed-in' | 'username-invalid' | 'not-found' | 'self' | 'already-added' | 'profile-invalid';
 
 export const FRIEND_MESSAGES: Record<FriendErrorCode, string> = {
   'not-signed-in': 'Sign in to add friends.',
@@ -21,6 +22,7 @@ export const FRIEND_MESSAGES: Record<FriendErrorCode, string> = {
   'not-found': 'No one has that username.',
   self: 'That is your own username.',
   'already-added': 'You have already added them.',
+  'profile-invalid': 'Their Lique could not be read.',
 };
 
 /** A friend-specific outcome a LiqueAmp user can understand; the technical cause is kept for logs only. */
@@ -50,4 +52,10 @@ export interface FriendDirectory {
   remove(friendUserId: string): Promise<void>;
   /** Their cloud Lique, read-only; null if they have none or I may not read it. */
   readProfile(friendUserId: string): Promise<CloudProfileDocument | null>;
+  /**
+   * The preview of their Lique (theme, visualizer, counts), validated; null if
+   * they have none or I may not read it. Rejects with 'profile-invalid' when
+   * what is stored cannot be read.
+   */
+  readSummary(friendUserId: string): Promise<FriendLiqueSummary | null>;
 }

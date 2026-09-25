@@ -12,6 +12,7 @@ import './styles/ui.css';
 import './styles/layout.css';
 import './styles/components.css';
 import './styles/control.css';
+import './styles/friends.css';
 import { bootstrap } from './app/bootstrap';
 import { router } from './app/router';
 import { Toasts } from './components/ui/Toasts';

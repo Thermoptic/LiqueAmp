@@ -1591,3 +1591,26 @@ All locations use one implementation, `useItemActions()` in `src/components/acti
 - **Open questions:**
   - `lookup_username` confirms whether a username exists and returns its opaque id to any signed-in user. This is inherent to adding by exact username; rate limiting is not implemented.
   - D5 still says "no email/password"; Supabase Email auth is kept enabled by decision of 2026-09-25 but is not used by the app.
+
+---
+
+## Checkpoint 7 — Friend Liques UI (2026-09-26)
+
+**Status:** implemented; no activation, no profile switching, no schema/RLS/OAuth changes, MY_LIQUE data untouched.
+
+- **Panel** `src/components/friends/FriendLiquesPanel.tsx` fills the `.area-actions` slot next to Station Info (the layout's fallback rule for an empty slot no longer applies). Title FRIEND LIQUES; the Add Friend icon is top-right (D17).
+  - **States:** checking account (LOADING…), no accounts in this build, signed out (ACCOUNT REQUIRED, link to Settings › Account), needs a username, loading, list error with Try again, empty (NO FRIEND LIQUES YET + Add Friend), and the list.
+  - **Rows** show `@username` and a Remove button. **Online/offline is not shown:** there is no presence source yet (D11), so nothing is invented.
+  - **Add Friend** is a dialog. Errors from the service appear in the dialog: invalid, not found, yourself, already added, not signed in, offline/session. A toast confirms success.
+  - **Remove** asks for confirmation in a danger dialog.
+- **Preview (read-only, not activation).** Selecting a friend replaces the list inside the panel (drill-down; the panel is about 180 px tall on desktop). Back returns to the list, and focus moves to the preview heading and back to the row.
+  - Shows: READ ONLY, theme, visualizer, and counts of playlists, categories, streams and stations.
+  - Shows `ACTIVATE LIQUE`, disabled, marked "Coming later".
+  - **Source:** the `summary` column (spec §12: not the full profile for a preview), read with `FriendDirectory.readSummary()` and validated (`src/services/friends/friendSummary.ts`: bounded strings, non-negative integer counts; built-in theme names come from this app). If the stored summary is unusable, the full profile goes through `parseProfile()` and is summarized. Revision and time come from the server row. No history, queue, device settings or account data are read or shown.
+- **State:** `src/stores/friendsStore.ts` (not persisted). The directory is set in `bootstrap.ts` from `createCloudServices()`. The list is reloaded per signed-in user and cleared on sign-out.
+- **Styles:** `src/styles/friends.css`, built on the existing panel, row, kv-list, status, pending-tag and dialog styles.
+- **Tests:**
+  - `src/components/friends/FriendLiquesPanel.test.tsx` runs against the fake Supabase.
+  - `src/app/Dashboard.test.tsx` covers the Home regions, which are intact without an account.
+  - Summary validation and `readSummary` are covered in `src/services/friends/friends.test.ts`.
+- **Next:** Friend Lique activation/restoration (spec §13–§21, §47), presence (D11), Block (D17).

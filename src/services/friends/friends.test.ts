@@ -10,7 +10,11 @@ import { createSupabaseProfileStore } from '../cloud/supabaseProfiles';
 import { createCloudServices } from '../cloud';
 import { AccountError } from '../account/account';
 import { FriendError, type FriendErrorCode } from './friends';
-import type { ProfileSummary } from '../profile/summary';
+import { summarizeProfile, type ProfileSummary } from '../profile/summary';
+import { createProfile, serializeProfile } from '../profile/profile';
+import { BUILTIN_THEMES } from '../themes/builtin';
+import { DEFAULT_SETTINGS } from '../../types/settings';
+import { readStoredSummary, summarizeProfileText } from './friendSummary';
 
 const A = '11111111-1111-4111-8111-111111111111';
 const B = '22222222-2222-4222-8222-222222222222';
@@ -177,5 +181,52 @@ describe('friend access (checkpoint 6)', () => {
 
   it('without an account backend there is no friend directory (local-only LiqueAmp)', async () => {
     expect((await createCloudServices({})).friends).toBeNull();
+  });
+
+  it('readSummary: the stored summary, with the server revision; built-in theme names come from this app', async () => {
+    const { fake, as } = await world();
+    const builtin = BUILTIN_THEMES[BUILTIN_THEMES.length - 1]!;
+    const bob = fake.tables.profiles.find((p) => p.user_id === B)!;
+    bob.summary = { theme: { id: builtin.id, name: 'SPOOFED NAME', builtIn: true }, visualizer: { type: 'waveform', enabled: false }, counts: { playlists: 1, categories: 2, streams: 3, stations: 4 } };
+    const a = as(A);
+    expect(await a.friends.readSummary(B)).toBeNull(); // not added yet: RLS hides it
+    await a.friends.add('Bob');
+    expect(await a.friends.readSummary(B)).toEqual({
+      revision: 1,
+      updatedAt: bob.updated_at,
+      theme: { name: builtin.name, builtIn: true },
+      visualizer: { name: 'Waveform', enabled: false },
+      counts: { playlists: 1, categories: 2, streams: 3, stations: 4 },
+    });
+  });
+
+  it('readSummary: without a usable summary the full profile is validated and summarized; unreadable → profile-invalid', async () => {
+    const { fake, as } = await world();
+    const a = as(A);
+    await a.friends.add('Bob');
+    const bob = fake.tables.profiles.find((p) => p.user_id === B)!;
+    bob.summary = null;
+    bob.data = JSON.parse(serializeProfile(await createProfile(DEFAULT_SETTINGS, { ownerUserId: B, revision: 1, updatedAt: '2026-09-25T10:00:00.000Z' })));
+    expect(await a.friends.readSummary(B)).toMatchObject({ revision: 1, counts: { playlists: 0, categories: 0, streams: 0, stations: 0 }, visualizer: { enabled: DEFAULT_SETTINGS.visualizer.enabled } });
+    bob.data = { format: 'liqueamp-profile', meta: {}, data: 'garbage' };
+    await rejectsWith(a.friends.readSummary(B), 'profile-invalid');
+    expect(await a.friends.readSummary(C)).toBeNull(); // not added
+  });
+
+  it('readStoredSummary rejects malformed or oversized values', () => {
+    const head = { revision: 3, updatedAt: 'x' };
+    const good = { theme: { id: 'mine', name: 'My theme' }, visualizer: { type: 'unknown-viz', enabled: true }, counts: { playlists: 0, categories: 0, streams: 0, stations: 0 } };
+    expect(readStoredSummary(good, head)).toEqual({ ...head, theme: { name: 'My theme', builtIn: false }, visualizer: { name: 'unknown-viz', enabled: true }, counts: good.counts });
+    expect(readStoredSummary({ ...good, theme: { id: 'x', name: 'n'.repeat(500) } }, head)!.theme.name).toHaveLength(80);
+    for (const bad of [null, 'text', [], { ...good, counts: { ...good.counts, playlists: -1 } }, { ...good, counts: { ...good.counts, streams: 1.5 } }, { ...good, counts: { ...good.counts, stations: '3' } }, { ...good, visualizer: { type: 'waveform' } }, { ...good, theme: {} }]) {
+      expect(readStoredSummary(bad, head)).toBeNull();
+    }
+    expect(summarizeProfileText('not json', head)).toBeNull();
+  });
+
+  it('the summary a LiqueAmp uploads (summarizeProfile) is what the preview reads', async () => {
+    const profile = await createProfile(DEFAULT_SETTINGS, { ownerUserId: B });
+    const stored = summarizeProfile(profile, 'Bob');
+    expect(readStoredSummary(JSON.parse(JSON.stringify(stored)), { revision: 7, updatedAt: 'now' })).toMatchObject({ revision: 7, counts: stored.counts });
   });
 });

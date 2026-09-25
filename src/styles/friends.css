@@ -1,0 +1,139 @@
+/* ---------- Friend Liques (Home, .area-actions) ----------
+   Built from the existing panel, row, key/value and status styles; only the
+   pieces specific to this panel live here. */
+.friend-liques__body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+}
+
+.friend-liques__message {
+  display: grid;
+  gap: var(--la-space-2);
+  justify-items: start;
+  padding-bottom: var(--la-space-3);
+}
+
+.friend-liques__message > .form-error,
+.friend-liques__message > .btn {
+  margin: 0 var(--la-space-3);
+}
+
+.friend-liques__message > .form-error:first-child {
+  margin-top: var(--la-space-3);
+}
+
+.friend-liques__inline-error {
+  margin: var(--la-space-2) var(--la-space-3);
+}
+
+.friend-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding-right: var(--la-space-1);
+}
+
+.friend-row__main {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 30px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.friend-row__main:hover {
+  color: var(--la-hover-text);
+}
+
+.friend-row:hover {
+  background: var(--la-surface-2);
+  box-shadow: inset 2px 0 0 var(--la-hover);
+}
+
+/* the preview replaces the list inside the panel (drill-down) */
+.friend-preview {
+  display: grid;
+  gap: var(--la-space-2);
+  align-content: start;
+  padding: var(--la-space-2) var(--la-space-3) var(--la-space-3);
+}
+
+.friend-preview__head {
+  display: flex;
+  align-items: center;
+  gap: var(--la-space-1);
+  min-width: 0;
+  margin-left: calc(-1 * var(--la-space-2));
+}
+
+.friend-preview__name {
+  margin: 0;
+  min-width: 0;
+  font-family: var(--la-font-display);
+  font-size: var(--la-text-md);
+  color: var(--la-accent-bright);
+  overflow-wrap: anywhere;
+}
+
+.friend-preview__message {
+  display: grid;
+  gap: var(--la-space-2);
+  justify-items: start;
+  margin: 0;
+  font-size: var(--la-text-sm);
+}
+
+.friend-preview__message > .form-error {
+  margin: 0;
+}
+
+.friend-preview__row {
+  grid-template-columns: 9ch minmax(0, 1fr);
+  gap: var(--la-space-2);
+  padding: 2px 0;
+}
+
+.friend-preview__row dt {
+  font-size: var(--la-text-xs);
+}
+
+.friend-preview__counts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  background: var(--la-border-subtle);
+  border: var(--la-border-width) solid var(--la-border-subtle);
+}
+
+.friend-preview__count {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--la-space-2);
+  padding: 2px var(--la-space-2);
+  background: var(--la-surface);
+  font-size: var(--la-text-sm);
+}
+
+.friend-preview__count dt {
+  color: var(--la-text-muted);
+  font-size: var(--la-text-xs);
+}
+
+.friend-preview__count dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.friend-preview__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--la-space-2);
+}
