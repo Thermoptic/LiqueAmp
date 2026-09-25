@@ -90,6 +90,13 @@
   align-self: center;
 }
 
+/* layout groups only; they take part in the header grid unless a page
+   layout gives them a box (layout.css, control.css) */
+.app-header__rest,
+.app-header__end {
+  display: contents;
+}
+
 @media (max-width: 1199px) {
   .app-header {
     grid-template-columns: auto minmax(0, 1fr) auto auto;

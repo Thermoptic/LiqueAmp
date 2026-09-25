@@ -16,10 +16,15 @@ export function Header() {
         </span>
         <span className="brand__tagline">STREAM // RADIO // WORLDWIDE</span>
       </Link>
-      <Ticker />
-      <Clock />
-      <LiveBlock />
-      <FullscreenButton />
+      {/* grouped so wide layouts can put these on the dashboard's own columns (layout.css) */}
+      <div className="app-header__rest">
+        <Ticker />
+        <div className="app-header__end">
+          <Clock />
+          <LiveBlock />
+          <FullscreenButton />
+        </div>
+      </div>
     </header>
   );
 }

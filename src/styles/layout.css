@@ -16,7 +16,9 @@
   padding: var(--la-gap) max(var(--la-gap), env(safe-area-inset-right)) var(--la-gap) max(var(--la-gap), env(safe-area-inset-left));
   max-width: 1920px;
   margin: 0 auto;
-  grid-template-columns: minmax(200px, 250px) minmax(0, 1fr) minmax(340px, 440px);
+  /* column 1 is never narrower than the LIQUEAMP brand block above it (auto
+     minimum), so the header and the sidebar share one edge */
+  grid-template-columns: minmax(auto, 250px) minmax(0, 1fr) minmax(340px, 440px);
   /* The main row never gets shorter than Now Playing needs; if the window is
      too short for everything, the page scrolls instead of squeezing panels. */
   /* the Audio / settings-module row keeps its content height even when the
@@ -40,6 +42,41 @@
 
 .app-header {
   grid-area: header;
+}
+
+/* The header sits on the dashboard's columns: brand over the sidebar, ticker
+   over Now Playing, clock + status over Radio. */
+@media (min-width: 768px) {
+  .dashboard > .app-header {
+    grid-template-columns: subgrid;
+  }
+  .dashboard .brand {
+    min-width: min-content;
+    white-space: nowrap;
+  }
+  .dashboard .app-header__rest {
+    display: flex;
+    gap: var(--la-gap);
+    min-width: 0;
+  }
+  .dashboard .app-header__ticker {
+    flex: 1 1 0;
+  }
+}
+
+@media (min-width: 1200px) {
+  .dashboard .app-header__rest {
+    display: contents;
+  }
+  .dashboard .app-header__end {
+    display: flex;
+    gap: var(--la-gap);
+    min-width: 0;
+  }
+  .dashboard .app-header__clock,
+  .dashboard .app-header__live {
+    flex: 1 1 auto;
+  }
 }
 .area-side {
   grid-area: side;
@@ -109,7 +146,7 @@
 /* ---------- Tablet / small desktop ---------- */
 @media (max-width: 1199px) {
   .dashboard {
-    grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+    grid-template-columns: minmax(auto, 220px) minmax(0, 1fr);
     grid-template-rows: auto;
     grid-template-areas:
       'header header'

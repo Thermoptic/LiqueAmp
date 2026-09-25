@@ -20,6 +20,13 @@
   min-height: 0;
 }
 
+/* section headers carry several actions; on narrow screens they wrap
+   instead of pushing the page sideways */
+.control-page__main .panel__header,
+.control-page__main .panel__actions {
+  flex-wrap: wrap;
+}
+
 .control-page__nav {
   padding-bottom: var(--la-space-2);
 }
@@ -45,6 +52,31 @@
 .control-note {
   margin: 0 0 var(--la-space-3);
   font-size: var(--la-text-sm);
+}
+
+/* header and body share two columns, so the brand block and the section
+   nav have one edge (same approach as the dashboard, layout.css) */
+@media (min-width: 768px) {
+  .control-page {
+    grid-template-columns: minmax(auto, 220px) minmax(0, 1fr);
+  }
+  .control-page > .app-header,
+  .control-page__body {
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+  }
+  .control-page .brand {
+    min-width: min-content;
+    white-space: nowrap;
+  }
+  .control-page .app-header__rest {
+    display: flex;
+    gap: var(--la-gap);
+    min-width: 0;
+  }
+  .control-page .app-header__ticker {
+    flex: 1 1 0;
+  }
 }
 
 @media (max-width: 767px) {
