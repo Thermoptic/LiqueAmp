@@ -7,7 +7,6 @@ import { StatusBar } from '../components/layout/StatusBar';
 import { Sidebar } from '../components/navigation/Sidebar';
 import { BottomNav } from '../components/navigation/BottomNav';
 import { NowPlayingPanel } from '../components/player/NowPlayingPanel';
-import { QuickActionsPanel } from '../components/player/QuickActionsPanel';
 import { MiniPlayer } from '../components/player/MiniPlayer';
 import { RadioBrowserPanel } from '../components/radio/RadioBrowserPanel';
 import { StationInfoPanel } from '../components/radio/StationInfoPanel';
@@ -45,12 +44,12 @@ export function Dashboard() {
           <RadioBrowserPanel focusSearch={section === 'browse'} />
           {/* under the sidebar, same width as the Library column */}
           <AudioModule />
-          {/* Library spans both lower rows; the settings modules sit under the other three panels */}
+          {/* Library spans both lower rows; the settings modules sit under the other three panels.
+              The fourth panel slot (.area-actions, next to Station Info) is reserved for Friend Liques. */}
           <div className="lower area-lower">
             <LibraryPanel />
             <QueuePanel />
             <StationInfoPanel />
-            <QuickActionsPanel />
             <PlayerModule />
             <AppearanceModule />
             <VisualizerModule />

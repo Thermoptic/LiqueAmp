@@ -1394,3 +1394,60 @@ Fetch (later checkpoint) → `parseProfile` (validate, drop history and device s
 ### Migration implications
 
 None for existing installations: the `liqueamp` database, its schema version and its records are unchanged. Checkpoint 1's settings migration still runs, only in `MY_LIQUE`, never in a friend scope. A future schema change to friend databases uses their own version counter (`FRIEND_DB_VERSION`), independent of `DB_VERSION`.
+
+---
+
+# 31. Checkpoint Log
+
+## Checkpoint 3 — Quick Actions migration (2026-09-25)
+
+**Status:** implemented; `QuickActionsPanel` removed from Home. Friend Liques is **not** implemented.
+
+### Audit: what Quick Actions offered
+
+Quick Actions acted on the current selection (a station selected in a station list, or a media item clicked in a library list), or on the playing item when nothing was selected.
+
+| Action | Stations | Media items (Library, Playlists, Favourites, History lists) | Playing item |
+|---|---|---|---|
+| Play now | already on every station row (▶) | already: clicking the row plays it | already: transport |
+| Add to queue | **only in Quick Actions** | only in the Library list; **only in Quick Actions** elsewhere | **only in Quick Actions** |
+| Add/remove favourite | already on every station row (♥) | **only in Quick Actions** | already: Now Playing favourite button |
+| Add to playlist | **only in Quick Actions** | **only in Quick Actions** | **only in Quick Actions** |
+| Share | **only in Quick Actions** | **only in Quick Actions** | **only in Quick Actions** |
+| Copy stream URL | **only in Quick Actions** (Station Info showed the URL as text) | **only in Quick Actions** | **only in Quick Actions** |
+| Open website | already: Station Info "Website" link | n/a | already: Station Info shows the playing station |
+
+### Migration map
+
+```text
+Station: Add to queue / Add to playlist / Share / Copy stream URL
+    → Station Info action row (StationActions), under the station name
+Station: Open website
+    → unchanged: the Website link in Station Info (also in the ⋯ menus for stations)
+Media item (every list): Add to queue / Add to playlist / Favourite / Share / Copy stream URL
+    → "⋯" menu at the end of every media row (MediaRow, so all lists get it)
+Playing item: Add to queue / Add to playlist / Share / Copy stream URL (/ Open website for stations)
+    → "⋯" menu next to the Now Playing favourite button
+Play now / station favourite / playing-item favourite
+    → already existed; nothing moved
+```
+
+All locations use one implementation, `useItemActions()` in `src/components/actions/ItemActions.tsx`: the Quick Actions logic moved unchanged, with the same services (`queueStation`, `getEngine().enqueue`, `shareOrCopy`, the clipboard, `AddToPlaylistDialog`, the favourites store) and the same toasts. There is no replacement generic action panel.
+
+### Removal and the Friend Liques slot
+
+- `src/components/player/QuickActionsPanel.tsx` is deleted and no longer mounted in `src/app/Dashboard.tsx`.
+- Quick-Actions-only state is removed: the `media` kind of `useUi.selection` (only Quick Actions read it); `MediaRow` no longer sets a selection. Station selection (Station Info) is unchanged.
+- Quick-Actions-only CSS is removed (`.quick-actions`, `.quick-actions__hint`, `.quick-actions__more`); `.quick-actions__target` is now the neutral `.panel__target`.
+- **The `.area-actions` grid slot is kept** (desktop column 4 of the lower row; the mobile section rules too). Until a panel with `.area-actions` exists, Station Info spans columns 3–4 on desktop (`.area-lower:not(:has(> .area-actions)) > .area-station`). A future `FriendLiquesPanel` with `className="panel area-actions"` takes the slot back automatically; no Dashboard layout rewrite is needed.
+
+### UI architecture decisions
+
+- Row actions go in a compact "⋯" menu, not more row buttons, so lists stay scannable. The menu is rendered in a portal with fixed positioning (scrolling panels cannot clip it), follows its button on scroll, and supports keyboard use (focus first item, ↑/↓, Esc returns focus).
+- Station Info gets visible buttons: it is the station's details view and has room.
+- Ownership: "Add to queue" always goes to the viewer's personal queue (engine → queue store). Favourites and playlists go through their stores, which write to the profile they hold (Checkpoint 2). When Friend Liques exist, routing "favourite this for myself" to `MY_LIQUE` (decision D3) is a change in `useItemActions` and the favourites store only.
+
+### Tests
+
+- `src/components/actions/ItemActions.test.tsx` (12 tests): queue, playlist, favourite, share (Web Share and clipboard fallback), copy stream URL (station, stream, embed source), clipboard failure, website link, per-type menu contents, keyboard.
+- `e2e/acceptance.mjs`: check 15 (playlist) uses the Now Playing ⋯ menu; new check 32 verifies Quick Actions is gone and exercises every moved action in the browser.

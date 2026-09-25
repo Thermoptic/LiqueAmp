@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { attachEmbedSlot } from '../../services/playback/embedHost';
 import { ExternalLink, Heart, Pause, Play, Repeat, Repeat1, RotateCcw, Shuffle, SkipBack, SkipForward } from 'lucide-react';
-import { isItemFavorite, useFavorites } from '../../stores/favoritesStore';
+import { isItemFavorite, stationFor, useFavorites } from '../../stores/favoritesStore';
 import { useUi } from '../../stores/uiStore';
 import { getEngine } from '../../services/playback/engine';
 import { formatTime } from '../../lib/format';
@@ -14,6 +14,7 @@ import { Status, type StatusTone } from '../ui/controls';
 import { VolumeControl } from './VolumeControl';
 import { EqSummary } from '../audio/EqControls';
 import { VisualizerView } from '../visualizer/VisualizerView';
+import { ItemActionsMenu } from '../actions/ItemActions';
 
 export const PROVIDER_LABEL: Record<string, string> = {
   direct: 'Direct',
@@ -248,6 +249,15 @@ function FavouriteButton() {
   );
 }
 
+/** The playing item's other actions (queue, playlist, share, copy stream URL, website). */
+function NowPlayingActions() {
+  const item = usePlayback((s) => s.currentItem);
+  const stations = useFavorites((s) => s.stations);
+  if (!item) return null;
+  const station = stationFor(item, stations);
+  return <ItemActionsMenu target={station ? { kind: 'station', station } : { kind: 'media', item }} favourite={false} />;
+}
+
 function TransportRow() {
   const hasItem = usePlayback((s) => Boolean(s.currentItem));
   const status = usePlayback((s) => s.status);
@@ -300,6 +310,7 @@ function TransportRow() {
       <div className="transport__modes">
         <EqSummary />
         <FavouriteButton />
+        <NowPlayingActions />
         <button type="button" className="btn btn--accent-outline" onClick={() => update({ repeat: NEXT_REPEAT[repeat] })}>
           [R] Repeat: {repeat}
         </button>

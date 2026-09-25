@@ -121,6 +121,13 @@
   grid-column: 3;
   grid-row: 1;
 }
+/* Until the Friend Liques panel fills the fourth slot (.area-actions),
+   Station Info uses both columns, so the row has no empty gap. */
+@media (min-width: 1200px) {
+  .area-lower:not(:has(> .area-actions)) > .area-station {
+    grid-column: 3 / span 2;
+  }
+}
 .area-actions {
   grid-column: 4;
   grid-row: 1;

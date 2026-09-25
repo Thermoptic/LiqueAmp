@@ -646,17 +646,6 @@
   border-bottom: var(--la-border-width) solid var(--la-border-subtle);
 }
 
-.quick-actions {
-  display: grid;
-  align-content: start;
-  gap: var(--la-space-2);
-}
-
-.quick-actions__hint {
-  margin: 0;
-  font-size: var(--la-text-xs);
-}
-
 /* ---------- Control strip ---------- */
 .control-module {
   padding: var(--la-space-2) var(--la-space-3) var(--la-space-3);
@@ -1341,6 +1330,12 @@
   align-items: start;
 }
 
+.station-info__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--la-space-2);
+}
+
 .station-info__titles {
   display: grid;
   gap: 2px;
@@ -1379,10 +1374,6 @@
 }
 
 /* ---------- Menu ---------- */
-.quick-actions__more {
-  position: relative;
-}
-
 .menu {
   position: absolute;
   z-index: 30;
@@ -1414,6 +1405,18 @@
 .menu__item:hover:not(:disabled) {
   background: var(--la-surface-3);
   color: var(--la-hover-text);
+}
+
+/* item "⋯" menu: rendered in a portal, positioned by ItemActionsMenu */
+.item-actions__menu {
+  top: auto;
+  right: auto;
+  bottom: auto;
+  min-width: 200px;
+}
+
+.menu__item:focus-visible {
+  outline-offset: -2px;
 }
 
 /* ---------- Library (phase 6) ---------- */
@@ -1601,7 +1604,7 @@
   fill: currentColor;
 }
 
-.quick-actions__target {
+.panel__target {
   white-space: nowrap;
   font-size: var(--la-text-xs);
   letter-spacing: 0.08em;

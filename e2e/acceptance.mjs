@@ -27,6 +27,16 @@ const HOOKS = `
     const set = navigator.mediaSession.setActionHandler.bind(navigator.mediaSession);
     navigator.mediaSession.setActionHandler = (action, handler) => { window.__e2e.session[action] = handler; return set(action, handler); };
   }
+  // clipboard and share: record what the app passes on (the clipboard write still happens)
+  window.__e2e.copied = [];
+  window.__e2e.shared = [];
+  if (navigator.clipboard) {
+    const write = navigator.clipboard.writeText.bind(navigator.clipboard);
+    navigator.clipboard.writeText = (t) => { window.__e2e.copied.push(t); return write(t); };
+  }
+  // a headless browser cannot show the OS share sheet; record the share instead
+  Object.defineProperty(navigator, 'share', { configurable: true, value: async (data) => { window.__e2e.shared.push(data); } });
+  Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
   window.__e2e.playing = () => window.__e2e.audio.find((a) => a.currentSrc && !a.paused) ?? null;
   window.__e2e.current = () => window.__e2e.audio.find((a) => a.currentSrc && !a.paused) ?? window.__e2e.audio.find((a) => a.currentSrc) ?? null;
 `;
@@ -268,7 +278,8 @@ async function run(browser, ports) {
     return 'added from the library, Next played it';
   });
   await check(15, 'Playlist works', async () => {
-    await p.click(`//section[contains(@class,'area-actions')]//button[contains(., 'Add to Playlist')]`);
+    await p.click('button[aria-label="More actions for E2E Tone"]');
+    await p.click(`//div[@role='menu']//button[contains(., 'Add to playlist')]`);
     await waitFor(`return !!document.querySelector('dialog[open] input.input')`);
     await p.click('dialog[open] input.input');
     await p.send('Input.insertText', { text: 'E2E list' });
@@ -277,7 +288,7 @@ async function run(browser, ports) {
     await p.click(`//div[@aria-label='Library views']//button[normalize-space(.)='Playlists']`);
     await waitFor(`return !!document.querySelector('ol[aria-label="Playlists"]')`, 4000, 'Playlists tab did not open the playlists view');
     await waitFor(`return [...document.querySelectorAll('ol[aria-label="Playlists"] li')].some((li) => li.textContent.includes('E2E list'))`, 5000, 'playlist not listed');
-    return 'created from Quick Actions with the playing track';
+    return 'created from the Now Playing ⋯ menu with the playing track';
   });
   await check(16, 'Favorite works', async () => {
     await p.click(`//section[contains(@class,'now-playing')]//button[contains(., 'Add favourite')]`);
@@ -429,6 +440,71 @@ async function run(browser, ports) {
     const age = (Date.now() - statSync(join(DIST, 'index.html')).mtimeMs) / 60000;
     if (age > 30) return { status: 'N/A', note: `dist is ${Math.round(age)} min old — run "npm run e2e" to build first` };
     return `built ${Math.max(1, Math.round(age))} min ago by npm run e2e (typecheck + vite build)`;
+  });
+
+  // ---- extra: Quick Actions replaced (social checkpoint 3) ------------------
+  await check(32, 'Quick Actions replaced; its actions work where they moved', async () => {
+    const notes = [];
+    await goto('');
+    const home = await p.evaluate(`const st = document.querySelector('.area-station')?.getBoundingClientRect(), q = document.querySelector('.area-queue')?.getBoundingClientRect();
+      return { qa: !!document.getElementById('qa-heading') || /quick actions/i.test(document.body.innerText), slotFree: !document.querySelector('.area-actions'), wide: !!(st && q && st.width > q.width * 1.5) };`);
+    if (home.qa) throw new Error('Quick Actions is still on Home');
+    // until Friend Liques occupies .area-actions, Station Info spans the free slot
+    if (home.slotFree && !home.wide) throw new Error('Station Info does not fill the free slot');
+    notes.push(home.slotFree ? 'no Quick Actions; Station Info fills the free slot' : 'no Quick Actions');
+
+    // a favourite station, stored the way the app stores one
+    const station = { id: 'e2e-radio', name: 'E2E Radio', streamUrl: `${cors.url}/tone.wav`, sourceUrl: `${cors.url}/tone.wav`, homepage: 'https://example.org/e2e-radio', genre: ['test'], tags: [] };
+    await p.evaluate(`const s = ${JSON.stringify(station)};
+      return await new Promise((res, rej) => { const r = indexedDB.open('liqueamp'); r.onsuccess = () => { const db = r.result; const tx = db.transaction(['stations', 'favorites'], 'readwrite');
+        tx.objectStore('stations').put(s); tx.objectStore('favorites').put({ id: 'station:' + s.id, type: 'station', refId: s.id, addedAt: new Date().toISOString() });
+        tx.oncomplete = () => { db.close(); res(1); }; tx.onerror = () => rej(tx.error); }; });`);
+    await goto('');
+    await p.click(`//div[@aria-label='Library views']//button[normalize-space(.)='Favourites']`);
+    await waitFor(`return !!document.querySelector('button[aria-label^="E2E Radio"]')`, 5000, 'favourite station not listed');
+    await p.click('button[aria-label^="E2E Radio"]');
+    await waitFor(`return !!document.querySelector('[aria-label="Actions for E2E Radio"]')`, 4000, 'Station Info has no actions');
+
+    const queued = () => p.evaluate(`return document.querySelectorAll('ol[aria-label="Queue"] li').length`);
+    const before = await queued();
+    await p.click(`//div[@aria-label='Actions for E2E Radio']//button[contains(., 'Add to Queue')]`);
+    await waitFor(`return document.querySelectorAll('ol[aria-label="Queue"] li').length === ${before + 1}`, 4000, 'station was not queued');
+    notes.push('station queued');
+
+    await p.click(`//div[@aria-label='Actions for E2E Radio']//button[contains(., 'Copy Stream URL')]`);
+    await waitFor(`return window.__e2e.copied.at(-1) === ${JSON.stringify(station.streamUrl)}`, 4000, 'stream URL not copied');
+    const copyToast = await waitFor(`return [...document.querySelectorAll('.toast')].map((t) => t.textContent).find((t) => /stream url copied|could not copy/i.test(t))`, 4000, 'no copy feedback');
+    notes.push(`stream URL copied (${copyToast.trim()})`);
+
+    await p.click(`//div[@aria-label='Actions for E2E Radio']//button[contains(., 'Share Station')]`);
+    await waitFor(`return window.__e2e.shared.at(-1)?.url === ${JSON.stringify(station.homepage)}`, 4000, 'share did not pass the homepage');
+    notes.push('shared the homepage');
+
+    const site = await p.evaluate(`const a = document.querySelector('.station-info a[href=${JSON.stringify(station.homepage)}]'); return a && a.target === '_blank' && a.rel.includes('noopener');`);
+    if (!site) throw new Error('station website link missing');
+    notes.push('website link opens in a new tab');
+
+    await p.click(`//div[@aria-label='Actions for E2E Radio']//button[contains(., 'Add to Playlist')]`);
+    await waitFor(`return !!document.querySelector('dialog[open]')`);
+    await p.evaluate(`const n = [...document.querySelectorAll('dialog[open] input[type=radio]')].at(-1); n.click(); return 1;`);
+    await waitFor(`return !!document.querySelector('dialog[open] input.input')`);
+    await p.click('dialog[open] input.input');
+    await p.send('Input.insertText', { text: 'E2E radio list' });
+    await p.click(`//dialog[@open]//button[normalize-space(.)='Add']`);
+    await waitFor(`return [...document.querySelectorAll('.toast')].some((t) => t.textContent.includes('Added to E2E radio list'))`, 4000, 'station not added to a playlist');
+    notes.push('station added to a playlist');
+
+    // a library row's ⋯ menu
+    await p.click(`//button[contains(., 'All media')]`);
+    await waitFor(`return !!document.querySelector('button[aria-label="More actions for E2E Tone"]')`, 5000, 'library row has no ⋯ menu');
+    await p.click('button[aria-label="More actions for E2E Tone"]');
+    await p.click(`//div[@role='menu']//button[contains(., 'Copy stream URL')]`);
+    await waitFor(`return window.__e2e.copied.at(-1) === ${JSON.stringify(`${cors.url}/tone.wav`)}`, 4000, 'row menu did not copy the stream URL');
+    await p.click('button[aria-label="More actions for E2E Tone"]');
+    await p.click(`//div[@role='menu']//button[contains(., 'Share')]`);
+    await waitFor(`return window.__e2e.shared.at(-1)?.url === ${JSON.stringify(`${cors.url}/tone.wav`)}`, 4000, 'row menu did not share the source');
+    notes.push('library row ⋯: copy stream URL, share');
+    return notes.join('; ');
   });
 
   // ---- extra: accessibility audit (not in §88; guards phase 12) -----------

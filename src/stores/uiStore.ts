@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { createId } from '../lib/id';
-import type { MediaItem, RadioStation } from '../types/media';
+import type { RadioStation } from '../types/media';
 
 export type ToastKind = 'info' | 'success' | 'error';
 
@@ -12,8 +12,8 @@ export interface Toast {
 
 export type LibraryTab = 'playlists' | 'favourites' | 'history';
 
-/** What Station Info and Quick Actions act on. */
-export type Selection = { kind: 'station'; station: RadioStation } | { kind: 'media'; item: MediaItem } | null;
+/** The station shown in Station Info (selected in a station list). */
+export type Selection = { kind: 'station'; station: RadioStation } | null;
 
 /** Ephemeral UI state only — never persisted (ARCH §38). */
 interface UiStore {

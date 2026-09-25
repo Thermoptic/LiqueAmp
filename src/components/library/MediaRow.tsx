@@ -1,7 +1,7 @@
 import type { HTMLAttributes, ReactNode } from 'react';
 import { usePlayback } from '../../stores/playbackStore';
-import { useUi } from '../../stores/uiStore';
 import type { MediaItem } from '../../types/media';
+import { ItemActionsMenu } from '../actions/ItemActions';
 import { PROVIDER_LABEL } from '../player/NowPlayingPanel';
 
 interface MediaRowProps {
@@ -16,13 +16,12 @@ interface MediaRowProps {
 }
 
 /**
- * One media item in a library list. Clicking plays it; it also becomes the
- * selection for Quick Actions. The currently playing item is highlighted
- * everywhere (DESIGN §82).
+ * One media item in a library list. Clicking plays it; the "⋯" menu has its
+ * other actions (queue, playlist, favourite, share, copy stream URL). The
+ * currently playing item is highlighted everywhere (DESIGN §82).
  */
 export function MediaRow({ item, index, meta, actions, onActivate, leading, rowProps }: MediaRowProps) {
   const isCurrent = usePlayback((s) => s.currentItem?.id === item.id);
-  const select = useUi((s) => s.select);
   const defaultMeta = [item.artist, PROVIDER_LABEL[item.provider] ?? item.provider].filter(Boolean).join(' · ');
   return (
     <li className="media-row" aria-current={isCurrent ? 'true' : undefined} data-disabled={item.enabled === false || undefined} {...rowProps}>
@@ -31,10 +30,7 @@ export function MediaRow({ item, index, meta, actions, onActivate, leading, rowP
       <button
         type="button"
         className="media-row__main"
-        onClick={() => {
-          select({ kind: 'media', item });
-          onActivate();
-        }}
+        onClick={onActivate}
         aria-label={`Play ${item.title}${isCurrent ? ' (now playing)' : ''}${item.enabled === false ? ' (disabled in /control)' : ''}`}
       >
         <span className="media-row__title truncate">
@@ -43,7 +39,10 @@ export function MediaRow({ item, index, meta, actions, onActivate, leading, rowP
         </span>
         <span className="media-row__meta truncate">{meta ?? defaultMeta}</span>
       </button>
-      {actions && <span className="media-row__actions">{actions}</span>}
+      <span className="media-row__actions">
+        {actions}
+        <ItemActionsMenu target={{ kind: 'media', item }} />
+      </span>
     </li>
   );
 }

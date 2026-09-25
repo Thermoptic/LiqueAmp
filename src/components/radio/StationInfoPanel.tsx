@@ -6,6 +6,7 @@ import { useUi } from '../../stores/uiStore';
 import { stationFor, useFavorites } from '../../stores/favoritesStore';
 import type { RadioStation } from '../../types/media';
 import { EmptyState, Status } from '../ui/controls';
+import { StationActions } from '../actions/ItemActions';
 import { StationIcon } from './StationRow';
 
 const dateFmt = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -29,7 +30,7 @@ export function StationInfoPanel() {
   const current = usePlayback((s) => s.currentItem);
   const stations = useFavorites((s) => s.stations);
   const selected = selection?.kind === 'station' ? selection.station : null;
-  // Nothing selected: show the station that is playing, like Quick Actions does.
+  // Nothing selected: show the station that is playing.
   const playingStation = !selected && current ? (stationFor(current, stations) ?? null) : null;
   const station = selected ?? playingStation;
 
@@ -39,7 +40,7 @@ export function StationInfoPanel() {
         <h2 className="panel__title panel__title--small" id="station-heading">
           Station Info
         </h2>
-        {playingStation && <span className="panel__actions muted quick-actions__target">NOW PLAYING</span>}
+        {playingStation && <span className="panel__actions muted panel__target">NOW PLAYING</span>}
       </header>
       <div className="panel__body">{station ? <StationDetails station={station} /> : <EmptyState title="NO STATION SELECTED">Select a station to see its details.</EmptyState>}</div>
     </section>
@@ -61,6 +62,7 @@ function StationDetails({ station }: { station: RadioStation }) {
         </div>
         <StationIcon station={station} size={72} />
       </div>
+      <StationActions station={station} />
       <dl className="kv-list">
         {location && <Row label="Location">{location}</Row>}
         {station.language && <Row label="Language">{station.language}</Row>}

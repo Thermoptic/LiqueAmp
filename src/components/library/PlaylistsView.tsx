@@ -141,7 +141,7 @@ function PlaylistDetail({ playlist }: { playlist: Playlist }) {
       </div>
       {missing > 0 && <p className="notice">{missing} item(s) in this playlist no longer exist in the library and are skipped.</p>}
       {rows.length === 0 ? (
-        <EmptyState title="PLAYLIST EMPTY">Use Add to Playlist in Quick Actions to add stations or tracks.</EmptyState>
+        <EmptyState title="PLAYLIST EMPTY">Use Add to playlist in a track’s ⋯ menu, or in Station Info, to add tracks or stations.</EmptyState>
       ) : (
         <RowList aria-label={`Items in ${playlist.name}`}>
           {rows.map(({ item, position }, i) => (
