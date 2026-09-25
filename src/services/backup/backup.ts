@@ -7,7 +7,7 @@ import { pickSettings, sanitizeSettings } from '../../stores/settingsStore';
 import { DEFAULT_SETTINGS, pickDeviceSettings, pickProfileSettings, type Settings } from '../../types/settings';
 import type { Category, Favorite, HistoryEntry, MediaItem, Playlist, RadioStation } from '../../types/media';
 import type { LiqueAmpTheme } from '../../types/theme';
-import { profileDb, profileKvFor, profileKvKey, repositories } from '../storage/repository';
+import { notifyOwnProfileWrite, profileDb, profileKvFor, profileKvKey, repositories } from '../storage/repository';
 import { assertWritableScope, MY_LIQUE, type ProfileScope } from '../storage/scope';
 import { validCategory, validFavorite, validHistory, validMedia, validPlaylist, validStation, validTheme } from './validate';
 
@@ -336,4 +336,5 @@ export async function applyImport(plan: ImportPlan, mode: ImportMode): Promise<v
     await Promise.allSettled([...ops, tx.done]);
     throw err instanceof Error ? err : new Error(String(err));
   }
+  await notifyOwnProfileWrite();
 }

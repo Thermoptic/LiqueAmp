@@ -8,6 +8,11 @@
 - `LIQUEAMP_PROFILE_SPEC.md`
 - `LIQUEAMP_FRIEND_LIQUES_SPEC.md`
 
+
+> **This is the primary implementation plan for the LiqueAmp social,
+> profile and account work** (decision log §30, checkpoint log §31). The
+> root-level `LIQUEAMP_IMPLEMENTATION_PLAN.md` is the older app planning
+> document (Phase 1 audit, phases 2–15); it is kept, not merged.
 ---
 
 # 1. Goal
@@ -519,6 +524,8 @@ Use existing import planning where possible.
 
 # 10. PHASE 6 — Friends
 
+> **Superseded by D17 (2026-09-25):** no requests, no PENDING/ACCEPTED/DECLINED. Friends are one-way: Add Friend (immediate), Remove Friend, Block.
+
 ## Objective
 
 Implement friend relationships independently from Friend Lique activation.
@@ -559,6 +566,8 @@ Home remains focused on Friend Liques.
 ---
 
 # 11. PHASE 7 — Friend Liques
+
+> **Refined by D10–D12, D17:** Add Friend icon top-right in the panel; rows `● @alice Online [ ▶ ]`; ▶ activates; no avatars; see §30.
 
 ## Objective
 
@@ -947,6 +956,8 @@ Do not implement public profiles as part of the first Friends release unless req
 ---
 
 # 20. Database / Server Model
+
+> **Updated (D16, D17):** Supabase is the selected backend. Conceptual entities are now `users`, `profiles`, `profile_summaries`, `friendships` (one-way: who added whom) and `blocks`; see §30 D16/D17. The `requester_id/addressee_id/status` model below is superseded.
 
 Initial conceptual server model:
 
@@ -1395,6 +1406,74 @@ Fetch (later checkpoint) → `parseProfile` (validate, drop history and device s
 
 None for existing installations: the `liqueamp` database, its schema version and its records are unchanged. Checkpoint 1's settings migration still runs, only in `MY_LIQUE`, never in a friend scope. A future schema change to friend databases uses their own version counter (`FRIEND_DB_VERSION`), independent of `DB_VERSION`.
 
+
+## D2 — Profile vs device settings
+
+**Decided 2026-09-25 (Checkpoint 1).** Recorded in the root `LIQUEAMP_IMPLEMENTATION_PLAN.md` §3.10. Profile: `activeThemeId`, `glowLevel`, `visualizer`, `eq`, `artwork`. Device: `volume`, `muted`, `shuffle`, `repeat`, `motion`, `shortcuts`, `providers`, `analysis`, `render`. Queue and history are personal.
+
+## D3 — Favourites/playlists while a Friend Lique is active
+
+**Open.** PROFILE_SPEC §20 prefers "apply to the viewer's own favourites"; today such writes are refused in a friend scope. To be decided with Friend Lique activation.
+
+## D4 — Backend
+
+See D16.
+
+## D5 — Account UI; authentication method
+
+**Decided 2026-09-25:** accounts are optional. Settings gets an ACCOUNT section — logged out: `Not logged in  [ CREATE ACCOUNT ] [ LOG IN ]`; logged in: `● Logged in  @username  [ LOG OUT ]`. The status bar shows `@username` (or `Not logged in`) to the right of `STORAGE: LOCAL`. No avatars.
+**Still open:** the authentication method itself (email/password, magic link, OAuth, passkeys …). The app uses a provider-neutral account interface (`src/services/account/account.ts`) so nothing depends on that choice.
+
+## D6 — Username
+
+**Decided:** the username (`@johan`) is the human-facing identity of the account and of its whole Lique (settings, theme, Base16, visualizer, EQ, artwork, playlists, categories, streams/stations, favourites). It is what a person gives someone so they can add their Lique. Unique case-insensitively. It is never a database key: the opaque, stable `user_id` from the backend is used for ownership, relationships and cache naming.
+**Still open:** exact character set, length limits, reserved names, and the rename/release policy.
+
+## D7 — Create Account adopts the local Lique
+
+**Decided:** creating an account turns the existing local MY_LIQUE into the account's initial profile — the user never starts over: local MY_LIQUE → create account → username assigned → local profile linked (`profile.meta.ownerUserId`) → initial cloud upload (after the D13 check). Queue, history and device settings stay local. Refused if the account already has a cloud profile (resolved explicitly, later UI).
+
+## D8 — Signing in on another device
+
+**Decided:** on a device without a local Lique, the cloud profile is downloaded, validated (`parseProfile`) and installed into MY_LIQUE with the existing safe replace import: profile data replaced; queue, history and device settings kept. A device that already has a local Lique never mixes it with the account profile: `profile.meta.ownerUserId` tells whether the local Lique belongs to no account, this account or another account, and anything but "this account" (or an empty device) needs an explicit decision (UI later). **A local Lique of Account A is never uploaded to, overwritten by, or merged with Account B.**
+
+## D9 — Revisions and conflicts
+
+**Decided:** `profile.meta` = `ownerUserId`, `baseRevision`, `dirty`, `lastSyncedAt`. The server owns the revision and `updatedAt`. Local edits only set `dirty` (every own-profile write; never device settings, queue, history or friend caches). Upload succeeds only while the cloud revision still equals `baseRevision` (compare-and-swap; the server increments). Download replaces the local profile automatically only when it is not dirty. Conflict = dirty and cloud revision > `baseRevision` (or cloud behind the base): nothing is overwritten; resolution is explicit and user-driven. No automatic full merge yet.
+
+## D10 — Avatars
+
+**Decided:** none. The username is the visual identity.
+
+## D11 — Online / offline
+
+**Decided:** online = the person currently has LiqueAmp open; offline = not. No last-seen, activity history, detailed presence or availability. Presence is never required to activate a (cached) Friend Lique.
+
+## D12 — Privacy
+
+**Decided:** a Lique is private by default. Access comes from the one-way Friend Liques relationship, is read-only (never write access) and is immediate — there is no request/accept step. Block overrides access. No per-item privacy in the first implementation; no public profiles yet.
+**Open clarification (must be answered before the server access rules are written):** the decision text contains both directions. The Friend Liques behaviour says *"@alice adds @johan → Alice can access Johan's Lique"* (the person who adds gains access; Block is then the owner's protection). The privacy text says *"a user can access another user's Lique if that user has added them"* (the person who is added gains access). These give opposite authorization rules.
+
+## D13 — Stream URLs before sharing
+
+**Decided / implemented (Checkpoint 4):** before a profile is uploaded or shared, `sanitizeForSharing()` detects credentials in every URL (user:password@, token/key/api_key/access_token/auth/sig/signature-style parameters, signed cloud-storage and CDN URLs such as X-Amz-*, JWTs). The local original is never modified. For each suspicious item the user chooses: exclude it from the cloud copy, keep/share it, or cancel the sync. The upload does not happen until every finding has a decision.
+
+## D14 — Log out
+
+**Decided:** logging out only disconnects the account session. LiqueAmp continues exactly as it was: theme, Base16 theme, playlists, streams, settings, queue, history, volume, shuffle, repeat — all local data remain; `profile.meta` still records the owning account. The UI shows `Not logged in`. Logging in again identifies the account, checks the local/cloud sync state and restores/synchronises its profile, keeping device state per D2. Log out is never a reset to a guest mode.
+
+## D15 — Delete account
+
+**Decided:** separate from Log out, and requires explicit confirmation. Permanently deletes the cloud account and profile, removes its cloud friendships and blocks, and makes the username available according to the (open) username policy; others can no longer access the profile. The local MY_LIQUE on the current device is **not** deleted: LiqueAmp continues as a local app, and the local Lique is no longer linked to any account.
+
+## D16 — Backend
+
+**Decided:** Supabase is the selected backend direction. EU region preferred; Stockholm is the first choice if available. Local-first stays mandatory. Conceptual entities: `users` (user_id, username, created_at), `profiles` (owner_user_id, schema_version, revision, updated_at, payload), `profile_summaries` (owner_user_id, summary, revision), `friendships` (one-way, D17), `blocks` (blocker, blocked). Server-side ownership and authorization (row-level security) are authoritative; the client is never trusted to decide who may read or write a profile. Only the project URL and the publishable key may be in `VITE_*` variables (public); the build refuses a secret key. Auth callbacks include the `/LiqueAmp/` base path. SQL schema and migrations are not written until D5 and the D12 clarification are settled.
+
+## D17 — Friends
+
+**Decided:** no friend requests. Add Friend (username) is immediate; relationships are one-way; Remove Friend removes the person from the viewer's list only and does not affect the other account; Block is stronger than Remove and prevents the blocked user from accessing the blocker's Lique, overriding normal access. Home: FRIEND LIQUES (replaces Quick Actions), Add Friend icon top-right, rows `● @alice Online [ ▶ ]`, ▶ activates, only one Friend Lique active at a time, `[ RETURN TO MY LIQUE ]` while active.
+
 ---
 
 # 31. Checkpoint Log
@@ -1451,3 +1530,19 @@ All locations use one implementation, `useItemActions()` in `src/components/acti
 
 - `src/components/actions/ItemActions.test.tsx` (12 tests): queue, playlist, favourite, share (Web Share and clipboard fallback), copy stream URL (station, stream, embed source), clipboard failure, website link, per-type menu contents, keyboard.
 - `e2e/acceptance.mjs`: check 15 (playlist) uses the Now Playing ⋯ menu; new check 32 verifies Quick Actions is gone and exercises every moved action in the browser.
+
+---
+
+## Checkpoint 4 — Account + cloud profile foundation (2026-09-25)
+
+**Status:** implemented and verified; no backend connected yet (authentication method open, D5).
+
+- **Account service** (`src/services/account/account.ts`): provider-neutral `AccountProvider` (`getSession`, `getCurrentUser`, `signUp`, `signIn`, `signOut`, `deleteAccount`, `onChange`); credentials are opaque (D5 open). `createLocalAccountProvider()` is used when no backend is configured: always signed out, sign-in explains accounts are unavailable. `useAccount` store (`src/stores/accountStore.ts`): Log out only disconnects; Delete account needs `{ confirmed: true }`, removes the cloud profile, deletes the account and unlinks the local Lique without touching its data.
+- **Cloud port** (`src/services/sync/cloudProfile.ts`): `head`, `download`, `upload` (compare-and-swap on the expected revision; server increments), `remove`. The Supabase implementation plugs in here.
+- **Sync** (`src/services/sync/`): `profile.meta` (`ownProfileMeta.ts`) with dirty tracking through a write notification in the storage layer (`onOwnProfileWrite`; own-profile repositories, `profileKvFor(MY_LIQUE)` and `applyImport`); the ownership guard (`localOwnership`, `assertLocalProfileOwner`); `decideSync`, `uploadOwnProfile`, `adoptLocalProfile` (D7), `downloadOwnProfile` (D8), `syncOwnProfile`, `unlinkLocalProfile` (D15) in `profileSync.ts`. Edits made during an upload keep the profile dirty.
+- **Sharing safety** (`src/services/profile/sharing.ts`): `inspectUrl`, `sanitizeForSharing`, `undecided`, `applySharingDecisions` (pure; D13).
+- **Summary** (`src/services/profile/summary.ts`): `summarizeProfile()` for future Friend Lique previews.
+- **Configuration** (`src/services/account/config.ts`, `.env.example`): `readCloudConfig()` (public URL + publishable key only; a secret key is refused) and `authCallbackUrl()` (includes the base path).
+- **CSP** (`security/cspPlugin.ts`): a meta Content-Security-Policy added to the built `index.html`/`404.html` (not in dev). No inline scripts; scripts only from the app and the official player APIs (YouTube, SoundCloud, Spotify incl. `embed-cdn.spotifycdn.com`). **`'unsafe-eval'` is allowed because the Spotify iFrame API does not start without it** (verified in Chrome and Edge); revisit if Spotify changes or if its API is isolated in a frame. Media, images and connections allow any http(s) (streams, artwork, directory, backend), frames any https, workers `self` + `blob:` (hls.js).
+- **UI:** Settings › Account (`src/components/settings/AccountSection.tsx`; logged out without a backend: `Not logged in` with the two buttons disabled and an explanation); status bar shows `@username` or `NOT LOGGED IN` right of `STORAGE: LOCAL`.
+- **Not in this checkpoint:** Friend Liques panel, Add Friend, activation, presence, public profiles, Packs, snapshots, per-item visibility, automatic merge, avatars, authentication-method UI, the Supabase SDK and SQL schema, conflict/"resolve local Lique" UI.

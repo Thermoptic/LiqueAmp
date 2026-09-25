@@ -1,5 +1,11 @@
 # LIQUEAMP — Implementation Plan (Phase 1 audit)
 
+> **Note (2026-09-25):** this is the original LiqueAmp app planning document
+> (Phase 1 audit, phases 2–15, spec deviations). The **primary plan for the
+> social, profile and account work is `docs/LIQUEAMP_IMPLEMENTATION_PLAN.md`**,
+> which holds the decision log (D1–D17) and the checkpoint log. Decision D2
+> (profile vs device settings) is recorded here in §3.10 and referenced there.
+
 Status: Approved 2026-09-23. All phases (2–15) complete 2026-09-24 — see §7.
 Date: 2026-09-22
 

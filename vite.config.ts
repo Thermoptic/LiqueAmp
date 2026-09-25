@@ -2,10 +2,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { serviceWorkerPlugin } from './pwa/serviceWorkerPlugin.ts';
+import { cspPlugin } from './security/cspPlugin.ts';
 
 export default defineConfig({
   base: '/LiqueAmp/',
-  plugins: [react(), serviceWorkerPlugin()],
+  plugins: [react(), serviceWorkerPlugin(), cspPlugin()],
   build: {
     rolldownOptions: {
       output: {

@@ -5,3 +5,7 @@ coverage/
 *.log
 .vite/
 e2e/output/
+
+# local environment overrides (see .env.example)
+.env.local
+.env.*.local

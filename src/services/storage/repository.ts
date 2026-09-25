@@ -26,12 +26,31 @@ export function profileDb(scope: ProfileScope): Promise<IDBPDatabase<LiqueAmpDB>
 
 type Open = () => Promise<IDBPDatabase<LiqueAmpDB> | null>;
 
+// ---- write notifications -------------------------------------------------------
+//
+// Every successful write of the user's OWN profile data is announced, so the
+// sync layer can mark the local profile as changed since the last upload
+// (profile.meta.dirty). Friend scopes cannot be written, so they never notify.
+
+type ProfileWriteListener = () => void | Promise<void>;
+const writeListeners = new Set<ProfileWriteListener>();
+
+export function onOwnProfileWrite(listener: ProfileWriteListener): () => void {
+  writeListeners.add(listener);
+  return () => writeListeners.delete(listener);
+}
+
+/** Awaited by writers, so a caller that writes and then records sync state sees them in order. */
+export async function notifyOwnProfileWrite(): Promise<void> {
+  await Promise.all([...writeListeners].map((l) => l()));
+}
+
 /**
  * Storage-agnostic access to one object store (ARCH §26). When storage is
  * unavailable, reads return empty and writes are dropped; callers keep
  * working from in-memory state. `canWrite` runs before every write.
  */
-function repository<S extends StoreName>(store: S, open: Open, canWrite: () => void): Repository<ValueOf<S>> {
+function repository<S extends StoreName>(store: S, open: Open, canWrite: () => void, written: () => Promise<void> = async () => undefined): Repository<ValueOf<S>> {
   const write = () => {
     canWrite();
     return open();
@@ -48,20 +67,24 @@ function repository<S extends StoreName>(store: S, open: Open, canWrite: () => v
     async put(value) {
       const db = await write();
       if (db) await db.put(store, value as never);
+      await written();
     },
     async putMany(values) {
       const db = await write();
       if (!db) return;
       const tx = db.transaction(store, 'readwrite');
       await Promise.all([...values.map((v) => tx.store.put(v as never)), tx.done]);
+      await written();
     },
     async delete(id) {
       const db = await write();
       if (db) await db.delete(store, id);
+      await written();
     },
     async clear() {
       const db = await write();
       if (db) await db.clear(store);
+      await written();
     },
   };
 }
@@ -82,13 +105,14 @@ export function repositoriesFor(scope: ProfileScope): ProfileRepositories {
   if (!repos) {
     const open = () => profileDb(scope);
     const canWrite = () => assertWritableScope(scope);
+    const written = scope.kind === 'own' ? notifyOwnProfileWrite : undefined;
     repos = Object.freeze({
-      media: repository('media', open, canWrite),
-      stations: repository('stations', open, canWrite),
-      categories: repository('categories', open, canWrite),
-      playlists: repository('playlists', open, canWrite),
-      favorites: repository('favorites', open, canWrite),
-      themes: repository('themes', open, canWrite),
+      media: repository('media', open, canWrite, written),
+      stations: repository('stations', open, canWrite, written),
+      categories: repository('categories', open, canWrite, written),
+      playlists: repository('playlists', open, canWrite, written),
+      favorites: repository('favorites', open, canWrite, written),
+      themes: repository('themes', open, canWrite, written),
     });
     bound.set(id, repos);
   }
@@ -139,6 +163,7 @@ export function profileKvFor(scope: ProfileScope): ProfileKv {
       assertWritableScope(scope);
       const db = await profileDb(scope);
       if (db) await db.put('kv', value, profileKvKey(key));
+      if (scope.kind === 'own') await notifyOwnProfileWrite();
     },
   };
 }

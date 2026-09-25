@@ -16,6 +16,9 @@ import { startProviderStatusTracking } from '../services/providers/status';
 import { useSettings } from '../stores/settingsStore';
 import { useThemes } from '../stores/themeStore';
 import { wireSystemListeners } from '../stores/systemStore';
+import { useAccount } from '../stores/accountStore';
+import { createLocalAccountProvider } from '../services/account/account';
+import { startDirtyTracking } from '../services/sync/ownProfileMeta';
 
 /** Applies the active theme, glow level and motion preference to <html>. */
 function syncAppearance() {
@@ -41,6 +44,10 @@ async function hydrateAll() {
 export async function bootstrap(): Promise<void> {
   applyTheme(LIQUEAMP_DEFAULT);
   wireSystemListeners();
+  // own-profile changes mark the profile as changed since the last sync (profile.meta.dirty)
+  startDirtyTracking();
+  // Accounts are optional; without a configured backend LiqueAmp runs as a local app.
+  void useAccount.getState().init(createLocalAccountProvider());
   await Promise.race([hydrateAll(), new Promise((resolve) => setTimeout(resolve, 2000))]);
   syncAppearance();
   getEngine(); // after hydration, so the saved volume applies from the start

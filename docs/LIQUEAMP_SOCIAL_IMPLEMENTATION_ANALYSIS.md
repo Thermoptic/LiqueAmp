@@ -4,6 +4,16 @@
 **Input:** `docs/LIQUEAMP_SOCIAL_ARCHITECTURE.md` (the "spec"), compared against the repository at commit `327805a` (2026-09-25).
 **Method:** Every statement below was checked in the source. Where something could not be established, it says **UNKNOWN** or **DECISION NEEDED**.
 
+
+> **Addendum (2026-09-25).** This analysis was written at commit `327805a`,
+> before Checkpoints 1–4. Since then the profile model, the settings split,
+> scoped storage (D1: one database per profile), the Quick Actions migration
+> and the account/sync foundation are implemented. Several proposals here
+> were decided differently (see `docs/LIQUEAMP_IMPLEMENTATION_PLAN.md` §30):
+> friendships are one-way without requests (D17, replacing the
+> PENDING/ACCEPTED/DECLINED/BLOCKED model in §4), there are no avatars (D10),
+> presence is only "LiqueAmp is open" (D11), and Supabase is selected (D16).
+
 ---
 
 ## 0. Short answers

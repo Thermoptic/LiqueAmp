@@ -3,6 +3,13 @@ import { usePlayback, usePlaybackClock, type AnalysisAvailability, type AudioEng
 import { useSystem } from '../../stores/systemStore';
 import { Status, type StatusTone } from '../ui/controls';
 import { statusTone } from '../player/NowPlayingPanel';
+import { accountUser, useAccount } from '../../stores/accountStore';
+
+/** Next to STORAGE: the account this Lique belongs to, or that none is logged in. */
+function AccountLabel() {
+  const user = useAccount((s) => accountUser(s.state));
+  return <span className="status-bar__account">{user ? `@${user.username}` : 'NOT LOGGED IN'}</span>;
+}
 
 const ENGINE_LABEL: Record<AudioEngineState, [string, StatusTone]> = {
   'not-started': ['NOT STARTED', 'idle'],
@@ -61,6 +68,7 @@ export function StatusBar() {
       <Status tone={online ? 'ok' : 'error'}>NETWORK: {online ? 'ONLINE' : 'OFFLINE'}</Status>
       <span className="status-bar__sep" aria-hidden="true" />
       <Status tone={storageTone}>STORAGE: {storage === 'ready' ? 'LOCAL' : storage.toUpperCase()}</Status>
+      <AccountLabel />
       <Link to="/control" className="status-bar__control">
         /CONTROL
       </Link>

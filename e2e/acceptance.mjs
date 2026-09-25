@@ -37,6 +37,9 @@ const HOOKS = `
   // a headless browser cannot show the OS share sheet; record the share instead
   Object.defineProperty(navigator, 'share', { configurable: true, value: async (data) => { window.__e2e.shared.push(data); } });
   Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
+  // Content-Security-Policy violations (none expected)
+  window.__e2e.csp = [];
+  document.addEventListener('securitypolicyviolation', (e) => window.__e2e.csp.push(e.violatedDirective + ' ' + e.blockedURI));
   window.__e2e.playing = () => window.__e2e.audio.find((a) => a.currentSrc && !a.paused) ?? null;
   window.__e2e.current = () => window.__e2e.audio.find((a) => a.currentSrc && !a.paused) ?? window.__e2e.audio.find((a) => a.currentSrc) ?? null;
 `;
@@ -505,6 +508,29 @@ async function run(browser, ports) {
     await waitFor(`return window.__e2e.shared.at(-1)?.url === ${JSON.stringify(`${cors.url}/tone.wav`)}`, 4000, 'row menu did not share the source');
     notes.push('library row ⋯: copy stream URL, share');
     return notes.join('; ');
+  });
+
+  // ---- extra: account foundation + CSP (social checkpoint 4) ---------------
+  await check(33, 'Account section, status label and CSP', async () => {
+    await goto('settings');
+    const r = await p.evaluate(`const acc = [...document.querySelectorAll('.settings-group')].find((g) => g.querySelector('h3')?.textContent.trim() === 'Account');
+      const label = document.querySelector('.status-bar__account');
+      const storage = [...document.querySelectorAll('.status-bar .status')].find((s) => s.textContent.includes('STORAGE'));
+      return {
+        section: acc?.textContent.includes('Not logged in') ?? false,
+        buttons: [...(acc?.querySelectorAll('button') ?? [])].map((b) => b.textContent.trim() + (b.disabled ? ' (disabled)' : '')),
+        label: label?.textContent ?? null,
+        rightOfStorage: !!(label && storage && label.getBoundingClientRect().left >= storage.getBoundingClientRect().right),
+        csp: document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.content ?? null,
+        violations: window.__e2e.csp,
+        hscroll: document.documentElement.scrollWidth > innerWidth,
+      };`);
+    if (!r.section) throw new Error('Settings has no Account section showing "Not logged in"');
+    if (r.label !== 'NOT LOGGED IN' || !r.rightOfStorage) throw new Error(`status label: ${JSON.stringify(r)}`);
+    if (!r.csp || r.csp.includes("'unsafe-inline'")) throw new Error('no strict CSP meta tag');
+    if (r.violations.length) throw new Error(`CSP violations: ${r.violations.join(', ')}`);
+    if (r.hscroll) throw new Error('horizontal scroll on the settings page');
+    return `Account: Not logged in [${r.buttons.join(', ')}]; status bar: STORAGE … ${r.label}; CSP active, no violations`;
   });
 
   // ---- extra: accessibility audit (not in §88; guards phase 12) -----------

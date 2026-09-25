@@ -694,6 +694,30 @@
   background: var(--la-border);
 }
 
+.status-bar__account {
+  color: var(--la-text-secondary);
+  white-space: nowrap;
+}
+
+/* Settings › Account */
+.account__status {
+  margin: 0;
+  color: var(--la-text-secondary);
+}
+
+.account__username {
+  margin: var(--la-space-1) 0;
+  color: var(--la-heading);
+  font-weight: 700;
+}
+
+.account__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--la-space-2);
+  margin-top: var(--la-space-2);
+}
+
 .status-bar__control {
   margin-left: auto;
   color: var(--la-link);

@@ -4,6 +4,13 @@
 **Project:** LiqueAmp  
 **Depends on:** `LIQUEAMP_SOCIAL_ARCHITECTURE.md` and `LIQUEAMP_SOCIAL_IMPLEMENTATION_ANALYSIS.md`
 
+
+> **Status (2026-09-25):** implemented locally in Checkpoints 1–2 (profile
+> model, settings split, scoped storage) and extended in Checkpoint 4 (sync
+> metadata, sharing safety, summaries). Decisions D2, D9, D12 and D13 in
+> `docs/LIQUEAMP_IMPLEMENTATION_PLAN.md` §30 refine this specification;
+> affected sections are marked.
+
 ---
 
 ## 1. Purpose
@@ -175,6 +182,8 @@ Queue should NOT be included in the shared profile.
 ---
 
 # 7. Settings: Profile vs Device
+
+> **Decided (D2, 2026-09-25):** shuffle and repeat are DEVICE settings (they only steer the personal queue). Profile: activeThemeId, glowLevel, visualizer, eq, artwork. Device: volume, muted, shuffle, repeat, motion, shortcuts, providers, analysis, render.
 
 This is one of the most important architectural separations.
 
@@ -434,6 +443,8 @@ according to the existing `MediaItem` structure.
 
 # 18. Stream Privacy
 
+> **Decided (D13) / implemented (Checkpoint 4):** `sanitizeForSharing()` (`src/services/profile/sharing.ts`) detects credentials in URLs (user:password@, token/key/auth/sig-style parameters, signed cloud-storage and CDN URLs, JWTs). Nothing is modified silently: the user chooses per item to exclude it from the shared copy, share it anyway, or cancel. The local original is never changed.
+
 A stream URL must never be assumed safe simply because it is an HTTP(S) URL.
 
 Before a profile is uploaded or shared, the system must sanitize data that may contain credentials.
@@ -467,6 +478,8 @@ Never rely solely on the UI to hide secrets.
 ---
 
 # 19. Per-Item Visibility
+
+> **Decided (D12):** not part of the first implementation.
 
 The architecture should allow individual stream/media items to eventually have visibility such as:
 
@@ -707,6 +720,8 @@ This supports:
 
 # 29. Cloud Sync
 
+> **Decided (D9) / foundation implemented (Checkpoint 4):** `profile.meta` in MY_LIQUE holds `ownerUserId`, `baseRevision`, `dirty`, `lastSyncedAt`. The server owns the revision; local edits only set `dirty`. An upload only succeeds while the cloud is still at `baseRevision`; a download only replaces a local profile without unsynced changes; both changed = conflict, resolved explicitly by the user. No automatic full merge.
+
 The own profile should eventually synchronize:
 
 ```text
@@ -911,6 +926,8 @@ without moving or recreating the profile.
 ---
 
 # 38. Profile Visibility
+
+> **Decided (D12):** private by default; the one-way Friend Liques relationship grants read-only access; Block overrides; no PUBLIC profiles yet.
 
 The profile-level visibility model should support:
 

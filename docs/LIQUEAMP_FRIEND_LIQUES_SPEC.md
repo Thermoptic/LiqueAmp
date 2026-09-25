@@ -7,6 +7,17 @@
 - `LIQUEAMP_SOCIAL_IMPLEMENTATION_ANALYSIS.md`
 - `LIQUEAMP_PROFILE_SPEC.md`
 
+
+> **Locked product behaviour (2026-09-25, after the Checkpoint 4 analysis).**
+> Where this specification differs, the decisions D10–D12 and D17 in
+> `docs/LIQUEAMP_IMPLEMENTATION_PLAN.md` §30 apply:
+> - FRIEND LIQUES replaces Quick Actions on Home (Checkpoint 3 freed the `.area-actions` slot).
+> - An **Add Friend icon sits in the top-right** of the Friend Liques panel. The user enters a username; the person is added **immediately**: no request, no accept/decline (D17).
+> - Relationships are **one-way**. Remove Friend removes the person from the viewer's list only. Block is stronger and prevents the blocked user from accessing the blocker's Lique; blocking overrides normal access.
+> - List rows: `● @alice  Online  [ ▶ ]` / `○ @bob  Offline  [ ▶ ]`; the ▶ button activates that person's Lique. Only one Friend Lique is active at a time; while one is active: `[ RETURN TO MY LIQUE ]`.
+> - No avatars; the username is the visual identity (D10). Online = LiqueAmp is open, offline = not (D11). Offline friends' cached Liques can still be activated.
+> - A Friend Lique is read-only; queue and history stay personal (unchanged).
+
 ---
 
 # 1. Purpose
@@ -171,6 +182,8 @@ Use existing status-dot and row/list components where appropriate.
 
 # 7. Friend Identity
 
+> **Decided (D6, D10):** `@username` is shown; no avatars.
+
 A Friend Lique entry should display enough information to distinguish users.
 
 At minimum:
@@ -193,6 +206,8 @@ Do not display private account information.
 ---
 
 # 8. Online / Offline Status
+
+> **Decided (D11):** online = LiqueAmp is open right now; nothing else (no last-seen, no AWAY).
 
 The initial presence model is:
 
@@ -227,6 +242,8 @@ may be added later but are not required for the first implementation.
 
 # 9. Friend Requests
 
+> **Superseded by D17:** there are no friend requests. Adding someone is immediate and one-way.
+
 The Friends system must support:
 
 ```text
@@ -253,6 +270,8 @@ A Friend Lique should only appear in the main Friend Liques list when the relati
 ---
 
 # 10. Adding a Friend
+
+> **Decided (D17):** the Add Friend icon is in the top-right of the panel. Entering a username and pressing Add Friend adds that person to the list at once; there is no "REQUEST SENT" state.
 
 The user should be able to search by username.
 
@@ -282,6 +301,8 @@ Access begins only when the friendship and visibility rules permit it.
 
 # 11. Incoming Requests
 
+> **Superseded by D17:** there are no incoming requests.
+
 The user should be able to see pending requests.
 
 Example:
@@ -302,6 +323,8 @@ The Home Friend Liques panel should remain focused on actual friends and their L
 ---
 
 # 12. Friend Profile Preview
+
+> **Foundation implemented (Checkpoint 4):** `summarizeProfile()` (`src/services/profile/summary.ts`) derives this preview: username, theme, visualizer, playlist/category/stream/station counts, revision.
 
 Selecting a friend should show a compact preview.
 
@@ -707,6 +730,8 @@ Client-side UI hiding is not sufficient.
 
 # 29. Privacy
 
+> **Decided (D12):** private by default; access through the one-way Friend Liques relationship only, read-only; Block overrides. No per-item visibility in the first implementation. See the open clarification under D12 about the direction of access.
+
 Friend Liques must respect:
 
 ```text
@@ -1022,6 +1047,8 @@ Detailed friend management belongs in Control.
 ---
 
 # 43. Friend Management
+
+> **Superseded in part by D17:** no accept/decline; management is Add Friend, Remove Friend and Block.
 
 The Control interface should eventually allow:
 

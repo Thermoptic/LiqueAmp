@@ -7,6 +7,7 @@ import { SHORTCUTS } from '../../services/input/keyboard';
 import { PwaSettings } from '../pwa/PwaControls';
 import { EqControls } from '../audio/EqControls';
 import { MiniPlayer } from '../player/MiniPlayer';
+import { AccountSection } from './AccountSection';
 
 const MOTION_OPTIONS = [
   { value: 'system', label: 'System' },
@@ -35,6 +36,8 @@ export function SettingsPanel() {
       </header>
       <MiniPlayer />
       <div className="panel__body settings-panel__grid">
+        <AccountSection />
+
         <section className="settings-group" aria-labelledby="set-access">
           <h3 id="set-access" className="settings-group__title">
             Accessibility

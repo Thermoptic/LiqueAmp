@@ -4,6 +4,17 @@
 **Project:** LiqueAmp
 **Purpose:** Account, Profiles, Friend Liques, Profile Switching, Sharing and Cloud Architecture
 
+
+> **Decisions after the Checkpoint 4 analysis (2026-09-25).** The decisions
+> D2–D17 in `docs/LIQUEAMP_IMPLEMENTATION_PLAN.md` §30 take precedence over
+> this document where they differ. Most importantly: accounts are optional
+> and the username identifies a Lique (D5, D6); **friend relationships are
+> one-way, with no requests** — Add Friend is immediate, Remove Friend and
+> Block exist (D17); Liques are private by default (D12); there are no
+> avatars (D10); online simply means LiqueAmp is open (D11); Supabase is the
+> selected backend and local-first stays mandatory (D16). Superseded passages
+> below are marked, not deleted.
+
 ---
 
 ## 1. Overview
@@ -27,6 +38,8 @@ The user's own data must never be overwritten by activating another user's profi
 # 2. Terminology
 
 ## 2.1 User
+
+> **Decided (D6, D10):** the username is the human-facing identity of the Lique and unique case-insensitively; `user_id` stays the internal key. There is no avatar.
 
 A LiqueAmp account.
 
@@ -187,6 +200,8 @@ This distinction is important for future functionality.
 ---
 
 # 6. Friend Relationships
+
+> **Superseded by D17 (2026-09-25):** there are no friend requests and no PENDING/ACCEPTED/DECLINED states. Adding a friend is immediate and one-way; Remove Friend and Block exist. Relationships still use `user_id`, never usernames.
 
 Friends should not simply be stored as an array of usernames.
 
@@ -390,6 +405,8 @@ However, privacy rules must still be respected.
 
 # 13. Profile Visibility
 
+> **Decided (D12):** a Lique is private by default; access comes from the one-way Friend Liques relationship, is read-only, and Block overrides it. No PUBLIC profiles and no per-item privacy in the first implementation.
+
 The architecture should support profile visibility.
 
 Possible values:
@@ -545,6 +562,8 @@ Public visibility must respect the user's privacy settings.
 ---
 
 # 18. Online / Offline Status
+
+> **Decided (D11):** online = the person currently has LiqueAmp open; offline = not. No last-seen, activity or availability. Presence is never required to activate a (cached) Friend Lique.
 
 Friend Liques should eventually display whether a friend is:
 
