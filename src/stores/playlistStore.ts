@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createId, nowIso } from '../lib/id';
 import { repositoriesFor } from '../services/storage/repository';
-import { getActiveScope, isActiveScope, MY_LIQUE, type ProfileScope } from '../services/storage/scope';
+import { assertWritableScope, getActiveScope, isActiveScope, MY_LIQUE, type ProfileScope } from '../services/storage/scope';
 import type { MediaItem, Playlist } from '../types/media';
 import { useLibrary } from './libraryStore';
 
@@ -60,6 +60,7 @@ export const usePlaylists = create<PlaylistStore>((set, get) => {
     },
 
     async create(name, items = []) {
+      assertWritableScope(get().scope); // a Friend Lique is read-only: refused before anything changes
       const now = nowIso();
       const saved = items.length ? await useLibrary.getState().addMedia(items) : [];
       const playlist: Playlist = {
@@ -75,15 +76,18 @@ export const usePlaylists = create<PlaylistStore>((set, get) => {
     },
 
     async rename(id, name) {
+      assertWritableScope(get().scope); // a Friend Lique is read-only: refused before anything changes
       await save({ ...find(id), name: requireName(name), updatedAt: nowIso() });
     },
 
     async remove(id) {
+      assertWritableScope(get().scope); // a Friend Lique is read-only: refused before anything changes
       set({ playlists: get().playlists.filter((p) => p.id !== id) });
       await repos().playlists.delete(id);
     },
 
     async addItems(id, items) {
+      assertWritableScope(get().scope); // a Friend Lique is read-only: refused before anything changes
       const playlist = find(id);
       const saved = await useLibrary.getState().addMedia(items);
       const now = nowIso();
@@ -92,12 +96,14 @@ export const usePlaylists = create<PlaylistStore>((set, get) => {
     },
 
     async removeItem(id, index) {
+      assertWritableScope(get().scope); // a Friend Lique is read-only: refused before anything changes
       const playlist = find(id);
       if (index < 0 || index >= playlist.items.length) return;
       await save({ ...playlist, items: playlist.items.filter((_, i) => i !== index), updatedAt: nowIso() });
     },
 
     async moveItem(id, from, to) {
+      assertWritableScope(get().scope); // a Friend Lique is read-only: refused before anything changes
       const playlist = find(id);
       const target = Math.max(0, Math.min(playlist.items.length - 1, to));
       if (from === target || from < 0 || from >= playlist.items.length) return;

@@ -11,6 +11,7 @@ import {
 } from '../services/account/account';
 import type { SharingDecision, SharingFinding } from '../services/profile/sharing';
 import { onOwnProfileWrite } from '../services/storage/repository';
+import { getActiveScope } from '../services/storage/scope';
 import type { CloudProfileStore } from '../services/sync/cloudProfile';
 import { ProfileOwnershipError } from '../services/sync/ownProfileMeta';
 import { keepLocalProfile, syncOwnProfile, unlinkLocalProfile, useCloudProfile, type SyncResult } from '../services/sync/profileSync';
@@ -142,6 +143,7 @@ export const useAccount = create<AccountStore>((set, get) => {
     const user = accountUser(get().state);
     if (!user || !cloudStore) return;
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return; // will run when back online
+    if (getActiveScope().kind !== 'own') return; // a Friend Lique is shown: runs on the return to My Lique
     set({ sync: { state: 'syncing' } });
     try {
       const r = await syncOwnProfile({ userId: user.userId, username: user.username, cloud: cloudStore, settings: useSettings.getState(), decisions: pendingDecisions });

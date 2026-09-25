@@ -2,7 +2,7 @@
 // exact username I may READ their Lique; they gain nothing and are not told.
 // The database is authoritative (supabase/migrations/*_liqueamp_friends.sql,
 // RLS); this interface only describes what the app can ask for. Activating a
-// Friend Lique (a friend: profile scope) and the Friends UI come later.
+// Friend Lique uses readProfile (src/services/friends/activation.ts).
 import type { CloudProfileDocument } from '../sync/cloudProfile';
 import type { FriendLiqueSummary } from './friendSummary';
 

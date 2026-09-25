@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createId } from '../lib/id';
 import { repositoriesFor } from '../services/storage/repository';
-import { getActiveScope, isActiveScope, MY_LIQUE, type ProfileScope } from '../services/storage/scope';
+import { assertWritableScope, getActiveScope, isActiveScope, MY_LIQUE, type ProfileScope } from '../services/storage/scope';
 import type { Category, MediaItem } from '../types/media';
 
 interface LibraryStore {
@@ -55,6 +55,7 @@ export const useLibrary = create<LibraryStore>((set, get) => ({
   },
 
   async addCategory(name) {
+    assertWritableScope(get().scope); // a Friend Lique is read-only: refused before anything changes
     const trimmed = name.trim();
     if (!trimmed) throw new Error('Category name is required.');
     const existing = get().categories;
@@ -70,16 +71,19 @@ export const useLibrary = create<LibraryStore>((set, get) => ({
   },
 
   async renameCategory(id, name) {
+    assertWritableScope(get().scope); // a Friend Lique is read-only: refused before anything changes
     const trimmed = name.trim();
     if (!trimmed) throw new Error('Category name is required.');
     await updateCategory(id, { name: trimmed });
   },
 
   async setCategoryEnabled(id, enabled) {
+    assertWritableScope(get().scope); // a Friend Lique is read-only: refused before anything changes
     await updateCategory(id, { enabled });
   },
 
   async moveCategory(id, direction) {
+    assertWritableScope(get().scope); // a Friend Lique is read-only: refused before anything changes
     const list = [...get().categories];
     const index = list.findIndex((c) => c.id === id);
     const target = index + direction;
@@ -92,6 +96,7 @@ export const useLibrary = create<LibraryStore>((set, get) => ({
   },
 
   async addMedia(items) {
+    assertWritableScope(get().scope); // a Friend Lique is read-only: refused before anything changes
     const existing = get().media;
     const byId = new Map(existing.map((m) => [m.id, m]));
     const byIdentity = new Map(existing.map((m) => [mediaIdentity(m), m]));
@@ -113,11 +118,13 @@ export const useLibrary = create<LibraryStore>((set, get) => ({
   },
 
   async removeMedia(id) {
+    assertWritableScope(get().scope); // a Friend Lique is read-only: refused before anything changes
     set({ media: get().media.filter((m) => m.id !== id) });
     await repos().media.delete(id);
   },
 
   async updateMedia(id, patch) {
+    assertWritableScope(get().scope); // a Friend Lique is read-only: refused before anything changes
     const current = get().media.find((m) => m.id === id);
     if (!current) return;
     const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
@@ -130,6 +137,7 @@ export const useLibrary = create<LibraryStore>((set, get) => ({
   },
 
   async deleteCategory(id) {
+    assertWritableScope(get().scope); // a Friend Lique is read-only: refused before anything changes
     // Media items keep existing; they just lose the category reference.
     const affected = get()
       .media.filter((m) => m.categoryId === id)
@@ -144,6 +152,7 @@ export const useLibrary = create<LibraryStore>((set, get) => ({
 }));
 
 async function updateCategory(id: string, patch: Partial<Category>) {
+  assertWritableScope(useLibrary.getState().scope);
   const { categories } = useLibrary.getState();
   const current = categories.find((c) => c.id === id);
   if (!current) return;

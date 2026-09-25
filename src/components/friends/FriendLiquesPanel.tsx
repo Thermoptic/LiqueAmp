@@ -5,17 +5,17 @@ import { accountUser, useAccount } from '../../stores/accountStore';
 import { useFriends, type FriendPreview } from '../../stores/friendsStore';
 import { useUi } from '../../stores/uiStore';
 import type { Friend } from '../../services/friends/friends';
-import { EmptyState, PendingTag, Status } from '../ui/controls';
+import { EmptyState, Status } from '../ui/controls';
 import { Dialog } from '../ui/Dialog';
 import { RowList } from '../ui/RowList';
 
 /**
  * FRIEND LIQUES on Home (docs/LIQUEAMP_FRIEND_LIQUES_SPEC.md, D10–D12, D17):
- * the people I added, by @username, and a read-only preview of their Lique.
- * Adding is immediate and one-way. Online/offline is not shown: there is no
- * presence source yet (D11). Activating a Friend Lique comes later, so the
- * Activate button is present but disabled. Everything here needs an account;
- * without one LiqueAmp is unaffected.
+ * the people I added, by @username, a read-only preview of their Lique, and
+ * ACTIVATE LIQUE (checkpoint 8): their Lique replaces mine on screen,
+ * read-only, until RETURN TO MY LIQUE. Adding is immediate and one-way.
+ * Online/offline is not shown: there is no presence source yet (D11).
+ * Everything here needs an account; without one LiqueAmp is unaffected.
  */
 export function FriendLiquesPanel() {
   const accountState = useAccount((s) => s.state);
@@ -50,7 +50,10 @@ export function FriendLiquesPanel() {
         {accountLoading ? (
           <EmptyState title="LOADING…" />
         ) : signedIn ? (
-          <FriendList onAdd={() => setAdding(true)} />
+          <>
+            <ActiveLiqueBanner />
+            <FriendList onAdd={() => setAdding(true)} />
+          </>
         ) : accountState.status === 'needs-username' ? (
           <EmptyState title="CHOOSE A USERNAME">Your username is how friends find your Lique. Choose one to add friends.</EmptyState>
         ) : (
@@ -79,6 +82,7 @@ function FriendList({ onAdd }: { onAdd(): void }) {
   const selectedId = useFriends((s) => s.selectedId);
   const select = useFriends((s) => s.select);
   const load = useFriends((s) => s.load);
+  const activeId = useFriends((s) => s.active?.userId ?? null);
   const [removing, setRemoving] = useState<Friend | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const returnTo = useRef<string | null>(null);
@@ -131,9 +135,10 @@ function FriendList({ onAdd }: { onAdd(): void }) {
     <div ref={listRef} className="friend-liques__list">
       <RowList aria-label="Friend Liques">
         {friends.map((friend) => (
-          <li key={friend.userId} className="row friend-row">
+          <li key={friend.userId} className="row friend-row" data-active={friend.userId === activeId || undefined}>
             <button type="button" className="friend-row__main" data-friend-id={friend.userId} title={`Preview @${friend.username}’s Lique`} onClick={() => void select(friend.userId)}>
               <span className="truncate">@{friend.username}</span>
+              {friend.userId === activeId && <span className="friend-row__active">ACTIVE</span>}
             </button>
             <button type="button" className="btn btn--ghost btn--icon friend-row__remove" aria-label={`Remove @${friend.username}`} onClick={() => setRemoving(friend)}>
               <UserMinus size={14} />
@@ -151,10 +156,37 @@ function FriendList({ onAdd }: { onAdd(): void }) {
   );
 }
 
-/** Read-only preview of a friend's Lique. Not activation. */
+/**
+ * The Friend Lique being shown instead of mine: always visible at the top of
+ * the panel while one is active, with the way back.
+ */
+function ActiveLiqueBanner() {
+  const active = useFriends((s) => s.active);
+  const returning = useFriends((s) => s.activation.status === 'working' && s.activation.action === 'return');
+  const returnToMyLique = useFriends((s) => s.returnToMyLique);
+  if (!active) return null;
+  return (
+    <div className="friend-lique-active" role="status">
+      <span className="friend-lique-active__label">FRIEND LIQUE ACTIVE</span>
+      <span className="friend-lique-active__name">@{active.username}</span>
+      <span className="muted friend-lique-active__note">{active.source === 'cache' ? 'Read-only · saved copy (offline)' : 'Read-only'}</span>
+      <button type="button" className="btn btn--primary" disabled={returning} onClick={() => void returnToMyLique()}>
+        {returning ? 'Returning…' : 'Return to My Lique'}
+      </button>
+    </div>
+  );
+}
+
+/** Read-only preview of a friend's Lique, and the way to activate it. */
 function FriendPreviewCard({ friend, onBack }: { friend: Friend; onBack(): void }) {
   const preview = useFriends((s) => s.preview);
   const select = useFriends((s) => s.select);
+  const isActive = useFriends((s) => s.active?.userId === friend.userId);
+  const activation = useFriends((s) => s.activation);
+  const activate = useFriends((s) => s.activate);
+  const working = activation.status === 'working';
+  const activatingThis = working && activation.friendId === friend.userId && activation.action === 'activate';
+  const activationError = activation.status === 'error' && activation.friendId === friend.userId ? activation.message : null;
   const headingId = useId();
   const noteId = useId();
   const heading = useRef<HTMLHeadingElement>(null);
@@ -201,13 +233,27 @@ function FriendPreviewCard({ friend, onBack }: { friend: Friend; onBack(): void 
         </>
       )}
       <div className="friend-preview__actions">
-        <button type="button" className="btn btn--primary" disabled aria-describedby={noteId}>
-          Activate Lique
-        </button>
-        <PendingTag>Coming later</PendingTag>
+        {isActive ? (
+          <Status tone="ok">ACTIVE</Status>
+        ) : (
+          <button
+            type="button"
+            className="btn btn--primary"
+            disabled={working || state.status === 'none'}
+            aria-describedby={noteId}
+            onClick={() => void activate(friend.userId)}
+          >
+            {activatingThis ? 'Activating…' : 'Activate Lique'}
+          </button>
+        )}
       </div>
+      {activationError && (
+        <p className="form-error" role="alert">
+          {activationError}
+        </p>
+      )}
       <p className="settings-group__note" id={noteId}>
-        Activating a friend’s Lique comes in a later update.
+        Shows their theme, playlists and library, read-only. What you listen to, your favourites and your volume stay yours.
       </p>
     </section>
   );

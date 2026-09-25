@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { BUILTIN_THEMES, LIQUEAMP_DEFAULT } from '../services/themes/builtin';
 import { normalizeTheme } from '../services/themes/theme';
 import { repositoriesFor } from '../services/storage/repository';
-import { getActiveScope, isActiveScope, isReadOnlyScope, MY_LIQUE, type ProfileScope } from '../services/storage/scope';
+import { assertWritableScope, getActiveScope, isActiveScope, isReadOnlyScope, MY_LIQUE, type ProfileScope } from '../services/storage/scope';
 import { createId, nowIso } from '../lib/id';
 import type { LiqueAmpTheme } from '../types/theme';
 import { useSettings } from './settingsStore';
@@ -49,6 +49,7 @@ export const useThemes = create<ThemeStore>((set, get) => ({
   },
 
   async saveTheme(theme) {
+    assertWritableScope(get().scope); // a Friend Lique is read-only: refused before anything changes
     if (theme.source === 'builtin') throw new Error('Built-in themes are read-only.');
     const clean = normalizeTheme(theme);
     set({ themes: [...get().themes.filter((t) => t.id !== clean.id), clean] });
@@ -56,6 +57,7 @@ export const useThemes = create<ThemeStore>((set, get) => ({
   },
 
   async deleteTheme(id) {
+    assertWritableScope(get().scope); // a Friend Lique is read-only: refused before anything changes
     const theme = get().themes.find((t) => t.id === id);
     if (!theme || theme.source === 'builtin') throw new Error('Built-in themes cannot be deleted.');
     if (useSettings.getState().activeThemeId === id) throw new Error('Activate another theme before deleting this one.');
@@ -64,6 +66,7 @@ export const useThemes = create<ThemeStore>((set, get) => ({
   },
 
   async renameTheme(id, name) {
+    assertWritableScope(get().scope); // a Friend Lique is read-only: refused before anything changes
     const theme = get().themes.find((t) => t.id === id);
     const trimmed = name.trim();
     if (!theme) throw new Error('Theme not found.');
@@ -72,6 +75,7 @@ export const useThemes = create<ThemeStore>((set, get) => ({
   },
 
   async duplicateTheme(id) {
+    assertWritableScope(get().scope); // a Friend Lique is read-only: refused before anything changes
     const theme = get().getTheme(id);
     const now = nowIso();
     const copy: LiqueAmpTheme = {

@@ -4,11 +4,24 @@ import { useSystem } from '../../stores/systemStore';
 import { Status, type StatusTone } from '../ui/controls';
 import { statusTone } from '../player/NowPlayingPanel';
 import { accountUser, useAccount } from '../../stores/accountStore';
+import { useFriends } from '../../stores/friendsStore';
 
 /** Next to STORAGE: the account this Lique belongs to, or that none is logged in. */
 function AccountLabel() {
   const user = useAccount((s) => accountUser(s.state));
   return <span className="status-bar__account">{user ? `@${user.username}` : 'NOT LOGGED IN'}</span>;
+}
+
+/** Always visible while a Friend Lique is shown instead of mine (spec §20). */
+function ActiveLiqueLabel() {
+  const active = useFriends((s) => s.active);
+  if (!active) return null;
+  return (
+    <>
+      <span className="status-bar__sep" aria-hidden="true" />
+      <span className="status-bar__lique">FRIEND LIQUE: @{active.username} (READ ONLY)</span>
+    </>
+  );
 }
 
 const ENGINE_LABEL: Record<AudioEngineState, [string, StatusTone]> = {
@@ -69,6 +82,7 @@ export function StatusBar() {
       <span className="status-bar__sep" aria-hidden="true" />
       <Status tone={storageTone}>STORAGE: {storage === 'ready' ? 'LOCAL' : storage.toUpperCase()}</Status>
       <AccountLabel />
+      <ActiveLiqueLabel />
       <Link to="/control" className="status-bar__control">
         /CONTROL
       </Link>

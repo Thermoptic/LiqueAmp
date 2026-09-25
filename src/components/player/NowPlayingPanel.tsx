@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { attachEmbedSlot } from '../../services/playback/embedHost';
 import { ExternalLink, Heart, Pause, Play, Repeat, Repeat1, RotateCcw, Shuffle, SkipBack, SkipForward } from 'lucide-react';
-import { isItemFavorite, stationFor, useFavorites } from '../../stores/favoritesStore';
+import { isItemFavorite, myFavorites, myStations, stationFor, useFavorites } from '../../stores/favoritesStore';
 import { useUi } from '../../stores/uiStore';
 import { getEngine } from '../../services/playback/engine';
 import { formatTime } from '../../lib/format';
@@ -233,8 +233,9 @@ function ProgressRow() {
 
 function FavouriteButton() {
   const item = usePlayback((s) => s.currentItem);
-  const isFav = useFavorites((s) => (item ? isItemFavorite(item, s.favorites, s.stations) : false));
-  const toggleItem = useFavorites((s) => s.toggleItem);
+  // always the viewer's own favourites, also in a Friend Lique (D3)
+  const isFav = useFavorites((s) => (item ? isItemFavorite(item, myFavorites(s), { ...s.stations, ...myStations(s) }) : false));
+  const toggleItem = useFavorites((s) => s.toggleOwnItem);
   const toast = useUi((s) => s.toast);
   return (
     <button

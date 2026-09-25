@@ -137,3 +137,47 @@
   align-items: center;
   gap: var(--la-space-2);
 }
+
+/* the Friend Lique shown instead of mine (checkpoint 8) */
+.friend-lique-active {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+  padding: var(--la-space-2) var(--la-space-3);
+  background: var(--la-selection);
+  color: var(--la-on-selection);
+  border-bottom: var(--la-border-width) solid var(--la-border);
+}
+
+.friend-lique-active__label {
+  font-family: var(--la-font-display);
+  font-size: var(--la-text-xs);
+  letter-spacing: 0.08em;
+}
+
+.friend-lique-active__name {
+  max-width: 100%;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.friend-lique-active__note {
+  color: inherit;
+  opacity: 0.8;
+  font-size: var(--la-text-xs);
+}
+
+.friend-lique-active .btn {
+  margin-top: var(--la-space-1);
+}
+
+.friend-row__active {
+  margin-left: var(--la-space-2);
+  color: var(--la-accent-bright);
+  font-size: var(--la-text-xs);
+  letter-spacing: 0.08em;
+}
+
+.status-bar__lique {
+  color: var(--la-accent-bright);
+}

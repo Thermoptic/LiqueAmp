@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Heart, Play, Radio } from 'lucide-react';
 import { playStation } from '../../services/radio/actions';
 import { isInsecureForPage } from '../../services/radio/stations';
-import { useFavorites } from '../../stores/favoritesStore';
+import { useFavorites, myFavorites } from '../../stores/favoritesStore';
 import { usePlayback } from '../../stores/playbackStore';
 import { useUi } from '../../stores/uiStore';
 import type { RadioStation } from '../../types/media';
@@ -42,8 +42,9 @@ export function StationRow({ station, index }: { station: RadioStation; index: n
   const selected = useUi((s) => s.selection?.kind === 'station' && s.selection.station.id === station.id);
   const select = useUi((s) => s.select);
   const toast = useUi((s) => s.toast);
-  const favorite = useFavorites((s) => s.favorites.some((f) => f.id === `station:${station.id}`));
-  const toggleFavorite = useFavorites((s) => s.toggleStation);
+  // the heart is always the viewer's own favourites, also in a Friend Lique (D3)
+  const favorite = useFavorites((s) => myFavorites(s).some((f) => f.id === `station:${station.id}`));
+  const toggleFavorite = useFavorites((s) => s.toggleOwnStation);
   const insecure = isInsecureForPage(station.streamUrl);
 
   return (

@@ -32,6 +32,7 @@ function PlaylistList() {
   const playlists = usePlaylists((s) => s.playlists);
   const create = usePlaylists((s) => s.create);
   const resolve = usePlaylists((s) => s.resolve);
+  const readOnly = usePlaylists((s) => s.scope.kind !== 'own'); // a Friend Lique's playlists
   const openPlaylist = useUi((s) => s.openPlaylist);
   const toast = useUi((s) => s.toast);
   const [creating, setCreating] = useState(false);
@@ -46,9 +47,11 @@ function PlaylistList() {
     <>
       <div className="library-toolbar">
         <span className="muted">{playlists.length === 1 ? '1 playlist' : `${playlists.length} playlists`}</span>
-        <button type="button" className="btn" onClick={() => setCreating(true)}>
-          <Plus size={14} aria-hidden="true" /> New
-        </button>
+        {!readOnly && (
+          <button type="button" className="btn" onClick={() => setCreating(true)}>
+            <Plus size={14} aria-hidden="true" /> New
+          </button>
+        )}
       </div>
       {playlists.length === 0 ? (
         <EmptyState title="NO PLAYLISTS">Create your first playlist to begin.</EmptyState>
@@ -93,6 +96,7 @@ function PlaylistDetail({ playlist }: { playlist: Playlist }) {
   const openPlaylist = useUi((s) => s.openPlaylist);
   const toast = useUi((s) => s.toast);
   const isFav = useFavorites((s) => s.favorites.some((f) => f.id === `playlist:${playlist.id}`));
+  const readOnly = usePlaylists((s) => s.scope.kind !== 'own');
   const toggleFav = useFavorites((s) => s.togglePlaylist);
   const [renaming, setRenaming] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -114,21 +118,25 @@ function PlaylistDetail({ playlist }: { playlist: Playlist }) {
           <ArrowLeft size={14} aria-hidden="true" /> All
         </button>
         <h3 className="library-toolbar__title truncate">{playlist.name}</h3>
-        <button type="button" className="btn btn--ghost btn--icon" aria-label="Rename playlist" onClick={() => setRenaming(true)}>
-          <Pencil size={14} />
-        </button>
-        <button
-          type="button"
-          className="btn btn--ghost btn--icon station-row__fav"
-          aria-label={isFav ? 'Remove playlist from favourites' : 'Add playlist to favourites'}
-          aria-pressed={isFav}
-          onClick={() => void toggleFav(playlist.id)}
-        >
-          <Heart size={14} />
-        </button>
-        <button type="button" className="btn btn--ghost btn--icon btn--danger" aria-label="Delete playlist" onClick={() => setDeleting(true)}>
-          <Trash2 size={14} />
-        </button>
+        {!readOnly && (
+          <>
+            <button type="button" className="btn btn--ghost btn--icon" aria-label="Rename playlist" onClick={() => setRenaming(true)}>
+              <Pencil size={14} />
+            </button>
+            <button
+              type="button"
+              className="btn btn--ghost btn--icon station-row__fav"
+              aria-label={isFav ? 'Remove playlist from favourites' : 'Add playlist to favourites'}
+              aria-pressed={isFav}
+              onClick={() => void toggleFav(playlist.id)}
+            >
+              <Heart size={14} />
+            </button>
+            <button type="button" className="btn btn--ghost btn--icon btn--danger" aria-label="Delete playlist" onClick={() => setDeleting(true)}>
+              <Trash2 size={14} />
+            </button>
+          </>
+        )}
       </div>
       <div className="library-toolbar">
         <button type="button" className="btn btn--primary" disabled={items.length === 0} onClick={() => void getEngine().playList(items)}>
@@ -149,10 +157,11 @@ function PlaylistDetail({ playlist }: { playlist: Playlist }) {
               key={`${item.id}-${position}`}
               item={item}
               index={i}
-              leading={<DragHandle />}
-              rowProps={rowProps(position)}
+              leading={readOnly ? undefined : <DragHandle />}
+              rowProps={readOnly ? undefined : rowProps(position)}
               onActivate={() => void getEngine().playList(items, i)}
               actions={
+                readOnly ? undefined : (
                 <>
                   <ReorderButtons index={position} count={playlist.items.length} label={item.title} onMove={move} />
                   <button
@@ -164,6 +173,7 @@ function PlaylistDetail({ playlist }: { playlist: Playlist }) {
                     <X size={14} />
                   </button>
                 </>
+                )
               }
             />
           ))}

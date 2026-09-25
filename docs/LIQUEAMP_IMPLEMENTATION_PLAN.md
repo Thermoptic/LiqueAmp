@@ -1419,7 +1419,7 @@ None for existing installations: the `liqueamp` database, its schema version and
 
 ## D3 — Favourites/playlists while a Friend Lique is active
 
-**Open.** PROFILE_SPEC §20 prefers "apply to the viewer's own favourites"; today such writes are refused in a friend scope. To be decided with Friend Lique activation.
+**Decided 2026-09-26 (checkpoint 8): the viewer's own favourites.** While a Friend Lique is active, its Favourites view shows the friend's favourites (their environment), but every heart shows and changes MY_LIQUE's favourites (`toggleOwnStation` / `toggleOwnItem`). A favourited stream is stored once in the own library. A friend's playlist cannot be favourited, and "Add to playlist" is not offered, because a Friend Lique's playlists are read-only.
 
 ## D4 — Backend
 
@@ -1653,3 +1653,47 @@ All locations use one implementation, `useItemActions()` in `src/components/acti
   - The confirmation/reset link must be opened **in the same browser** (PKCE keeps the code verifier there). Opened elsewhere, the address is still confirmed, and the user logs in with email and password; the dialog says so.
   - Supabase's default email sender is rate-limited and meant for testing. A custom SMTP server (Authentication › Emails) is recommended before real use.
   - The same address with email and with Google/GitHub is whatever Supabase does (no custom linking).
+
+---
+
+## Checkpoint 8 — Activate Friend Liques (2026-09-26)
+
+**Status:** implemented. No schema, RLS, OAuth, email, account or username changes.
+
+- **Architecture (checkpoint 2 scopes, no new storage):**
+  1. `FriendsStore.activate(id)` runs serially, and only if the friend is in my current list.
+  2. `prepareFriendLique` (`src/services/friends/activation.ts`):
+     - `FriendDirectory.readProfile` (RLS: only if I added them);
+     - `parseProfile` (the regular validation) and `ownerUserId === id`;
+     - `writeFriendProfileCache` (their own database `liqueamp-friend:<id>`, the only writer, one transaction).
+  3. `switchProfile(friendScope)`: `setActiveScope` + `reloadProfileStores()`, then a check that all five profile stores hold the friend scope. Otherwise everything goes back to MY_LIQUE (all or nothing).
+  4. **Return:** `switchProfile(MY_LIQUE)`, then the deferred own sync.
+  - Theme, Base16/custom palette, glow, visualizer, EQ and artwork come from the friend's `profile.settings`. Themes, categories, media, playlists, favourites and stations come from the friend's database. `syncAppearance` and the engine's EQ follow the stores.
+- **Personal and device state:** queue, history and device settings (volume, muted, shuffle, repeat, motion, shortcuts, providers, analysis, render) are never scoped, so they stay the viewer's. Device settings can still be changed in a Friend Lique.
+- **Read-only:**
+  - Every mutating store action (themes, library, playlists, favourites) calls `assertWritableScope(store scope)` before changing anything, and `ProfileScopeError` is thrown.
+  - `useSettings.update` refuses profile fields in a friend scope; they do not change even on screen, while device fields still apply.
+  - One notice, "This Friend Lique is read-only…", is shown for refused edits, including unhandled `ProfileScopeError`s (`readOnlyNotice.ts`).
+  - Playlist editing controls and "Add to playlist" are hidden in a Friend Lique.
+  - Own sync is deferred until the return. Backup and profile upload read the own profile settings from storage anyway (checkpoint 2).
+- **Favourites:** D3 is decided (above).
+- **UI:**
+  - The preview's `Activate Lique` button works.
+  - The panel shows `FRIEND LIQUE ACTIVE @x · Read-only [Return to My Lique]` and marks the row `ACTIVE`.
+  - The status bar shows `FRIEND LIQUE: @x (READ ONLY)`.
+  - Errors appear in the preview.
+- **Refresh:** the active scope and `active` are memory only, so a reload always starts in MY_LIQUE (spec §47). Nothing about an activation is stored.
+- **Offline:**
+  - If the cloud cannot be reached, a copy validated and cached earlier on this device is activated, and the banner says "saved copy (offline)".
+  - A friend never fetched cannot be activated offline.
+  - No empty friend database is ever created.
+  - If the cloud answers that the Lique is not readable any more, the local copy is deleted.
+- **Safety:** logout, another account logging in, removing the active friend, or the friend missing from a reloaded list all return to MY_LIQUE. Removing a friend deletes their local copy (spec §27).
+- **Tests:**
+  - `src/services/friends/activation.test.tsx`, 20 tests: theme/Base16/custom, visualizer, EQ, content, MY_LIQUE unchanged, queue/history/device personal, writes blocked (local and cloud), personal queue and favourites, exact return, switching, rapid switching, unauthorized/invalid/missing, all-or-nothing, offline, refresh, logout, removal, panel.
+  - Checkpoint 7 panel tests 9 and 10 now expect the working Activate button.
+- **Limitations:**
+  - Cached friend copies of a previous account stay on the device until that friend is removed. They can only be activated by an account that has that friend in its list.
+  - Media favourites match by id: a friend's stream the viewer already has under another id shows an empty heart.
+  - Stream URLs of a Friend Lique are shown as the owner shared them; the owner's sharing review (D13) runs before upload.
+  - No presence (D11) and no Block (D17) yet.

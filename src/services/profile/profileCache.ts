@@ -2,7 +2,8 @@
 // D1 in docs/LIQUEAMP_IMPLEMENTATION_PLAN.md). Each friend's profile lives in
 // its own IndexedDB database; this module is the ONLY code that writes one.
 // Everything else — every store and repository — can only read a friend
-// scope. Fetching profiles and activating them are later checkpoints.
+// scope. Friend Lique activation (src/services/friends/activation.ts) fetches,
+// validates and stores a friend's profile here before showing it.
 import { deleteFriendDb, friendDbName, openFriendDb, PROFILE_STORES } from '../storage/db';
 import { profileKvFor, profileKvKey } from '../storage/repository';
 import { getActiveScope, ProfileScopeError, type ProfileScope } from '../storage/scope';

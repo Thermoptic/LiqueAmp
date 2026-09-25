@@ -243,10 +243,11 @@ describe('FRIEND LIQUES panel (checkpoint 7)', () => {
       .getAllByRole('button')
       .filter((b) => !(b as HTMLButtonElement).disabled)
       .map((b) => b.getAttribute('aria-label') ?? b.textContent);
-    expect(enabled).toEqual(['Back to Friend Liques']);
+    // checkpoint 8: Activate is the one action next to Back; nothing edits their Lique
+    expect(enabled).toEqual(['Back to Friend Liques', 'Activate Lique']);
   });
 
-  it('10. ACTIVATE LIQUE exists but is disabled and changes nothing', async () => {
+  it('10. ACTIVATE LIQUE is available (checkpoint 8) and never changes anything on the server', async () => {
     const { fake, directory } = await signedInWorld();
     await directory.add('Bob');
     renderPanel();
@@ -254,13 +255,16 @@ describe('FRIEND LIQUES panel (checkpoint 7)', () => {
     const preview = screen.getByRole('region', { name: '@Bob’s Lique' });
     await within(preview).findByText('Theme');
     const activate = within(preview).getByRole('button', { name: 'Activate Lique' }) as HTMLButtonElement;
-    expect(activate.disabled).toBe(true);
-    expect(within(preview).getByText('Coming later')).toBeTruthy();
+    expect(activate.disabled).toBe(false);
     expect(activate.getAttribute('aria-describedby')).toBeTruthy();
     const before = JSON.stringify(fake.tables);
-    fireEvent.click(activate);
+    await act(async () => {
+      fireEvent.click(activate);
+      await useFriends.getState().returnToMyLique(); // runs after the activation, whatever its outcome
+    });
     expect(JSON.stringify(fake.tables)).toBe(before);
     expect(useFriends.getState().selectedId).toBe(BOB);
+    expect(useFriends.getState().active).toBeNull();
   });
 
   it('preview states: no cloud Lique yet, and a Lique that cannot be read', async () => {

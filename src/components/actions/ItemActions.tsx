@@ -5,7 +5,8 @@ import { getEngine } from '../../services/playback/engine';
 import { queueStation } from '../../services/radio/actions';
 import { stationToMediaItem } from '../../services/radio/stations';
 import { shareOrCopy } from '../../services/share';
-import { isItemFavorite, useFavorites } from '../../stores/favoritesStore';
+import { isItemFavorite, myFavorites, myStations, useFavorites } from '../../stores/favoritesStore';
+import { usePlaylists } from '../../stores/playlistStore';
 import { useUi } from '../../stores/uiStore';
 import type { MediaItem, RadioStation } from '../../types/media';
 import { AddToPlaylistDialog } from '../library/AddToPlaylistDialog';
@@ -18,17 +19,20 @@ export type ActionTarget = { kind: 'station'; station: RadioStation } | { kind: 
  * One implementation for every place that offers them (media rows, Station
  * Info, Now Playing).
  *
- * Ownership: the queue is always the viewer's personal queue; favourites and
- * playlists go through their stores, which write to the profile they hold.
- * When Friend Liques arrive, routing favourites/playlists to the viewer's own
- * profile happens here and in those stores, not in each UI location.
+ * Ownership: the queue is always the viewer's personal queue. The heart is
+ * always the viewer's OWN favourites, also while a Friend Lique is shown
+ * (D3). Playlists go through their store, which writes to the profile it
+ * holds; a Friend Lique's playlists are read-only, so "Add to playlist" is
+ * not offered while one is shown.
  */
 export function useItemActions(target: ActionTarget) {
   const toast = useUi((s) => s.toast);
-  const favorites = useFavorites((s) => s.favorites);
-  const stations = useFavorites((s) => s.stations);
-  const toggleStation = useFavorites((s) => s.toggleStation);
-  const toggleItem = useFavorites((s) => s.toggleItem);
+  const favorites = useFavorites(myFavorites);
+  const ownStations = useFavorites(myStations);
+  const shownStations = useFavorites((s) => s.stations);
+  const toggleStation = useFavorites((s) => s.toggleOwnStation);
+  const toggleItem = useFavorites((s) => s.toggleOwnItem);
+  const canAddToPlaylist = usePlaylists((s) => s.scope.kind === 'own');
 
   const station = target.kind === 'station' ? target.station : null;
   const item = target.kind === 'media' ? target.item : null;
@@ -36,7 +40,7 @@ export function useItemActions(target: ActionTarget) {
   const shareUrl = station ? (station.homepage ?? station.sourceUrl ?? station.streamUrl) : (item?.sourceUrl ?? '');
   const streamUrl = station?.streamUrl ?? item?.streamUrl ?? item?.sourceUrl ?? '';
   const homepage = station?.homepage;
-  const isFav = station ? favorites.some((f) => f.id === `station:${station.id}`) : item ? isItemFavorite(item, favorites, stations) : false;
+  const isFav = station ? favorites.some((f) => f.id === `station:${station.id}`) : item ? isItemFavorite(item, favorites, { ...shownStations, ...ownStations }) : false;
   const playlistItems = station ? [stationToMediaItem(station)] : item ? [item] : [];
 
   function queue() {
@@ -66,7 +70,7 @@ export function useItemActions(target: ActionTarget) {
     }
   }
 
-  return { title, shareUrl, streamUrl, homepage, isFav, playlistItems, queue, toggleFavourite, share, copyStream };
+  return { title, shareUrl, streamUrl, homepage, isFav, playlistItems, canAddToPlaylist, queue, toggleFavourite, share, copyStream };
 }
 
 /**
@@ -82,9 +86,11 @@ export function StationActions({ station }: { station: RadioStation }) {
       <button type="button" className="btn" onClick={a.queue}>
         <Plus size={14} aria-hidden="true" /> Add to Queue
       </button>
-      <button type="button" className="btn" onClick={() => setAddingToPlaylist(true)}>
-        <ListPlus size={14} aria-hidden="true" /> Add to Playlist
-      </button>
+      {a.canAddToPlaylist && (
+        <button type="button" className="btn" onClick={() => setAddingToPlaylist(true)}>
+          <ListPlus size={14} aria-hidden="true" /> Add to Playlist
+        </button>
+      )}
       <button type="button" className="btn" disabled={!a.shareUrl} onClick={() => void a.share()}>
         <Share2 size={14} aria-hidden="true" /> Share Station
       </button>
@@ -187,9 +193,11 @@ export function ItemActionsMenu({ target, favourite = true }: { target: ActionTa
             <button type="button" role="menuitem" className="menu__item" onClick={run(a.queue)}>
               <Plus size={14} aria-hidden="true" /> Add to queue
             </button>
-            <button type="button" role="menuitem" className="menu__item" onClick={run(() => setAddingToPlaylist(true))}>
-              <ListPlus size={14} aria-hidden="true" /> Add to playlist
-            </button>
+            {a.canAddToPlaylist && (
+              <button type="button" role="menuitem" className="menu__item" onClick={run(() => setAddingToPlaylist(true))}>
+                <ListPlus size={14} aria-hidden="true" /> Add to playlist
+              </button>
+            )}
             {favourite && (
               <button type="button" role="menuitem" className="menu__item" onClick={run(a.toggleFavourite)}>
                 <Heart size={14} aria-hidden="true" /> {a.isFav ? 'Remove from favourites' : 'Add to favourites'}

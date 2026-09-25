@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { kv, profileKvFor } from '../services/storage/repository';
-import { getActiveScope, isActiveScope, isReadOnlyScope, MY_LIQUE, type ProfileScope } from '../services/storage/scope';
+import { getActiveScope, isActiveScope, isReadOnlyScope, MY_LIQUE, ProfileScopeError, READ_ONLY_SCOPE_MESSAGE, type ProfileScope } from '../services/storage/scope';
+import { notifyReadOnly } from '../services/friends/readOnlyNotice';
 import { sanitizeVisualizer } from '../types/visualizer';
 import { sanitizeAnalysis, sanitizeProviders, sanitizeRender } from '../types/advanced';
 import {
@@ -93,14 +94,19 @@ export const useSettings = create<SettingsStore>((set, get) => ({
   },
 
   update(patch) {
-    set(patch);
+    const refused = isReadOnlyScope(get().profileScope) && touches(patch, PROFILE_SETTING_KEYS);
+    // A Friend Lique is read-only: its profile fields (theme, visualizer, EQ, …) do not change,
+    // not even on screen; device fields (volume, shuffle, …) are the viewer's and still do.
+    set(refused ? pickDeviceSettings(patch as Settings) : patch);
     // UI updates immediately; persistence happens in the background (THEMING §81).
     // Each half is written only when it changed, to its own record.
     const s = pickSettings(get());
     if (touches(patch, DEVICE_SETTING_KEYS)) void saveDevice(s);
-    if (touches(patch, PROFILE_SETTING_KEYS)) {
-      // A friend's profile is read-only: the write is refused (never redirected
-      // to the own profile) and reported, not silently dropped.
+    if (refused) {
+      // never redirected to the own profile; reported, not silently dropped
+      console.error('Profile settings were not saved:', new ProfileScopeError(READ_ONLY_SCOPE_MESSAGE));
+      notifyReadOnly();
+    } else if (touches(patch, PROFILE_SETTING_KEYS)) {
       saveProfile(get().profileScope, s).catch((err: unknown) => console.error('Profile settings were not saved:', err));
     }
   },

@@ -1,7 +1,7 @@
 import { Heart, ListMusic } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { getEngine } from '../../services/playback/engine';
-import { useFavorites } from '../../stores/favoritesStore';
+import { myFavorites, useFavorites } from '../../stores/favoritesStore';
 import { useLibrary } from '../../stores/libraryStore';
 import { usePlaylists } from '../../stores/playlistStore';
 import { useUi } from '../../stores/uiStore';
@@ -11,11 +11,18 @@ import { StationRow } from '../radio/StationRow';
 import { MediaRow } from './MediaRow';
 import { RowList } from '../ui/RowList';
 
-/** Favourite stations, tracks/sources and playlists (SPEC §21). */
+/**
+ * Favourite stations, tracks/sources and playlists (SPEC §21) of the profile
+ * shown — a friend's while their Lique is active. The hearts are always the
+ * viewer's own favourites (D3).
+ */
 export function FavouritesView() {
   const favorites = useFavorites((s) => s.favorites);
   const stationMap = useFavorites((s) => s.stations);
   const removeFav = useFavorites((s) => s.remove);
+  const friendShown = useFavorites((s) => s.own !== null);
+  const mine = useFavorites(myFavorites);
+  const toggleOwnItem = useFavorites((s) => s.toggleOwnItem);
   const media = useLibrary((s) => s.media);
   const playlists = usePlaylists((s) => s.playlists);
   const openPlaylist = useUi((s) => s.openPlaylist);
@@ -63,15 +70,20 @@ export function FavouritesView() {
                 index={i}
                 onActivate={() => void getEngine().playNow(item)}
                 actions={
-                  <button
-                    type="button"
-                    className="btn btn--ghost btn--icon station-row__fav"
-                    aria-pressed="true"
-                    aria-label={`Remove ${item.title} from favourites`}
-                    onClick={() => void removeFav('media', item.id)}
-                  >
-                    <Heart size={14} />
-                  </button>
+                  friendShown ? (
+                    // a friend's favourite: the heart adds it to (or removes it from) MY favourites
+                    <OwnFavouriteButton item={item} pressed={mine.some((f) => f.id === `media:${item.id}`)} onToggle={() => void toggleOwnItem(item)} />
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--icon station-row__fav"
+                      aria-pressed="true"
+                      aria-label={`Remove ${item.title} from favourites`}
+                      onClick={() => void removeFav('media', item.id)}
+                    >
+                      <Heart size={14} />
+                    </button>
+                  )
                 }
               />
             ))}
@@ -104,5 +116,19 @@ export function FavouritesView() {
         </section>
       )}
     </div>
+  );
+}
+
+function OwnFavouriteButton({ item, pressed, onToggle }: { item: MediaItem; pressed: boolean; onToggle(): void }) {
+  return (
+    <button
+      type="button"
+      className="btn btn--ghost btn--icon station-row__fav"
+      aria-pressed={pressed}
+      aria-label={pressed ? `Remove ${item.title} from my favourites` : `Add ${item.title} to my favourites`}
+      onClick={onToggle}
+    >
+      <Heart size={14} />
+    </button>
   );
 }
