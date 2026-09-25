@@ -20,6 +20,8 @@ export const router = createBrowserRouter(
         { path: 'favourites', element: null },
         { path: 'history', element: null },
         { path: 'settings', element: null },
+        // OAuth returns here (Google/GitHub via Supabase); Dashboard sends the user back
+        { path: 'auth/callback', element: null },
       ],
     },
     {

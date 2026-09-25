@@ -241,6 +241,7 @@ The comment on `providers` says **"No secrets are stored"** (`src/types/advanced
    - `users`: `user_id` (auth uid), `username` (unique, case-insensitive), `display_name`, `avatar_url`, `created_at`.
    - `profiles`: `owner_user_id`, `schema_version`, `revision`, `updated_at`, `visibility` (`PRIVATE|FRIENDS|PUBLIC`), `payload` (the `LiqueAmpProfile` JSON).
    - `friendships`: `requester_id`, `addressee_id`, `status` (`PENDING|ACCEPTED|DECLINED|BLOCKED`), timestamps; unique per pair.
+     **Obsolete (D12, D17):** replaced by one-way rows (who added whom; the adder gains read access) and a separate `blocks` table; no statuses, no requests.
    - Later: `snapshots` (same payload shape), `packs`.
    - Permission rules for owner/friend/public reads and owner-only writes, plus blocked-user exclusion.
 3. **Client auth/session layer:** `services/account/` + `useAccount` store holding session, current user and sign-in state.

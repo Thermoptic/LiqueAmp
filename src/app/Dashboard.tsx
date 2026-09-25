@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
-import { useLocation } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
+import { takeAuthReturnPath, useAccount } from '../stores/accountStore';
+import { UsernameSetupDialog } from '../components/settings/UsernameSetupDialog';
 import { LIBRARY_SECTIONS, sectionFromPath } from './sections';
 import { useUi, type LibraryTab } from '../stores/uiStore';
 import { Header } from '../components/layout/Header';
@@ -26,6 +28,14 @@ export function Dashboard() {
   const { pathname } = useLocation();
   const section = sectionFromPath(pathname);
   const setLibraryTab = useUi((s) => s.setLibraryTab);
+  const navigate = useNavigate();
+  const accountLoading = useAccount((s) => s.loading);
+
+  // Back from Google/GitHub (<base>/auth/callback): once the session is
+  // settled, return to where sign-in started, without the code in the URL.
+  useEffect(() => {
+    if (pathname === '/auth/callback' && !accountLoading) navigate(takeAuthReturnPath(), { replace: true });
+  }, [pathname, accountLoading, navigate]);
 
   useEffect(() => {
     if (LIBRARY_SECTIONS.has(section)) setLibraryTab(section as LibraryTab);
@@ -63,6 +73,7 @@ export function Dashboard() {
         </div>
       )}
       <BottomNav />
+      <UsernameSetupDialog />
     </div>
   );
 }

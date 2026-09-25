@@ -1003,6 +1003,8 @@ The backend provider and exact SQL/schema remain a decision before implementatio
 
 # 21. Testing Strategy
 
+> **Obsolete E2E steps (D17):** "Add friend → request works" and "Accept friend → Friend Lique appears" become: "Add friend (username) → Friend Lique appears at once".
+
 Testing must be added alongside each phase.
 
 ## Unit tests
@@ -1213,6 +1215,8 @@ When implementing:
 
 # 26. Decision Gates
 
+> **Resolved (2026-09-25):** backend provider = Supabase (D16), authentication = Google + GitHub OAuth (D5), region = EU preferred (D16); see §30.
+
 Claude must stop and ask for a decision before implementation if the repository requires a choice that the specifications intentionally leave open.
 
 Important decisions include:
@@ -1296,6 +1300,8 @@ Do not proceed to a later checkpoint if an earlier checkpoint has unresolved dat
 ---
 
 # 28. Definition of Done
+
+> **Obsolete item (D17):** "Friend requests work" → "Add Friend (one-way, immediate), Remove Friend and Block work".
 
 The project is complete when:
 
@@ -1419,27 +1425,25 @@ None for existing installations: the `liqueamp` database, its schema version and
 
 See D16.
 
-## D5 — Account UI; authentication method
+## D5 — Authentication: Google + GitHub OAuth; account UI
 
-**Decided 2026-09-25:** accounts are optional. Settings gets an ACCOUNT section — logged out: `Not logged in  [ CREATE ACCOUNT ] [ LOG IN ]`; logged in: `● Logged in  @username  [ LOG OUT ]`. The status bar shows `@username` (or `Not logged in`) to the right of `STORAGE: LOCAL`. No avatars.
-**Still open:** the authentication method itself (email/password, magic link, OAuth, passkeys …). The app uses a provider-neutral account interface (`src/services/account/account.ts`) so nothing depends on that choice.
+**Decided 2026-09-25 (final):** authentication is **Google OAuth and GitHub OAuth through Supabase Auth**. No email/password, no magic links, no avatars. Accounts are optional. Settings › ACCOUNT — logged out: `Not logged in  [ CONTINUE WITH GOOGLE ] [ CONTINUE WITH GITHUB ]`; logged in: `@johan  Logged in with Google (or GitHub)  [ LOG OUT ]` (plus Delete account, D15). The status bar shows `NOT LOGGED IN` or `@johan` to the right of `STORAGE: LOCAL`. The app talks to accounts only through `AccountProvider` (`src/services/account/account.ts`); the Supabase implementation is `src/services/cloud/supabaseAccount.ts`.
 
 ## D6 — Username
 
-**Decided:** the username (`@johan`) is the human-facing identity of the account and of its whole Lique (settings, theme, Base16, visualizer, EQ, artwork, playlists, categories, streams/stations, favourites). It is what a person gives someone so they can add their Lique. Unique case-insensitively. It is never a database key: the opaque, stable `user_id` from the backend is used for ownership, relationships and cache naming.
-**Still open:** exact character set, length limits, reserved names, and the rename/release policy.
+**Decided (final):** the username (`@johan`) is the user's LiqueAmp identity and the visible identity of their Lique — what they give other people so those people can add them. No separate display name, no avatar. Rules, kept simple: **3–20 letters (A–Z, a–z) or digits (0–9); no spaces or symbols**; the typed case is kept but comparison is case-insensitive (`Johan` = `johan`); a short reserved list (admin, liqueamp, support, system, root, moderator, official, …). Uniqueness is enforced by the database (unique index on `lower(username)`), not by a check before insert; the client check (`src/services/account/username.ts`) only gives immediate feedback. `user_id` (the Supabase auth UUID) is the permanent technical identity and the only key; the username is never a primary key. Renaming is not offered yet.
 
 ## D7 — Create Account adopts the local Lique
 
-**Decided:** creating an account turns the existing local MY_LIQUE into the account's initial profile — the user never starts over: local MY_LIQUE → create account → username assigned → local profile linked (`profile.meta.ownerUserId`) → initial cloud upload (after the D13 check). Queue, history and device settings stay local. Refused if the account already has a cloud profile (resolved explicitly, later UI).
+**Decided (final):** the first time a user logs in (and chooses a username), **their current local MY_LIQUE becomes their first cloud profile** — they never start over. Preserved and uploaded: profile settings (theme, Base16 theme, glow, visualizer, EQ, artwork), custom themes, playlists, categories, streams/media, stations, favourites. Not uploaded: queue, history, device/session state. After the upload `profile.meta` = `{ ownerUserId, baseRevision: <cloud revision>, dirty: false }`; the local database stays the working copy and is not changed. If that first upload did not complete, the next login finishes it (an account without a cloud profile always adopts the local Lique).
 
-## D8 — Signing in on another device
+## D8 — Device and session state stay local; other devices
 
-**Decided:** on a device without a local Lique, the cloud profile is downloaded, validated (`parseProfile`) and installed into MY_LIQUE with the existing safe replace import: profile data replaced; queue, history and device settings kept. A device that already has a local Lique never mixes it with the account profile: `profile.meta.ownerUserId` tells whether the local Lique belongs to no account, this account or another account, and anything but "this account" (or an empty device) needs an explicit decision (UI later). **A local Lique of Account A is never uploaded to, overwritten by, or merged with Account B.**
+**Decided (final): device and session state stay local.** `volume`, `muted`, `shuffle`, `repeat`, `motion`, `shortcuts`, `providers`, `analysis`, `render`, the queue and history are never uploaded and are never overwritten by logging in. On another device: with no local Lique, the account's cloud profile is downloaded, validated and installed into MY_LIQUE through the safe replace import (profile data only). A device that already has a local Lique never mixes it with the account profile: `profile.meta.ownerUserId` says whether the local Lique belongs to no account, this account or another account; an unrelated local Lique needs the explicit choice *Keep local profile* / *Use cloud profile*, and **another account's local Lique is never uploaded, replaced or merged — not even by an explicit choice** (sync shows "belongs to another account").
 
 ## D9 — Revisions and conflicts
 
-**Decided:** `profile.meta` = `ownerUserId`, `baseRevision`, `dirty`, `lastSyncedAt`. The server owns the revision and `updatedAt`. Local edits only set `dirty` (every own-profile write; never device settings, queue, history or friend caches). Upload succeeds only while the cloud revision still equals `baseRevision` (compare-and-swap; the server increments). Download replaces the local profile automatically only when it is not dirty. Conflict = dirty and cloud revision > `baseRevision` (or cloud behind the base): nothing is overwritten; resolution is explicit and user-driven. No automatic full merge yet.
+**Decided (final):** revision-based sync. `profile.meta` = `ownerUserId`, `baseRevision`, `dirty`, `lastSyncedAt`. The server owns the revision (database trigger: 1 on insert, +1 on every update; client values are ignored). Local edits only set `dirty`. Upload only when the local profile belongs to the logged-in account, is dirty, and the cloud revision still equals `baseRevision` (compare-and-swap: `update … where revision = baseRevision`); on success `baseRevision` = new revision, `dirty` = false, `lastSyncedAt` updated. Download replaces the local profile only when the account matches, the local profile is not dirty and the cloud profile validates. **Conflict** = dirty and cloud revision > `baseRevision`: a typed `conflict` result, nothing overwritten; the user chooses **Keep local** (this device's Lique replaces the cloud profile, still compare-and-swap) or **Use cloud** (the cloud profile replaces this device's profile data; queue/history/device state stay). No automatic merge.
 
 ## D10 — Avatars
 
@@ -1449,10 +1453,9 @@ See D16.
 
 **Decided:** online = the person currently has LiqueAmp open; offline = not. No last-seen, activity history, detailed presence or availability. Presence is never required to activate a (cached) Friend Lique.
 
-## D12 — Privacy
+## D12 — Privacy: one-way access
 
-**Decided:** a Lique is private by default. Access comes from the one-way Friend Liques relationship, is read-only (never write access) and is immediate — there is no request/accept step. Block overrides access. No per-item privacy in the first implementation; no public profiles yet.
-**Open clarification (must be answered before the server access rules are written):** the decision text contains both directions. The Friend Liques behaviour says *"@alice adds @johan → Alice can access Johan's Lique"* (the person who adds gains access; Block is then the owner's protection). The privacy text says *"a user can access another user's Lique if that user has added them"* (the person who is added gains access). These give opposite authorization rules.
+**Decided (final, 2026-09-25): one-way access.** When user A adds user B, **A gains read-only access to B's Lique**; B does **not** automatically gain access to A's Lique. Example: Johan adds Alice → Johan can see and activate Alice's Lique; Alice cannot see Johan's unless she adds him. A Lique is private by default (nothing is public); Friend Liques never grant write access; Block (by B) removes A's access and overrides everything. No friend requests, no accept/decline (D17). No per-item privacy in the first implementation. (Checkpoint 5 RLS: users read only their own rows; the friend read policy is added in the Friend Liques checkpoint.)
 
 ## D13 — Stream URLs before sharing
 
@@ -1468,11 +1471,11 @@ See D16.
 
 ## D16 — Backend
 
-**Decided:** Supabase is the selected backend direction. EU region preferred; Stockholm is the first choice if available. Local-first stays mandatory. Conceptual entities: `users` (user_id, username, created_at), `profiles` (owner_user_id, schema_version, revision, updated_at, payload), `profile_summaries` (owner_user_id, summary, revision), `friendships` (one-way, D17), `blocks` (blocker, blocked). Server-side ownership and authorization (row-level security) are authoritative; the client is never trusted to decide who may read or write a profile. Only the project URL and the publishable key may be in `VITE_*` variables (public); the build refuses a secret key. Auth callbacks include the `/LiqueAmp/` base path. SQL schema and migrations are not written until D5 and the D12 clarification are settled.
+**Decided (final):** Supabase for auth and the cloud; the frontend stays on GitHub Pages; EU region preferred (Stockholm first choice if offered). **Local-first is non-negotiable:** IndexedDB stays the runtime database; Supabase is only the account/cloud layer; if Supabase is unreachable (or not configured) LiqueAmp starts, plays and edits normally and syncs later. Schema (`supabase/migrations/20260925120000_liqueamp_accounts.sql`): `public.users (id = auth.users.id, username, created_at, updated_at)` with a unique index on `lower(username)`; `public.profiles (user_id, revision, schema_version, visibility, data, summary, created_at, updated_at)`; triggers own `revision`/`visibility`/timestamps and check the profile's format and owner; RLS: a user reads/creates their own `users` row and reads/creates/updates/deletes their own `profiles` row; `delete_my_account()` removes the auth user (cascade). Later: `friendships` (one-way) and `blocks`. Only the project URL and the publishable key are public (`VITE_*`); the build refuses a secret key; no service-role key anywhere in the frontend.
 
 ## D17 — Friends
 
-**Decided:** no friend requests. Add Friend (username) is immediate; relationships are one-way; Remove Friend removes the person from the viewer's list only and does not affect the other account; Block is stronger than Remove and prevents the blocked user from accessing the blocker's Lique, overriding normal access. Home: FRIEND LIQUES (replaces Quick Actions), Add Friend icon top-right, rows `● @alice Online [ ▶ ]`, ▶ activates, only one Friend Lique active at a time, `[ RETURN TO MY LIQUE ]` while active.
+**Decided (final):** no friend requests, no accept/decline. Add Friend (by username) is immediate and one-way (D12). Remove Friend removes the person from the viewer's list only. Block is stronger: it prevents the blocked user from accessing the blocker's Lique and overrides normal access. Home: FRIEND LIQUES (replaces Quick Actions), Add Friend icon top-right, rows `● @alice Online [ ▶ ]`, ▶ activates, one Friend Lique active at a time, `[ RETURN TO MY LIQUE ]` while active.
 
 ---
 
@@ -1546,3 +1549,25 @@ All locations use one implementation, `useItemActions()` in `src/components/acti
 - **CSP** (`security/cspPlugin.ts`): a meta Content-Security-Policy added to the built `index.html`/`404.html` (not in dev). No inline scripts; scripts only from the app and the official player APIs (YouTube, SoundCloud, Spotify incl. `embed-cdn.spotifycdn.com`). **`'unsafe-eval'` is allowed because the Spotify iFrame API does not start without it** (verified in Chrome and Edge); revisit if Spotify changes or if its API is isolated in a frame. Media, images and connections allow any http(s) (streams, artwork, directory, backend), frames any https, workers `self` + `blob:` (hls.js).
 - **UI:** Settings › Account (`src/components/settings/AccountSection.tsx`; logged out without a backend: `Not logged in` with the two buttons disabled and an explanation); status bar shows `@username` or `NOT LOGGED IN` right of `STORAGE: LOCAL`.
 - **Not in this checkpoint:** Friend Liques panel, Add Friend, activation, presence, public profiles, Packs, snapshots, per-item visibility, automatic merge, avatars, authentication-method UI, the Supabase SDK and SQL schema, conflict/"resolve local Lique" UI.
+
+---
+
+## Checkpoint 5 — Supabase account and profile sync (2026-09-25)
+
+**Status:** implemented and tested against an in-memory stand-in that enforces the migration's rules, and in Chrome/Edge (unconfigured build + configured build with an unreachable Supabase). **Not yet verified against a real Supabase project** — that needs the manual setup below.
+
+- **Cloud layer** (`src/services/cloud/`): `supabaseClient.ts` (lazy `import()` of `@supabase/supabase-js`, PKCE, session in `localStorage` under `liqueamp-auth`), `supabaseAccount.ts` (Google/GitHub OAuth, username claim, sign-out on this device, `delete_my_account()`), `supabaseProfiles.ts` (profile head/download/compare-and-swap upload/delete), `errors.ts` (timeouts; every failure becomes a plain LiqueAmp message), `index.ts` (Supabase when configured, otherwise the local no-account provider).
+- **Account store** (`src/stores/accountStore.ts`): loading/error/needs-username/signed-in states, sync view (synced, needs review, conflict, resolve-local, other account, error), explicit Keep local / Use cloud, sharing review (D13), expired-session message, OAuth callback errors; uploads local changes a few seconds after they happen and when the browser comes back online.
+- **Sync** (`src/services/sync/profileSync.ts`): D7 adoption at any login of an account without a cloud profile; `keepLocalProfile` / `useCloudProfile` (explicit, never for another account's Lique); stores are reloaded after a download (`src/stores/reloadProfileStores.ts`).
+- **UI:** `UsernameSetupDialog` (first login: live validation, "already taken" from the database, Cancel logs out), Settings › Account (Continue with Google/GitHub, @username, Logged in with …, Log out, Delete account with confirmation), OAuth callback route `<base>/auth/callback` that returns to where sign-in started.
+- **Deploy:** the GitHub Pages workflow passes `vars.VITE_SUPABASE_URL` and `vars.VITE_SUPABASE_PUBLISHABLE_KEY` to the build (unset = local-only build).
+
+### Manual setup required (cannot be done from the code)
+
+1. Create a Supabase project (EU region — Stockholm/`eu-north-1` if offered, otherwise another EU region).
+2. Run `supabase/migrations/20260925120000_liqueamp_accounts.sql` (SQL editor, or `supabase db push`).
+3. Authentication › URL configuration: Site URL `https://thermoptic.github.io/LiqueAmp/`; Redirect URLs `https://thermoptic.github.io/LiqueAmp/auth/callback` and, for development, `http://localhost:5173/LiqueAmp/auth/callback`.
+4. Google: create an OAuth client (Web) in Google Cloud Console with the authorized redirect URI `https://<project-ref>.supabase.co/auth/v1/callback`; enable the Google provider in Supabase with its client ID/secret.
+5. GitHub: create an OAuth App (github.com › Settings › Developer settings) with the callback URL `https://<project-ref>.supabase.co/auth/v1/callback`; enable the GitHub provider in Supabase with its client ID/secret.
+6. GitHub repository › Settings › Secrets and variables › Actions › **Variables**: `VITE_SUPABASE_URL` = `https://<project-ref>.supabase.co`, `VITE_SUPABASE_PUBLISHABLE_KEY` = the project's publishable (anon) key. For local development put the same two values in `.env.local` (ignored by git).
+7. Never use the secret/service-role key in any of these places.

@@ -28,8 +28,6 @@ import {
   type OwnProfileMeta,
 } from './ownProfileMeta';
 
-export type SyncContext = 'sign-up' | 'sign-in';
-
 export type SyncAction =
   | 'in-sync'
   | 'upload' // local changes; cloud unchanged (or no cloud profile yet)
@@ -39,14 +37,19 @@ export type SyncAction =
   | 'resolve-local' // the device has a local Lique that is not linked to this account: the user decides
   | 'blocked-other-account'; // the local Lique belongs to another account: never touched
 
-/** What to do, from the local sync state and the cloud head. Pure. */
-export function decideSync(meta: OwnProfileMeta, userId: string, cloud: CloudProfileHead | null, context: SyncContext, localHasData: boolean): SyncAction {
+/**
+ * What to do, from the local sync state and the cloud head. Pure.
+ * D7: an account without a cloud profile takes this device's Lique as its
+ * first profile — at the first login, and again if that first upload did not
+ * complete. An account that already has a cloud profile never silently takes
+ * over (or is mixed with) an unrelated local Lique.
+ */
+export function decideSync(meta: OwnProfileMeta, userId: string, cloud: CloudProfileHead | null, localHasData: boolean): SyncAction {
   const owner = localOwnership(meta, userId);
   if (owner === 'other-account') return 'blocked-other-account';
   if (owner === 'unlinked') {
-    if (context === 'sign-up') return cloud ? 'resolve-local' : 'adopt-and-upload';
-    if (!localHasData) return cloud ? 'download' : 'adopt-and-upload';
-    return 'resolve-local';
+    if (!cloud) return 'adopt-and-upload';
+    return localHasData ? 'resolve-local' : 'download';
   }
   if (!cloud) return 'upload';
   if (cloud.revision === meta.baseRevision) return meta.dirty ? 'upload' : 'in-sync';
@@ -131,12 +134,14 @@ export async function adoptLocalProfile(options: UploadOptions): Promise<UploadR
  * account, and over an unlinked local Lique that has data.
  * The caller rehydrates the stores afterwards.
  */
-export async function downloadOwnProfile({ userId, cloud }: { userId: string; cloud: CloudProfileStore }): Promise<{ revision: number }> {
+export async function downloadOwnProfile({ userId, cloud, explicit = false }: { userId: string; cloud: CloudProfileStore; explicit?: boolean }): Promise<{ revision: number }> {
   const meta = await readOwnProfileMeta();
   const owner = localOwnership(meta, userId);
+  // another account's local Lique is never replaced, not even explicitly
   if (owner === 'other-account') assertLocalProfileOwner(meta, userId);
-  if (owner === 'unlinked' && (await hasLocalProfileData())) throw new ProfileOwnershipError('This device has its own LiqueAmp; it is not replaced by the account profile without a decision.');
-  if (owner === 'same-account' && meta.dirty) throw new SyncError('This device has changes that are not synced; they are not overwritten.');
+  // without the user's explicit "Use cloud profile", local data is never overwritten
+  if (!explicit && owner === 'unlinked' && (await hasLocalProfileData())) throw new ProfileOwnershipError('This device has its own LiqueAmp; it is not replaced by the account profile without a decision.');
+  if (!explicit && owner === 'same-account' && meta.dirty) throw new SyncError('This device has changes that are not synced; they are not overwritten.');
 
   const doc = await cloud.download(userId);
   if (!doc) throw new SyncError('The account has no cloud profile.');
@@ -159,11 +164,11 @@ export type SyncResult =
   | { status: 'resolve-local' }
   | { status: 'blocked-other-account' };
 
-/** One sync pass after sign-up / sign-in / reconnect. Never overwrites anything it should not. */
-export async function syncOwnProfile(options: UploadOptions & { context: SyncContext }): Promise<SyncResult> {
+/** One sync pass after sign-in, a local change or reconnecting. Never overwrites anything it should not. */
+export async function syncOwnProfile(options: UploadOptions): Promise<SyncResult> {
   const meta = await readOwnProfileMeta();
   const head = await options.cloud.head(options.userId);
-  const action = decideSync(meta, options.userId, head, options.context, await hasLocalProfileData());
+  const action = decideSync(meta, options.userId, head, await hasLocalProfileData());
   switch (action) {
     case 'in-sync':
       return { status: 'in-sync' };
@@ -180,6 +185,30 @@ export async function syncOwnProfile(options: UploadOptions & { context: SyncCon
       return r;
     }
   }
+}
+
+/**
+ * The user's explicit choice after a conflict (D9) or when the device has a
+ * local Lique not yet linked to this account: "Keep local profile" — this
+ * device's Lique replaces the cloud profile (compare-and-swap against the
+ * cloud's current revision, so a change in between is still caught).
+ * Never for another account's local Lique.
+ */
+export async function keepLocalProfile(options: UploadOptions): Promise<UploadResult> {
+  const meta = await readOwnProfileMeta();
+  assertLocalProfileOwner(meta, options.userId, { allowUnlinked: true });
+  const head = await options.cloud.head(options.userId);
+  await writeOwnProfileMeta({ ...meta, ownerUserId: options.userId, baseRevision: head?.revision ?? 0, dirty: true });
+  return uploadOwnProfile(options);
+}
+
+/**
+ * The user's explicit choice "Use cloud profile": the account's cloud profile
+ * replaces this device's Lique (profile data only — queue, history and device
+ * settings stay). Never for another account's local Lique.
+ */
+export async function useCloudProfile({ userId, cloud }: { userId: string; cloud: CloudProfileStore }): Promise<{ revision: number }> {
+  return downloadOwnProfile({ userId, cloud, explicit: true });
 }
 
 /**

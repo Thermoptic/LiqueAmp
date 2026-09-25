@@ -163,6 +163,8 @@ The exact visual design should follow the existing LiqueAmp design language.
 
 # 5. Friend vs Friend Lique
 
+> **Obsolete two-way arrow (D12, D17):** the relationship is one-way, not `Johan ↕ Pelle`. If Johan adds Pelle, Johan can view and activate Pelle's Lique; Pelle gains nothing unless Pelle adds Johan.
+
 These concepts must remain separate.
 
 ## Friend
@@ -405,7 +407,7 @@ However, privacy rules must still be respected.
 
 # 13. Profile Visibility
 
-> **Decided (D12):** a Lique is private by default; access comes from the one-way Friend Liques relationship, is read-only, and Block overrides it. No PUBLIC profiles and no per-item privacy in the first implementation.
+> **Decided (D12):** a Lique is private by default. When A adds B, A gains read-only access to B's Lique (one-way); "accepted friends" below no longer exists. Block overrides access. No PUBLIC profiles and no per-item privacy in the first implementation.
 
 The architecture should support profile visibility.
 
@@ -740,6 +742,8 @@ Cloud Profile
 ```
 
 ### Phase 4
+
+> **Obsolete (D17):** no Accept/Decline and no requests. Friend operations are Add (immediate, one-way), Remove and Block.
 
 Friend Relationships
 

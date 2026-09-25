@@ -876,6 +876,8 @@ Friend profile payloads should be significantly smaller and predictable.
 
 # 36. Profile Ownership
 
+> **Obsolete wording (D12, D17):** nobody "accepts" anyone. Johan may read Pelle's profile because **Johan added Pelle** (one-way). Pelle still owns it; Pelle can Block Johan to stop that access.
+
 Every cloud profile belongs to exactly one account.
 
 Example:

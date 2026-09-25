@@ -17,7 +17,7 @@ import { useSettings } from '../stores/settingsStore';
 import { useThemes } from '../stores/themeStore';
 import { wireSystemListeners } from '../stores/systemStore';
 import { useAccount } from '../stores/accountStore';
-import { createLocalAccountProvider } from '../services/account/account';
+import { createCloudServices } from '../services/cloud';
 import { startDirtyTracking } from '../services/sync/ownProfileMeta';
 
 /** Applies the active theme, glow level and motion preference to <html>. */
@@ -46,8 +46,9 @@ export async function bootstrap(): Promise<void> {
   wireSystemListeners();
   // own-profile changes mark the profile as changed since the last sync (profile.meta.dirty)
   startDirtyTracking();
-  // Accounts are optional; without a configured backend LiqueAmp runs as a local app.
-  void useAccount.getState().init(createLocalAccountProvider());
+  // Accounts are optional (D16): Supabase when this build is configured for it,
+  // otherwise none. Never awaited — the player starts without the network.
+  void createCloudServices().then(({ provider, cloud, problem }) => useAccount.getState().init(provider, cloud, problem));
   await Promise.race([hydrateAll(), new Promise((resolve) => setTimeout(resolve, 2000))]);
   syncAppearance();
   getEngine(); // after hydration, so the saved volume applies from the start

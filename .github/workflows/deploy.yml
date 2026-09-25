@@ -34,6 +34,13 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          # Public Supabase configuration (D16). Only the project URL and the
+          # PUBLISHABLE key — never a secret key. Set them as repository
+          # variables (Settings › Secrets and variables › Actions › Variables).
+          # Unset = LiqueAmp is built without accounts and works fully locally.
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

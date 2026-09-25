@@ -149,21 +149,20 @@ describe('decideSync', () => {
   const meta = (m: Partial<OwnProfileMeta>): OwnProfileMeta => ({ ...UNLINKED_META, ...m });
   const head = (revision: number): CloudProfileHead => ({ revision, updatedAt: now });
   it.each([
-    ['own, clean, cloud unchanged', meta({ ownerUserId: 'user-a', baseRevision: 4 }), head(4), 'sign-in', true, 'in-sync'],
-    ['own, dirty, cloud unchanged', meta({ ownerUserId: 'user-a', baseRevision: 4, dirty: true }), head(4), 'sign-in', true, 'upload'],
-    ['own, clean, cloud newer', meta({ ownerUserId: 'user-a', baseRevision: 4 }), head(6), 'sign-in', true, 'download'],
-    ['own, dirty, cloud newer', meta({ ownerUserId: 'user-a', baseRevision: 4, dirty: true }), head(6), 'sign-in', true, 'conflict'],
-    ['own, cloud behind the local base', meta({ ownerUserId: 'user-a', baseRevision: 4 }), head(2), 'sign-in', true, 'conflict'],
-    ['own, no cloud profile', meta({ ownerUserId: 'user-a', baseRevision: 0, dirty: true }), null, 'sign-in', true, 'upload'],
-    ['another account’s local Lique', meta({ ownerUserId: 'user-b', baseRevision: 9 }), head(4), 'sign-in', true, 'blocked-other-account'],
-    ['another account’s local Lique at sign-up', meta({ ownerUserId: 'user-b' }), null, 'sign-up', true, 'blocked-other-account'],
-    ['sign-up with a local Lique', meta({}), null, 'sign-up', true, 'adopt-and-upload'],
-    ['sign-up, but the account already has a cloud profile', meta({}), head(1), 'sign-up', true, 'resolve-local'],
-    ['sign-in on an empty device', meta({}), head(3), 'sign-in', false, 'download'],
-    ['sign-in on a device with its own unlinked Lique', meta({}), head(3), 'sign-in', true, 'resolve-local'],
-    ['sign-in, unlinked Lique, no cloud profile', meta({}), null, 'sign-in', true, 'resolve-local'],
-  ] as const)('%s → %s', (_, m, h, ctx, hasData, expected) => {
-    expect(decideSync(m, 'user-a', h, ctx, hasData)).toBe(expected);
+    ['own, clean, cloud unchanged', meta({ ownerUserId: 'user-a', baseRevision: 4 }), head(4), true, 'in-sync'],
+    ['own, dirty, cloud unchanged', meta({ ownerUserId: 'user-a', baseRevision: 4, dirty: true }), head(4), true, 'upload'],
+    ['own, clean, cloud newer', meta({ ownerUserId: 'user-a', baseRevision: 4 }), head(6), true, 'download'],
+    ['own, dirty, cloud newer', meta({ ownerUserId: 'user-a', baseRevision: 4, dirty: true }), head(6), true, 'conflict'],
+    ['own, cloud behind the local base', meta({ ownerUserId: 'user-a', baseRevision: 4 }), head(2), true, 'conflict'],
+    ['own, no cloud profile', meta({ ownerUserId: 'user-a', baseRevision: 0, dirty: true }), null, true, 'upload'],
+    ['another account’s local Lique', meta({ ownerUserId: 'user-b', baseRevision: 9 }), head(4), true, 'blocked-other-account'],
+    ['another account’s local Lique, account without cloud profile', meta({ ownerUserId: 'user-b' }), null, true, 'blocked-other-account'],
+    ['first login with a local Lique (D7)', meta({}), null, true, 'adopt-and-upload'],
+    ['first login on an empty device, no cloud profile', meta({}), null, false, 'adopt-and-upload'],
+    ['login on an empty device, account has a cloud profile', meta({}), head(3), false, 'download'],
+    ['login on a device with its own unlinked Lique, account has a cloud profile', meta({}), head(3), true, 'resolve-local'],
+  ] as const)('%s → %s', (_, m, h, hasData, expected) => {
+    expect(decideSync(m, 'user-a', h, hasData)).toBe(expected);
   });
 });
 
@@ -261,7 +260,7 @@ describe('cloud profile on another device (D8)', () => {
     await kv.set('queue', { ...queue, entries: [{ entryId: 'other', item: media('other') }] });
     await personalRepositories.history.put({ ...historyEntry, id: 'h-device2' });
 
-    const r = await syncOwnProfile({ userId: A.userId, username: A.username, cloud, settings: settings(), context: 'sign-in' });
+    const r = await syncOwnProfile({ userId: A.userId, username: A.username, cloud, settings: settings() });
     expect(r).toEqual({ status: 'downloaded', revision: 1 });
     expect((await repositories.media.getAll()).map((m) => m.id).sort()).toEqual(['m1', 'm2']);
     expect(await profileKvFor(MY_LIQUE).get('settings')).toMatchObject({ activeThemeId: 'base16-nord' });
@@ -275,13 +274,13 @@ describe('cloud profile on another device (D8)', () => {
     const cloud = await accountWithCloudProfile();
     const text = cloud.rows.get('user-a')!.text.replace('"m2"', '"m2-renamed"');
     await cloud.upload('user-a', { text, summary: {} as never, expectedRevision: 1 });
-    expect(await syncOwnProfile({ userId: A.userId, username: A.username, cloud, settings: settings(), context: 'sign-in' })).toEqual({ status: 'downloaded', revision: 2 });
+    expect(await syncOwnProfile({ userId: A.userId, username: A.username, cloud, settings: settings() })).toEqual({ status: 'downloaded', revision: 2 });
     expect((await repositories.media.getAll()).map((m) => m.id).sort()).toEqual(['m1', 'm2-renamed']);
 
     await cloud.upload('user-a', { text, summary: {} as never, expectedRevision: 2 });
     await repositoriesFor(MY_LIQUE).media.put(media('local-edit'));
     const before = await dumpDb();
-    expect(await syncOwnProfile({ userId: A.userId, username: A.username, cloud, settings: settings(), context: 'sign-in' })).toMatchObject({ status: 'conflict' });
+    expect(await syncOwnProfile({ userId: A.userId, username: A.username, cloud, settings: settings() })).toMatchObject({ status: 'conflict' });
     await expect(downloadOwnProfile({ userId: A.userId, cloud })).rejects.toThrow(/not synced/);
     expect(await dumpDb()).toEqual(before);
   });
@@ -308,7 +307,7 @@ describe('Account A’s local Lique is never mixed with Account B (ownership gua
     const localBefore = await dumpDb();
     const bCloudBefore = cloud.rows.get('user-b');
 
-    expect(await syncOwnProfile({ userId: B.userId, username: B.username, cloud, settings: settings(), context: 'sign-in' })).toEqual({ status: 'blocked-other-account' });
+    expect(await syncOwnProfile({ userId: B.userId, username: B.username, cloud, settings: settings() })).toEqual({ status: 'blocked-other-account' });
     await expect(uploadOwnProfile({ userId: B.userId, username: B.username, cloud, settings: settings() })).rejects.toThrow(/another account/);
     await expect(downloadOwnProfile({ userId: B.userId, cloud })).rejects.toThrow(/another account/);
     await expect(adoptLocalProfile({ userId: B.userId, username: B.username, cloud, settings: settings() })).rejects.toThrow(/another account/);
@@ -324,7 +323,7 @@ describe('Account A’s local Lique is never mixed with Account B (ownership gua
     const cloud = fakeCloud();
     await cloud.upload('user-b', { text: JSON.stringify({ format: PROFILE_FORMAT, meta: { schemaVersion: 1, ownerUserId: 'user-b', revision: 1, updatedAt: now, visibility: 'PRIVATE' }, data: {} }), summary: {} as never, expectedRevision: 0 });
     const before = await dumpDb();
-    expect(await syncOwnProfile({ userId: B.userId, username: B.username, cloud, settings: settings(), context: 'sign-in' })).toEqual({ status: 'resolve-local' });
+    expect(await syncOwnProfile({ userId: B.userId, username: B.username, cloud, settings: settings() })).toEqual({ status: 'resolve-local' });
     await expect(downloadOwnProfile({ userId: B.userId, cloud })).rejects.toThrow(/its own LiqueAmp/);
     await expect(uploadOwnProfile({ userId: B.userId, username: B.username, cloud, settings: settings() })).rejects.toThrow(/not linked/);
     expect(await dumpDb()).toEqual(before);
@@ -337,13 +336,16 @@ function fakeProvider(user: AccountUser | null, cloud?: ReturnType<typeof fakeCl
   let listener: ((s: AccountState) => void) | null = null;
   let current = user;
   const calls: string[] = [];
+  const session = () => (current ? { user: current, authMethod: 'github' as const } : null);
   const provider: AccountProvider = {
     id: 'fake',
     available: true,
-    getSession: async () => (current ? { user: current } : null),
+    getState: async () => (current ? { status: 'signed-in', session: session()! } : { status: 'signed-out' }),
+    getSession: async () => session(),
     getCurrentUser: async () => current,
-    signUp: async (req) => ({ user: { userId: 'new', username: req.username } }),
-    signIn: async () => ({ user: user! }),
+    signIn: async () => undefined,
+    signUp: async () => undefined,
+    claimUsername: async () => session()!,
     signOut: async () => {
       calls.push('signOut');
       current = null;
@@ -369,7 +371,7 @@ describe('Log out and Delete account', () => {
     await adoptLocalProfile({ userId: A.userId, username: A.username, cloud, settings: settings() });
     const { provider, calls } = fakeProvider(A);
     await useAccount.getState().init(provider, cloud);
-    expect(useAccount.getState().state).toEqual({ status: 'signed-in', session: { user: A } });
+    expect(useAccount.getState().state).toEqual({ status: 'signed-in', session: { user: A, authMethod: 'github' } });
 
     const before = await dumpDb();
     const stores = [useSettings, useThemes, useLibrary, usePlaylists, useFavorites, useQueue, useHistory].map((s) => JSON.stringify(s.getState()));
@@ -380,7 +382,7 @@ describe('Log out and Delete account', () => {
     expect([useSettings, useThemes, useLibrary, usePlaylists, useFavorites, useQueue, useHistory].map((s) => JSON.stringify(s.getState()))).toEqual(stores);
 
     // logging in again as A continues where it was
-    expect(await syncOwnProfile({ userId: A.userId, username: A.username, cloud, settings: settings(), context: 'sign-in' })).toEqual({ status: 'in-sync' });
+    expect(await syncOwnProfile({ userId: A.userId, username: A.username, cloud, settings: settings() })).toEqual({ status: 'in-sync' });
   });
 
   it('delete account needs confirmation, removes the cloud profile, and keeps the local Lique (D15)', async () => {

@@ -718,6 +718,42 @@
   margin-top: var(--la-space-2);
 }
 
+.account__sync {
+  margin: var(--la-space-2) 0 0;
+  display: grid;
+  gap: var(--la-space-2);
+}
+
+.account__sync p {
+  margin: 0;
+}
+
+.account__findings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--la-space-1);
+}
+
+.account__findings li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--la-space-2);
+  align-items: center;
+}
+
+.username-field {
+  display: flex;
+  align-items: center;
+  gap: var(--la-space-1);
+}
+
+.username-field__at {
+  color: var(--la-accent);
+  font-weight: 700;
+}
+
 .status-bar__control {
   margin-left: auto;
   color: var(--la-link);

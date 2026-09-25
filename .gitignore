@@ -6,6 +6,7 @@ coverage/
 .vite/
 e2e/output/
 
-# local environment overrides (see .env.example)
-.env.local
-.env.*.local
+# environment files (see .env.example; only public values belong there anyway)
+.env
+.env.*
+!.env.example

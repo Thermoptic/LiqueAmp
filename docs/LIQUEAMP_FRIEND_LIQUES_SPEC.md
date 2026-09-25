@@ -13,7 +13,7 @@
 > `docs/LIQUEAMP_IMPLEMENTATION_PLAN.md` §30 apply:
 > - FRIEND LIQUES replaces Quick Actions on Home (Checkpoint 3 freed the `.area-actions` slot).
 > - An **Add Friend icon sits in the top-right** of the Friend Liques panel. The user enters a username; the person is added **immediately**: no request, no accept/decline (D17).
-> - Relationships are **one-way**. Remove Friend removes the person from the viewer's list only. Block is stronger and prevents the blocked user from accessing the blocker's Lique; blocking overrides normal access.
+> - Relationships are **one-way**: when A adds B, A gains read-only access to B's Lique; B does not gain access to A's (D12). Remove Friend removes the person from the viewer's list only. Block is stronger and prevents the blocked user from accessing the blocker's Lique; blocking overrides normal access.
 > - List rows: `● @alice  Online  [ ▶ ]` / `○ @bob  Offline  [ ▶ ]`; the ▶ button activates that person's Lique. Only one Friend Lique is active at a time; while one is active: `[ RETURN TO MY LIQUE ]`.
 > - No avatars; the username is the visual identity (D10). Online = LiqueAmp is open, offline = not (D11). Offline friends' cached Liques can still be activated.
 > - A Friend Lique is read-only; queue and history stay personal (unchanged).
@@ -156,6 +156,8 @@ The panel should provide:
 ---
 
 # 6. Friend List
+
+> **Obsolete wording (D17):** there is no "accepted" state. Everyone the user has added appears in the list. When A adds B, A gains read-only access to B's Lique; B gains nothing automatically (one-way, D12). There are no requests (D17).
 
 Each accepted friend should appear in the Friend Liques list.
 
@@ -730,7 +732,7 @@ Client-side UI hiding is not sufficient.
 
 # 29. Privacy
 
-> **Decided (D12):** private by default; access through the one-way Friend Liques relationship only, read-only; Block overrides. No per-item visibility in the first implementation. See the open clarification under D12 about the direction of access.
+> **Decided (D12):** private by default; access through the one-way Friend Liques relationship only, read-only; Block overrides. No per-item visibility in the first implementation. Direction (D12, locked 2026-09-25): the person who adds gains read-only access to the person they add.
 
 Friend Liques must respect:
 
@@ -1322,6 +1324,8 @@ Client cannot bypass permission checks.
 ---
 
 # 51. Definition of Done
+
+> **Obsolete items (D17):** items 4–5 (friend requests, accepted friends) no longer apply. Instead: Add Friend by username adds immediately and one-way; Remove Friend and Block work.
 
 Friend Liques are considered complete when:
 
