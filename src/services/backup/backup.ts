@@ -4,11 +4,11 @@
 // failure leaves the existing data exactly as it was.
 import { mediaIdentity } from '../../stores/libraryStore';
 import { pickSettings, sanitizeSettings } from '../../stores/settingsStore';
-import { pickDeviceSettings, pickProfileSettings, type Settings } from '../../types/settings';
+import { DEFAULT_SETTINGS, pickDeviceSettings, pickProfileSettings, type Settings } from '../../types/settings';
 import type { Category, Favorite, HistoryEntry, MediaItem, Playlist, RadioStation } from '../../types/media';
 import type { LiqueAmpTheme } from '../../types/theme';
-import { profileKvKey, profileDb, repositories } from '../storage/repository';
-import { assertWritableScope } from '../storage/scope';
+import { profileDb, profileKvFor, profileKvKey, repositories } from '../storage/repository';
+import { assertWritableScope, MY_LIQUE, type ProfileScope } from '../storage/scope';
 import { validCategory, validFavorite, validHistory, validMedia, validPlaylist, validStation, validTheme } from './validate';
 
 export const BACKUP_FORMAT = 'liqueamp-backup';
@@ -37,10 +37,24 @@ export interface BackupFile {
 }
 
 /**
- * Collects everything from local storage. There are no secrets or tokens
+ * Profile settings of the user's own profile. `settings` is normally the
+ * settings store; if the store holds a friend's profile (its profileScope),
+ * the own profile settings are read from storage instead, so a backup never
+ * carries a friend's settings.
+ */
+async function ownProfileSettings(settings: Settings & { profileScope?: ProfileScope }): Promise<Partial<Settings>> {
+  if (!settings.profileScope || settings.profileScope.kind === 'own') return pickProfileSettings(settings);
+  const stored = await profileKvFor(MY_LIQUE).get<Partial<Settings>>('settings');
+  return pickProfileSettings({ ...DEFAULT_SETTINGS, ...sanitizeSettings(stored) });
+}
+
+/**
+ * Collects the user's own data from local storage (MY_LIQUE + personal
+ * history), whichever profile is active. There are no secrets or tokens
  * anywhere in LIQUEAMP's data, so nothing needs to be stripped (MASTER §35).
  */
 export async function createBackup(settings: Settings, { includeHistory }: { includeHistory: boolean }): Promise<BackupFile> {
+  const profileSettings = await ownProfileSettings(settings);
   const [themes, categories, media, playlists, favorites, stations, history] = await Promise.all([
     repositories.themes.getAll(),
     repositories.categories.getAll(),
@@ -55,7 +69,7 @@ export async function createBackup(settings: Settings, { includeHistory }: { inc
     version: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
     app: 'LIQUEAMP',
-    data: { settings: pickSettings(settings), themes: themes.filter((t) => t.source !== 'builtin'), categories, media, playlists, favorites, stations, ...(history ? { history } : {}) },
+    data: { settings: { ...pickSettings(settings), ...profileSettings }, themes: themes.filter((t) => t.source !== 'builtin'), categories, media, playlists, favorites, stations, ...(history ? { history } : {}) },
   };
 }
 
@@ -276,9 +290,11 @@ export function planImport(backup: ParsedBackup, existing: ExistingData, options
  * clear back too. The queue is never touched.
  */
 export async function applyImport(plan: ImportPlan, mode: ImportMode): Promise<void> {
-  // An import writes into the user's own profile; never into a friend's.
+  // An import always writes into the user's own profile (and personal
+  // history), never into a friend's. While a friend's profile is active it is
+  // refused, so the user cannot mistake where the data went.
   assertWritableScope();
-  const db = await profileDb();
+  const db = await profileDb(MY_LIQUE);
   if (!db) throw new Error('Local storage is unavailable, so nothing was imported or changed.');
   const { write } = plan;
   const stores = ['themes', 'categories', 'media', 'playlists', 'favorites', 'stations', 'kv', 'history'] as const;

@@ -1344,3 +1344,53 @@ The profile model is the foundation.
 Friend Liques are a read-only window into another user's profile.
 
 The user's own Lique remains the authoritative personal environment.
+
+---
+
+# 30. Decision Log
+
+## D1 — Physical profile storage strategy
+
+**Decided:** 2026-09-25, Checkpoint 2.
+**Choice:** Option B — **one IndexedDB database per profile.**
+
+### Why
+
+| Criterion | A: one database, scope in every record | B: one database per profile (chosen) |
+|---|---|---|
+| Migration risk | Every existing record's key would have to be rewritten to include a scope (keyPath `id` → `[scope, id]`) in a `DB_VERSION` 2 upgrade. | **None.** `MY_LIQUE` is the existing `liqueamp` database, unchanged; no record is touched. |
+| Accidental cross-profile writes | Possible with any query that forgets the scope filter. | **Impossible at the connection level:** a friend database connection cannot reach the own database, and vice versa. |
+| Personal data in a friend profile | Needs a rule. | **Impossible by schema:** friend databases have no `history` store; the queue lives in the own `kv`. |
+| Deleting a cached friend | Delete every record of that scope in every store. | **One `indexedDB.deleteDatabase()`.** |
+| Offline / no backend | Yes | Yes |
+| Duplicated implementation | — | The existing repository code is reused unchanged; only the database it opens differs. |
+
+### How scopes are represented
+
+- `ProfileScope` (`src/services/storage/scope.ts`): `{ kind: 'own' }` (`MY_LIQUE`) or `{ kind: 'friend', userId }`; text id `own` / `friend:<userId>`.
+- The active scope is session state only (never stored): a reload always starts in `MY_LIQUE`.
+- Databases (`src/services/storage/db.ts`):
+  - `MY_LIQUE` → `liqueamp` (version 1, all stores: profile data, `history`, `kv` with device settings, queue and `profile.settings`).
+  - `FRIEND:<userId>` → `liqueamp-friend:<userId>` (own version counter, profile stores + `kv` only). User ids are restricted to `[A-Za-z0-9_-]{1,128}` because they become part of a database name.
+
+### How isolation is enforced
+
+1. **Scope-bound repositories.** `repositoriesFor(scope)` / `profileKvFor(scope)` are bound to one scope for their whole life. A friend scope reads only its own database; there is no fallback to `MY_LIQUE`.
+2. **Not available is explicit.** Opening a friend database that does not exist aborts the open (so no empty database is created) and throws `ProfileNotAvailableError`.
+3. **Friend scopes are read-only.** Every write through a friend-bound repository or `profileKvFor(friend)` throws `ProfileScopeError`. Writes are never redirected.
+4. **Stores bind to the scope they were hydrated from** (`scope` / `profileScope` in the settings, theme, library, playlist and favourites stores). Data read from one profile can only be written back to that profile — even if the active scope changes before the store is rehydrated. A hydrate that finishes after the active scope changed is discarded.
+5. **"My data" is explicit.** `repositories` = `MY_LIQUE` + personal history; backup export and import planning use it. `createBackup` never exports a friend's profile settings. `applyImport` writes `MY_LIQUE` only and is refused while a friend scope is active.
+6. **Personal data never follows the scope:** `personalRepositories.history` and `kv` (device settings, queue) always open the own database.
+7. **One writer for friend databases:** `writeFriendProfileCache()` (`src/services/profile/profileCache.ts`). It accepts only a `ParsedProfile` (i.e. output of `parseProfile` validation), refuses a profile owned by someone else, and replaces the copy in one transaction (a failure keeps the previous copy).
+
+### How friend profiles will be cached later
+
+Fetch (later checkpoint) → `parseProfile` (validate, drop history and device settings) → `writeFriendProfileCache(userId, parsed)`. The copy stores the profile metadata (`revision`, `ownerUserId`, `updatedAt`, `visibility`) plus `cachedAt` under `profile.meta`, so staleness can be detected by comparing revisions (`readFriendProfileCacheMeta`). A newer revision replaces the copy completely.
+
+### Deletion / cleanup
+
+`deleteFriendProfileCache(userId)` deletes the friend's database. It is refused while that friend's scope is active (return to `MY_LIQUE` first, as required by FRIEND_LIQUES_SPEC §27). Open connections are closed first; another tab holding the database is asked to let go (`blocking`).
+
+### Migration implications
+
+None for existing installations: the `liqueamp` database, its schema version and its records are unchanged. Checkpoint 1's settings migration still runs, only in `MY_LIQUE`, never in a friend scope. A future schema change to friend databases uses their own version counter (`FRIEND_DB_VERSION`), independent of `DB_VERSION`.

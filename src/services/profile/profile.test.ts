@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { getDb, resetDbForTests } from '../storage/db';
-import { kv, profileKv, profileKvKey, repositories } from '../storage/repository';
+import { kv, profileKv, profileKvFor, profileKvKey, repositories, repositoriesFor } from '../storage/repository';
+import { ProfileNotAvailableError } from '../storage/db';
 import { MY_LIQUE, ProfileScopeError, getActiveScope, setActiveScope } from '../storage/scope';
 import { useSettings } from '../../stores/settingsStore';
 import { useThemes } from '../../stores/themeStore';
@@ -363,12 +364,13 @@ describe('profile scope', () => {
     await useSettings.getState().hydrate();
     const before = await dumpDb();
 
-    setActiveScope({ kind: 'friend', userId: 'user-2' });
-    await expect(repositories.playlists.put({ ...playlist, name: 'Changed' })).rejects.toBeInstanceOf(ProfileScopeError);
-    await expect(repositories.themes.delete('theme-mine')).rejects.toBeInstanceOf(ProfileScopeError);
-    await expect(profileKv.set('settings', { activeThemeId: 'amber-night' })).rejects.toBeInstanceOf(ProfileScopeError);
-    // friend data has no local storage yet: reads are refused too, never answered from the own profile
-    await expect(repositories.media.getAll()).rejects.toBeInstanceOf(ProfileScopeError);
+    const friend = { kind: 'friend', userId: 'user-2' } as const;
+    setActiveScope(friend);
+    await expect(repositoriesFor(friend).playlists.put({ ...playlist, name: 'Changed' })).rejects.toBeInstanceOf(ProfileScopeError);
+    await expect(repositoriesFor(friend).themes.delete('theme-mine')).rejects.toBeInstanceOf(ProfileScopeError);
+    await expect(profileKvFor(friend).set('settings', { activeThemeId: 'amber-night' })).rejects.toBeInstanceOf(ProfileScopeError);
+    // this friend's profile is not on the device: reads fail, never answered from the own profile
+    await expect(repositoriesFor(friend).media.getAll()).rejects.toBeInstanceOf(ProfileNotAvailableError);
     const parsed = parseBackup(JSON.stringify({ format: BACKUP_FORMAT, version: 1, data: { media: [media('x')] } }));
     if (!parsed.ok) throw new Error(parsed.error);
     await expect(applyImport(planImport(parsed.backup, { themes: [], categories: [], media: [], playlists: [], favorites: [], stations: [], history: [] }, { mode: 'merge', settings: false, history: false }), 'merge')).rejects.toBeInstanceOf(ProfileScopeError);

@@ -1,6 +1,6 @@
 import type { IDBPDatabase } from 'idb';
-import { getDb, type LiqueAmpDB, type StoreName } from './db';
-import { assertWritableScope, getActiveScope, ProfileScopeError, scopeId, type ProfileScope } from './scope';
+import { getDb, openFriendDb, type LiqueAmpDB, type ProfileStoreName, type StoreName } from './db';
+import { assertWritableScope, MY_LIQUE, scopeId, type ProfileScope } from './scope';
 
 type ValueOf<S extends StoreName> = LiqueAmpDB[S]['value'];
 
@@ -14,42 +14,35 @@ export interface Repository<T> {
 }
 
 /**
- * Where a repository's data lives:
- * - 'profile': belongs to the active profile scope (scope.ts); writes are
- *   refused while a read-only (friend) scope is active.
- * - 'personal': always the user's own (history), whatever profile is active.
+ * The database behind a profile scope (D1, docs/LIQUEAMP_IMPLEMENTATION_PLAN.md):
+ * MY_LIQUE is the existing `liqueamp` database; a friend scope is that
+ * friend's own cached-profile database. A friend scope never resolves to the
+ * own database: if the friend's profile is not on this device, this rejects
+ * with ProfileNotAvailableError.
  */
-export type RepositoryScope = 'profile' | 'personal';
-
-/**
- * The database behind a profile scope. MY_LIQUE is the existing `liqueamp`
- * database, unchanged. Friend scopes have no storage yet (a later checkpoint
- * decides how friend caches are stored), so they are refused rather than
- * silently falling back to the own database.
- */
-export function profileDb(scope: ProfileScope = getActiveScope()): Promise<IDBPDatabase<LiqueAmpDB> | null> {
-  if (scope.kind === 'own') return getDb();
-  return Promise.reject(new ProfileScopeError(`No local storage exists for the ${scopeId(scope)} profile yet.`));
+export function profileDb(scope: ProfileScope): Promise<IDBPDatabase<LiqueAmpDB> | null> {
+  return scope.kind === 'own' ? getDb() : openFriendDb(scope.userId, { create: false });
 }
+
+type Open = () => Promise<IDBPDatabase<LiqueAmpDB> | null>;
 
 /**
  * Storage-agnostic access to one object store (ARCH §26). When storage is
  * unavailable, reads return empty and writes are dropped; callers keep
- * working from in-memory state.
+ * working from in-memory state. `canWrite` runs before every write.
  */
-export function createRepository<S extends StoreName>(store: S, scope: RepositoryScope = 'profile'): Repository<ValueOf<S>> {
-  const read = () => (scope === 'profile' ? profileDb() : getDb());
+function repository<S extends StoreName>(store: S, open: Open, canWrite: () => void): Repository<ValueOf<S>> {
   const write = () => {
-    if (scope === 'profile') assertWritableScope();
-    return read();
+    canWrite();
+    return open();
   };
   return {
     async getAll() {
-      const db = await read();
+      const db = await open();
       return db ? ((await db.getAll(store)) as ValueOf<S>[]) : [];
     },
     async get(id) {
-      const db = await read();
+      const db = await open();
       return db ? ((await db.get(store, id)) as ValueOf<S> | undefined) : undefined;
     },
     async put(value) {
@@ -73,9 +66,44 @@ export function createRepository<S extends StoreName>(store: S, scope: Repositor
   };
 }
 
+export type ProfileRepositories = { readonly [S in ProfileStoreName]: Repository<ValueOf<S>> };
+
+const bound = new Map<string, ProfileRepositories>();
+
+/**
+ * Profile repositories bound to ONE scope for their whole life. Stores bind
+ * to the scope they were hydrated from, so data read from one profile can
+ * only ever be written back to that same profile, whatever becomes active in
+ * between. Friend scopes are read-only: every write throws ProfileScopeError.
+ */
+export function repositoriesFor(scope: ProfileScope): ProfileRepositories {
+  const id = scopeId(scope);
+  let repos = bound.get(id);
+  if (!repos) {
+    const open = () => profileDb(scope);
+    const canWrite = () => assertWritableScope(scope);
+    repos = Object.freeze({
+      media: repository('media', open, canWrite),
+      stations: repository('stations', open, canWrite),
+      categories: repository('categories', open, canWrite),
+      playlists: repository('playlists', open, canWrite),
+      favorites: repository('favorites', open, canWrite),
+      themes: repository('themes', open, canWrite),
+    });
+    bound.set(id, repos);
+  }
+  return repos;
+}
+
+/** Personal data: always the user's own, whatever profile is active. */
+export const personalRepositories = {
+  history: repository('history', getDb, () => undefined),
+};
+
 /**
  * Small key/value store for device and personal singletons: device settings
- * (`settings`) and the queue (`queue`). Never follows the profile scope.
+ * (`settings`) and the queue (`queue`). Always the own database; never
+ * follows the profile scope.
  */
 export const kv = {
   async get<T>(key: string): Promise<T | undefined> {
@@ -95,27 +123,35 @@ export const kv = {
 /** kv key of a profile singleton, e.g. profile settings → `profile.settings`. */
 export const profileKvKey = (key: string) => `profile.${key}`;
 
-/** Key/value singletons that belong to the active profile scope (profile settings). */
-export const profileKv = {
-  async get<T>(key: string): Promise<T | undefined> {
-    const db = await profileDb();
-    return db ? ((await db.get('kv', profileKvKey(key))) as T | undefined) : undefined;
-  },
-  async set<T>(key: string, value: T): Promise<void> {
-    assertWritableScope();
-    const db = await profileDb();
-    if (db) await db.put('kv', value, profileKvKey(key));
-  },
-};
+export interface ProfileKv {
+  get<T>(key: string): Promise<T | undefined>;
+  set<T>(key: string, value: T): Promise<void>;
+}
 
+/** Key/value singletons of one profile scope (profile settings, profile metadata). */
+export function profileKvFor(scope: ProfileScope): ProfileKv {
+  return {
+    async get<T>(key: string): Promise<T | undefined> {
+      const db = await profileDb(scope);
+      return db ? ((await db.get('kv', profileKvKey(key))) as T | undefined) : undefined;
+    },
+    async set<T>(key: string, value: T): Promise<void> {
+      assertWritableScope(scope);
+      const db = await profileDb(scope);
+      if (db) await db.put('kv', value, profileKvKey(key));
+    },
+  };
+}
+
+/** The user's own profile singletons (MY_LIQUE). */
+export const profileKv = profileKvFor(MY_LIQUE);
+
+/**
+ * The user's OWN data: MY_LIQUE's profile repositories plus personal history.
+ * Backup export, import planning and anything else that means "my data" use
+ * this; it never follows the active scope. Stores use repositoriesFor(scope).
+ */
 export const repositories = {
-  // profile data: follows the active profile scope
-  media: createRepository('media'),
-  stations: createRepository('stations'),
-  categories: createRepository('categories'),
-  playlists: createRepository('playlists'),
-  favorites: createRepository('favorites'),
-  themes: createRepository('themes'),
-  // personal data: always the user's own
-  history: createRepository('history', 'personal'),
+  ...repositoriesFor(MY_LIQUE),
+  ...personalRepositories,
 };

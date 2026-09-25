@@ -1,9 +1,12 @@
 import { create } from 'zustand';
 import { createId } from '../lib/id';
-import { repositories } from '../services/storage/repository';
+import { repositoriesFor } from '../services/storage/repository';
+import { getActiveScope, isActiveScope, MY_LIQUE, type ProfileScope } from '../services/storage/scope';
 import type { Category, MediaItem } from '../types/media';
 
 interface LibraryStore {
+  /** The profile scope this store was hydrated from; all its writes go there (never to another profile). */
+  scope: ProfileScope;
   categories: Category[];
   media: MediaItem[];
   hydrate(): Promise<void>;
@@ -34,16 +37,21 @@ export function mediaIdentity(item: MediaItem): string {
 
 const byOrder = (a: Category, b: Category) => a.sortOrder - b.sortOrder;
 
+/** Repositories of the profile this store holds — never simply the active one. */
+function repos() {
+  return repositoriesFor(useLibrary.getState().scope);
+}
+
 export const useLibrary = create<LibraryStore>((set, get) => ({
+  scope: MY_LIQUE,
   categories: [],
   media: [],
 
   async hydrate() {
-    const [categories, media] = await Promise.all([
-      repositories.categories.getAll(),
-      repositories.media.getAll(),
-    ]);
-    set({ categories: categories.sort(byOrder), media });
+    const scope = getActiveScope();
+    const [categories, media] = await Promise.all([repositoriesFor(scope).categories.getAll(), repositoriesFor(scope).media.getAll()]);
+    if (!isActiveScope(scope)) return; // the profile changed meanwhile; its own hydrate wins
+    set({ scope, categories: categories.sort(byOrder), media });
   },
 
   async addCategory(name) {
@@ -57,7 +65,7 @@ export const useLibrary = create<LibraryStore>((set, get) => ({
       enabled: true,
     };
     set({ categories: [...existing, category] });
-    await repositories.categories.put(category);
+    await repos().categories.put(category);
     return category;
   },
 
@@ -80,7 +88,7 @@ export const useLibrary = create<LibraryStore>((set, get) => ({
     list.splice(target, 0, item!);
     const reordered = list.map((c, i) => ({ ...c, sortOrder: i }));
     set({ categories: reordered });
-    await repositories.categories.putMany(reordered);
+    await repos().categories.putMany(reordered);
   },
 
   async addMedia(items) {
@@ -99,14 +107,14 @@ export const useLibrary = create<LibraryStore>((set, get) => ({
     });
     if (added.length) {
       set({ media: [...existing, ...added] });
-      await repositories.media.putMany(added);
+      await repos().media.putMany(added);
     }
     return result;
   },
 
   async removeMedia(id) {
     set({ media: get().media.filter((m) => m.id !== id) });
-    await repositories.media.delete(id);
+    await repos().media.delete(id);
   },
 
   async updateMedia(id, patch) {
@@ -114,7 +122,7 @@ export const useLibrary = create<LibraryStore>((set, get) => ({
     if (!current) return;
     const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
     set({ media: get().media.map((m) => (m.id === id ? next : m)) });
-    await repositories.media.put(next);
+    await repos().media.put(next);
   },
 
   getMedia(id) {
@@ -130,8 +138,8 @@ export const useLibrary = create<LibraryStore>((set, get) => ({
       categories: get().categories.filter((c) => c.id !== id),
       media: get().media.map((m) => (m.categoryId === id ? { ...m, categoryId: null } : m)),
     });
-    await repositories.categories.delete(id);
-    if (affected.length) await repositories.media.putMany(affected);
+    await repos().categories.delete(id);
+    if (affected.length) await repos().media.putMany(affected);
   },
 }));
 
@@ -141,7 +149,7 @@ async function updateCategory(id: string, patch: Partial<Category>) {
   if (!current) return;
   const next = { ...current, ...patch };
   useLibrary.setState({ categories: categories.map((c) => (c.id === id ? next : c)) });
-  await repositories.categories.put(next);
+  await repos().categories.put(next);
 }
 
 /** Real item counts per category, derived from library data (DESIGN §21). */

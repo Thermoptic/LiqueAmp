@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { kv, profileKv } from '../services/storage/repository';
+import { kv, profileKvFor } from '../services/storage/repository';
+import { getActiveScope, isActiveScope, isReadOnlyScope, MY_LIQUE, type ProfileScope } from '../services/storage/scope';
 import { sanitizeVisualizer } from '../types/visualizer';
 import { sanitizeAnalysis, sanitizeProviders, sanitizeRender } from '../types/advanced';
 import {
@@ -33,6 +34,8 @@ let legacyProfileFields: Partial<ProfileSettings> = {};
 
 interface SettingsStore extends Settings {
   hydrated: boolean;
+  /** The profile scope the profile settings were loaded from; profile-setting writes go there only. */
+  profileScope: ProfileScope;
   hydrate(): Promise<void>;
   update(patch: Partial<Settings>): void;
 }
@@ -47,17 +50,19 @@ export function pickSettings(s: Settings): Settings {
 const touches = (patch: Partial<Settings>, keys: readonly (keyof Settings)[]) => keys.some((k) => k in patch);
 
 /**
- * Reads both records and, the first time, migrates the profile fields out of
- * the old single record. Idempotent: once `profile.settings` exists, it is the
- * only source of profile settings and nothing is migrated again.
+ * Reads the device record (always this device's) and the profile record of
+ * `scope`. In the own profile, the first time, the profile fields are
+ * migrated out of the old single record. Idempotent: once `profile.settings`
+ * exists, it is the only source of profile settings and nothing is migrated
+ * again. A friend's profile is never migrated into or written to.
  */
-export async function loadSettings(): Promise<Partial<Settings>> {
+export async function loadSettings(scope: ProfileScope = MY_LIQUE): Promise<Partial<Settings>> {
   const device = await kv.get<Partial<Settings>>(DEVICE_KEY);
-  let profile = await profileKv.get<Partial<Settings>>(PROFILE_KEY);
+  let profile = await profileKvFor(scope).get<Partial<Settings>>(PROFILE_KEY);
   legacyProfileFields = device && typeof device === 'object' ? pickProfileSettings(device) : {};
-  if (profile === undefined && Object.keys(legacyProfileFields).length > 0) {
+  if (!isReadOnlyScope(scope) && profile === undefined && Object.keys(legacyProfileFields).length > 0) {
     profile = sanitizeSettings(legacyProfileFields);
-    await profileKv.set(PROFILE_KEY, pickProfileSettings(profile));
+    await profileKvFor(scope).set(PROFILE_KEY, pickProfileSettings(profile));
   }
   return {
     ...pickDeviceSettings(sanitizeSettings(device)),
@@ -70,16 +75,21 @@ function saveDevice(s: Settings): Promise<void> {
   return kv.set(DEVICE_KEY, { ...legacyProfileFields, ...pickDeviceSettings(s) });
 }
 
-function saveProfile(s: Settings): Promise<void> {
-  return profileKv.set(PROFILE_KEY, pickProfileSettings(s));
+function saveProfile(scope: ProfileScope, s: Settings): Promise<void> {
+  // rejects with ProfileScopeError for a friend's (read-only) profile
+  return profileKvFor(scope).set(PROFILE_KEY, pickProfileSettings(s));
 }
 
 export const useSettings = create<SettingsStore>((set, get) => ({
   ...DEFAULT_SETTINGS,
   hydrated: false,
+  profileScope: MY_LIQUE,
 
   async hydrate() {
-    set({ ...DEFAULT_SETTINGS, ...(await loadSettings()), hydrated: true });
+    const scope = getActiveScope();
+    const loaded = await loadSettings(scope);
+    if (!isActiveScope(scope)) return; // the profile changed meanwhile; its own hydrate wins
+    set({ ...DEFAULT_SETTINGS, ...loaded, hydrated: true, profileScope: scope });
   },
 
   update(patch) {
@@ -88,7 +98,11 @@ export const useSettings = create<SettingsStore>((set, get) => ({
     // Each half is written only when it changed, to its own record.
     const s = pickSettings(get());
     if (touches(patch, DEVICE_SETTING_KEYS)) void saveDevice(s);
-    if (touches(patch, PROFILE_SETTING_KEYS)) void saveProfile(s);
+    if (touches(patch, PROFILE_SETTING_KEYS)) {
+      // A friend's profile is read-only: the write is refused (never redirected
+      // to the own profile) and reported, not silently dropped.
+      saveProfile(get().profileScope, s).catch((err: unknown) => console.error('Profile settings were not saved:', err));
+    }
   },
 }));
 

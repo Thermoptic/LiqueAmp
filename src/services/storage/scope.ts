@@ -49,6 +49,11 @@ export function onActiveScope(listener: (scope: ProfileScope) => void): () => vo
   return () => listeners.delete(listener);
 }
 
+/** Whether `scope` is (still) the active scope — e.g. after an await. */
+export function isActiveScope(scope: ProfileScope): boolean {
+  return scopeId(scope) === scopeId(active);
+}
+
 /** Throws unless profile data may be written in the active scope. */
 export function assertWritableScope(scope: ProfileScope = active): void {
   if (isReadOnlyScope(scope)) throw new ProfileScopeError(`The ${scopeId(scope)} profile is read-only.`);

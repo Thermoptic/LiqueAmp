@@ -1,10 +1,13 @@
 import { create } from 'zustand';
 import { createId, nowIso } from '../lib/id';
-import { repositories } from '../services/storage/repository';
+import { repositoriesFor } from '../services/storage/repository';
+import { getActiveScope, isActiveScope, MY_LIQUE, type ProfileScope } from '../services/storage/scope';
 import type { MediaItem, Playlist } from '../types/media';
 import { useLibrary } from './libraryStore';
 
 interface PlaylistStore {
+  /** The profile scope this store was hydrated from; all its writes go there (never to another profile). */
+  scope: ProfileScope;
   playlists: Playlist[];
   hydrate(): Promise<void>;
   create(name: string, items?: MediaItem[]): Promise<Playlist>;
@@ -28,9 +31,11 @@ function requireName(name: string): string {
  * media itself lives once in the library (PROVIDERS §37).
  */
 export const usePlaylists = create<PlaylistStore>((set, get) => {
+  /** Repositories of the profile this store holds — never simply the active one. */
+  const repos = () => repositoriesFor(get().scope);
   async function save(next: Playlist) {
     set({ playlists: get().playlists.map((p) => (p.id === next.id ? next : p)) });
-    await repositories.playlists.put(next);
+    await repos().playlists.put(next);
   }
   function find(id: string): Playlist {
     const p = get().playlists.find((x) => x.id === id);
@@ -39,11 +44,15 @@ export const usePlaylists = create<PlaylistStore>((set, get) => {
   }
 
   return {
+    scope: MY_LIQUE,
     playlists: [],
 
     async hydrate() {
-      const stored = await repositories.playlists.getAll();
+      const scope = getActiveScope();
+      const stored = await repositoriesFor(scope).playlists.getAll();
+      if (!isActiveScope(scope)) return; // the profile changed meanwhile; its own hydrate wins
       set({
+        scope,
         playlists: stored
           .filter((p) => p && typeof p.id === 'string' && Array.isArray(p.items))
           .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
@@ -61,7 +70,7 @@ export const usePlaylists = create<PlaylistStore>((set, get) => {
         updatedAt: now,
       };
       set({ playlists: [...get().playlists, playlist] });
-      await repositories.playlists.put(playlist);
+      await repos().playlists.put(playlist);
       return playlist;
     },
 
@@ -71,7 +80,7 @@ export const usePlaylists = create<PlaylistStore>((set, get) => {
 
     async remove(id) {
       set({ playlists: get().playlists.filter((p) => p.id !== id) });
-      await repositories.playlists.delete(id);
+      await repos().playlists.delete(id);
     },
 
     async addItems(id, items) {

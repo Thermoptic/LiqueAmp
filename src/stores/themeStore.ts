@@ -1,12 +1,15 @@
 import { create } from 'zustand';
 import { BUILTIN_THEMES, LIQUEAMP_DEFAULT } from '../services/themes/builtin';
 import { normalizeTheme } from '../services/themes/theme';
-import { repositories } from '../services/storage/repository';
+import { repositoriesFor } from '../services/storage/repository';
+import { getActiveScope, isActiveScope, isReadOnlyScope, MY_LIQUE, type ProfileScope } from '../services/storage/scope';
 import { createId, nowIso } from '../lib/id';
 import type { LiqueAmpTheme } from '../types/theme';
 import { useSettings } from './settingsStore';
 
 interface ThemeStore {
+  /** The profile scope this store was hydrated from; all its writes go there (never to another profile). */
+  scope: ProfileScope;
   themes: LiqueAmpTheme[];
   hydrate(): Promise<void>;
   getTheme(id: string): LiqueAmpTheme;
@@ -18,16 +21,26 @@ interface ThemeStore {
   duplicateTheme(id: string): Promise<LiqueAmpTheme>;
 }
 
+/** Repositories of the profile this store holds — never simply the active one. */
+function repos() {
+  return repositoriesFor(useThemes.getState().scope);
+}
+
 export const useThemes = create<ThemeStore>((set, get) => ({
+  scope: MY_LIQUE,
   themes: [...BUILTIN_THEMES],
 
   async hydrate() {
-    const raw = await repositories.themes.getAll();
+    const scope = getActiveScope();
+    const raw = await repositoriesFor(scope).themes.getAll();
+    if (!isActiveScope(scope)) return; // the profile changed meanwhile; its own hydrate wins
     const stored = raw.map(normalizeTheme);
-    // Version-1 themes (25 free colors) are migrated to a Base16 palette once.
-    await Promise.all(stored.filter((_, i) => raw[i]!.version !== 2).map((t) => repositories.themes.put(t)));
+    // Version-1 themes (25 free colors) are migrated to a Base16 palette once —
+    // in the own profile only; a friend's cached profile is read-only (and
+    // already normalized when it was cached).
+    if (!isReadOnlyScope(scope)) await Promise.all(stored.filter((_, i) => raw[i]!.version !== 2).map((t) => repositoriesFor(scope).themes.put(t)));
     const builtinIds = new Set(BUILTIN_THEMES.map((t) => t.id));
-    set({ themes: [...BUILTIN_THEMES, ...stored.filter((t) => !builtinIds.has(t.id))] });
+    set({ scope, themes: [...BUILTIN_THEMES, ...stored.filter((t) => !builtinIds.has(t.id))] });
   },
 
   /** Unknown ids fall back to the default theme rather than failing. */
@@ -39,7 +52,7 @@ export const useThemes = create<ThemeStore>((set, get) => ({
     if (theme.source === 'builtin') throw new Error('Built-in themes are read-only.');
     const clean = normalizeTheme(theme);
     set({ themes: [...get().themes.filter((t) => t.id !== clean.id), clean] });
-    await repositories.themes.put(clean);
+    await repos().themes.put(clean);
   },
 
   async deleteTheme(id) {
@@ -47,7 +60,7 @@ export const useThemes = create<ThemeStore>((set, get) => ({
     if (!theme || theme.source === 'builtin') throw new Error('Built-in themes cannot be deleted.');
     if (useSettings.getState().activeThemeId === id) throw new Error('Activate another theme before deleting this one.');
     set({ themes: get().themes.filter((t) => t.id !== id) });
-    await repositories.themes.delete(id);
+    await repos().themes.delete(id);
   },
 
   async renameTheme(id, name) {
