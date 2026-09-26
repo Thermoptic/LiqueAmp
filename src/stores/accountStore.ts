@@ -78,6 +78,14 @@ let unsubscribe: (() => void) | null = null;
 let unsubscribeRecovery: (() => void) | null = null;
 let userSignedOut = false;
 
+/** Work that must finish while the session still exists, e.g. leaving a Friend Lique (checkpoint 9). */
+const beforeSignOut = new Set<() => Promise<unknown>>();
+export function onBeforeSignOut(task: () => Promise<unknown>): () => void {
+  beforeSignOut.add(task);
+  return () => beforeSignOut.delete(task);
+}
+const runBeforeSignOut = () => Promise.all([...beforeSignOut].map((task) => task().catch(() => undefined)));
+
 /** The signed-in user, or null. */
 export function accountUser(state: AccountState): AccountUser | null {
   return state.status === 'signed-in' ? state.session.user : null;
@@ -251,6 +259,7 @@ export const useAccount = create<AccountStore>((set, get) => {
 
     async signOut() {
       set({ error: null });
+      await runBeforeSignOut();
       userSignedOut = true;
       try {
         await provider.signOut();
@@ -266,6 +275,7 @@ export const useAccount = create<AccountStore>((set, get) => {
       if (!confirmed) throw new Error('Deleting an account must be confirmed.');
       const user = accountUser(get().state);
       if (!user) throw new Error('Not logged in.');
+      await runBeforeSignOut();
       userSignedOut = true;
       await cloudStore?.remove(user.userId);
       await provider.deleteAccount();

@@ -53,6 +53,14 @@ export function isItemFavorite(item: MediaItem, favorites: Favorite[], stations:
 export const myFavorites = (s: FavoritesStore): Favorite[] => (s.own ? s.own.favorites : s.favorites);
 export const myStations = (s: FavoritesStore): Record<string, RadioStation> => (s.own ? s.own.stations : s.stations);
 
+/** What the store shows for `scope`: its favourites and stations, plus MY_LIQUE's own favourites when `scope` is a friend's. */
+export async function readFavorites(scope: ProfileScope): Promise<Pick<FavoritesStore, 'favorites' | 'stations' | 'own'>> {
+  const load = (s: ProfileScope) => Promise.all([repositoriesFor(s).favorites.getAll(), repositoriesFor(s).stations.getAll()]);
+  const [[favorites, stations], own] = await Promise.all([load(scope), scope.kind === 'own' ? null : load(MY_LIQUE)]);
+  const shape = (f: Favorite[], s: RadioStation[]) => ({ favorites: f.sort((a, b) => b.addedAt.localeCompare(a.addedAt)), stations: Object.fromEntries(s.map((x) => [x.id, x])) });
+  return { ...shape(favorites, stations), own: own ? shape(own[0], own[1]) : null };
+}
+
 /** Repositories of the profile this store holds — never simply the active one. */
 function repos() {
   return repositoriesFor(useFavorites.getState().scope);
@@ -67,11 +75,9 @@ export const useFavorites = create<FavoritesStore>((set, get) => ({
 
   async hydrate() {
     const scope = getActiveScope();
-    const load = (s: ProfileScope) => Promise.all([repositoriesFor(s).favorites.getAll(), repositoriesFor(s).stations.getAll()]);
-    const [[favorites, stations], own] = await Promise.all([load(scope), scope.kind === 'own' ? null : load(MY_LIQUE)]);
+    const shown = await readFavorites(scope);
     if (!isActiveScope(scope)) return; // the profile changed meanwhile; its own hydrate wins
-    const shape = (f: Favorite[], s: RadioStation[]) => ({ favorites: f.sort((a, b) => b.addedAt.localeCompare(a.addedAt)), stations: Object.fromEntries(s.map((x) => [x.id, x])) });
-    set({ scope, ...shape(favorites, stations), own: own ? shape(own[0], own[1]) : null });
+    set({ scope, ...shown });
   },
 
   isFavorite(type, refId) {

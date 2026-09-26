@@ -37,6 +37,12 @@ export function mediaIdentity(item: MediaItem): string {
 
 const byOrder = (a: Category, b: Category) => a.sortOrder - b.sortOrder;
 
+/** The categories and media stored in `scope` (what the store shows for it). */
+export async function readLibrary(scope: ProfileScope): Promise<{ categories: Category[]; media: MediaItem[] }> {
+  const [categories, media] = await Promise.all([repositoriesFor(scope).categories.getAll(), repositoriesFor(scope).media.getAll()]);
+  return { categories: categories.sort(byOrder), media };
+}
+
 /** Repositories of the profile this store holds — never simply the active one. */
 function repos() {
   return repositoriesFor(useLibrary.getState().scope);
@@ -49,9 +55,9 @@ export const useLibrary = create<LibraryStore>((set, get) => ({
 
   async hydrate() {
     const scope = getActiveScope();
-    const [categories, media] = await Promise.all([repositoriesFor(scope).categories.getAll(), repositoriesFor(scope).media.getAll()]);
+    const library = await readLibrary(scope);
     if (!isActiveScope(scope)) return; // the profile changed meanwhile; its own hydrate wins
-    set({ scope, categories: categories.sort(byOrder), media });
+    set({ scope, ...library });
   },
 
   async addCategory(name) {

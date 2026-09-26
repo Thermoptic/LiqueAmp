@@ -181,3 +181,60 @@
 .status-bar__lique {
   color: var(--la-accent-bright);
 }
+
+.friend-lique-active__error {
+  margin: var(--la-space-1) 0 0;
+  color: inherit;
+  font-weight: 700;
+}
+
+/* the same state in the header, on every screen (checkpoint 9) */
+.app-header__lique {
+  background: var(--la-selection);
+  color: var(--la-on-selection);
+  border-color: var(--la-selection);
+}
+
+.app-header__lique-label {
+  font-family: var(--la-font-display);
+  font-size: var(--la-text-xs);
+  letter-spacing: 0.08em;
+}
+
+.app-header__lique-name {
+  max-width: 100%;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.app-header__lique-ro {
+  font-weight: 400;
+  font-size: var(--la-text-xs);
+}
+
+.app-header__lique-return {
+  padding-inline: 0;
+  color: inherit;
+}
+
+/* room for it on wide screens: the clock steps aside while a Friend Lique is shown */
+@media (min-width: 1200px) {
+  .app-header:has(.app-header__lique) .app-header__clock {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  /* its own row under the brand */
+  .app-header__lique {
+    order: 1; /* after the brand and ONLINE block, which keep their row */
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+  .app-header__lique-return {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+}

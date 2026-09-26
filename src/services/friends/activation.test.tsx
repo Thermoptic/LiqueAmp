@@ -28,6 +28,9 @@ import { useQueue } from '../../stores/queueStore';
 import { useHistory } from '../../stores/historyStore';
 import { useUi } from '../../stores/uiStore';
 import { FriendLiquesPanel } from '../../components/friends/FriendLiquesPanel';
+import { Header } from '../../components/layout/Header';
+import { accountError } from '../account/account';
+import { prepareFriendLique } from './activation';
 import { DEFAULT_SETTINGS, type Settings } from '../../types/settings';
 import type { Category, Favorite, HistoryEntry, MediaItem, Playlist, RadioStation } from '../../types/media';
 import type { LiqueAmpTheme } from '../../types/theme';
@@ -192,6 +195,15 @@ async function world() {
 }
 
 const activate = (id: string) => act(() => useFriends.getState().activate(id));
+
+/** Makes reads of one object store in friend databases fail (a storage error while switching). */
+function failFriendReads(store: string) {
+  const getAll = IDBObjectStore.prototype.getAll;
+  return vi.spyOn(IDBObjectStore.prototype, 'getAll').mockImplementation(function (this: IDBObjectStore, ...args: Parameters<IDBObjectStore['getAll']>) {
+    if (this.name === store && this.transaction.db.name.startsWith('liqueamp-friend:')) throw new DOMException('disk error', 'UnknownError');
+    return getAll.apply(this, args);
+  });
+}
 const returnHome = () => act(() => useFriends.getState().returnToMyLique());
 
 beforeAll(() => {
@@ -437,11 +449,10 @@ describe('activation is refused safely', () => {
   it('a Lique that fails while being switched to leaves MY_LIQUE fully in place (all or nothing)', async () => {
     await world();
     const shownBefore = shown();
-    const hydrate = usePlaylists.getState().hydrate;
-    usePlaylists.setState({ hydrate: () => Promise.reject(new Error('disk error')) });
+    const failing = failFriendReads('playlists'); // the friend's copy cannot be read while switching
     await activate(BOB);
-    usePlaylists.setState({ hydrate });
-    expect(useFriends.getState().activation).toMatchObject({ status: 'error', message: 'Their Lique could not be loaded. You are back in your own Lique.' });
+    failing.mockRestore();
+    expect(useFriends.getState().activation).toMatchObject({ status: 'error', message: 'Their Lique could not be loaded, so nothing was switched.' });
     expect(useFriends.getState().active).toBeNull();
     expect(getActiveScope()).toBe(MY_LIQUE);
     expect(shown()).toEqual(shownBefore);
@@ -552,5 +563,228 @@ describe('the FRIEND LIQUES panel', () => {
     await settle();
     expect(within(preview).getAllByRole('alert').map((e) => e.textContent)).toContain('Their Lique could not be read, so it was not activated.');
     expect(within(panel()).queryByText('FRIEND LIQUE ACTIVE')).toBeNull();
+  });
+});
+
+// ---- checkpoint 9: lifecycle ------------------------------------------------------------------------------------
+
+/** Every profile store, the active scope and the active friend agree on one profile. */
+function expectEverywhere(scope: 'own' | string, active: string | null) {
+  const id = scope === 'own' ? 'own' : `friend:${scope}`;
+  expect({
+    active: scopeId(getActiveScope()),
+    settings: scopeId(useSettings.getState().profileScope),
+    themes: scopeId(useThemes.getState().scope),
+    library: scopeId(useLibrary.getState().scope),
+    playlists: scopeId(usePlaylists.getState().scope),
+    favorites: scopeId(useFavorites.getState().scope),
+    friend: useFriends.getState().active?.userId ?? null,
+  }).toEqual({ active: id, settings: id, themes: id, library: id, playlists: id, favorites: id, friend: active });
+}
+
+describe('checkpoint 9 — lifecycle', () => {
+  it('1–3, 11–12. MY → A → B → A → MY: every store follows each step; neither side is contaminated', async () => {
+    await world();
+    const ownBefore = await dumpOwn();
+    const ownShown = shown();
+    expectEverywhere('own', null);
+
+    await activate(BOB);
+    expectEverywhere(BOB, BOB);
+    const bobCopy = await dumpFriend(BOB);
+    expect(await dumpOwn()).toEqual(ownBefore);
+
+    await activate(CAROL);
+    expectEverywhere(CAROL, CAROL);
+    expect(shown()).toMatchObject({ playlists: ['carol-pl'], activeThemeId: BUILTIN_BASE16.id });
+    expect(await dumpOwn()).toEqual(ownBefore);
+
+    await activate(BOB);
+    expectEverywhere(BOB, BOB);
+    expect(shown()).toMatchObject({ playlists: ['bob-pl'], activeThemeId: 'bob-theme' });
+    expect(JSON.stringify(shown())).not.toContain('carol');
+
+    await returnHome();
+    expectEverywhere('own', null);
+    expect(shown()).toEqual(ownShown);
+    expect(await dumpOwn()).toEqual(ownBefore); // 11: no friend data in MY_LIQUE
+    // 12: no own data in a friend scope; re-fetching wrote the same copy again
+    const bobNow = await dumpFriend(BOB);
+    expect(bobNow.playlists).toEqual(bobCopy.playlists);
+    expect(bobNow.media).toEqual(bobCopy.media);
+    expect(JSON.stringify(bobNow)).not.toContain('own-');
+    expect(JSON.stringify(await dumpFriend(CAROL))).not.toContain('own-');
+  });
+
+  it('a switch is shown in one step: no render ever mixes two profiles, and the banner comes with the content', async () => {
+    await world();
+    const renders: string[] = [];
+    function Probe() {
+      const scopes = [useSettings((s) => s.profileScope), useThemes((s) => s.scope), useLibrary((s) => s.scope), usePlaylists((s) => s.scope), useFavorites((s) => s.scope)].map(scopeId);
+      const theme = useSettings((s) => s.activeThemeId);
+      const playlists = usePlaylists((s) => s.playlists.map((p) => p.id).join());
+      const active = useFriends((s) => s.active?.userId ?? 'none');
+      renders.push(`${[...new Set(scopes)].join('|')} ${theme} ${playlists} ${active}`);
+      return null;
+    }
+    render(<Probe />);
+    await activate(BOB);
+    await activate(CAROL);
+    await returnHome();
+    const consistent = [`own own-theme own-pl none`, `friend:${BOB} bob-theme bob-pl ${BOB}`, `friend:${CAROL} ${BUILTIN_BASE16.id} carol-pl ${CAROL}`];
+    expect(renders.filter((r) => !consistent.includes(r))).toEqual([]);
+    expect(renders.at(-1)).toBe('own own-theme own-pl none');
+  });
+
+  it('a failed switch from one friend to another keeps the first friend fully shown', async () => {
+    await world();
+    await activate(BOB);
+    await returnHome();
+    await activate(CAROL);
+    const failing = failFriendReads('themes');
+    await activate(BOB);
+    failing.mockRestore();
+    expectEverywhere(CAROL, CAROL);
+    expect(useFriends.getState().activation).toMatchObject({ status: 'error', friendId: BOB, message: 'Their Lique could not be loaded, so nothing was switched.' });
+  });
+
+  it('a failed return keeps the Friend Lique shown and says so; retrying works', async () => {
+    await world();
+    await activate(BOB);
+    const getAll = IDBObjectStore.prototype.getAll;
+    const failing = vi.spyOn(IDBObjectStore.prototype, 'getAll').mockImplementation(function (this: IDBObjectStore, ...args: Parameters<IDBObjectStore['getAll']>) {
+      if (this.name === 'playlists' && this.transaction.db.name === 'liqueamp') throw new DOMException('disk error', 'UnknownError');
+      return getAll.apply(this, args);
+    });
+    await returnHome();
+    failing.mockRestore();
+    expectEverywhere(BOB, BOB); // not half-switched
+    expect(useFriends.getState().activation).toEqual({ status: 'error', friendId: BOB, message: 'Your own Lique could not be loaded just now. Try Return to My Lique again.' });
+    await returnHome();
+    expectEverywhere('own', null);
+  });
+
+  it('4. logout: the Friend Lique ends BEFORE the session does; this account’s friend copies go; own data stays', async () => {
+    const { fake } = await world();
+    const ownBefore = await dumpOwn();
+    await activate(BOB);
+    await activate(CAROL);
+    let scopeAtSignOut = '';
+    const signOut = fake.client.auth.signOut;
+    fake.client.auth.signOut = (options) => {
+      scopeAtSignOut = scopeId(getActiveScope());
+      return signOut(options);
+    };
+    await act(() => useAccount.getState().signOut());
+    await settle();
+    expect(scopeAtSignOut).toBe('own');
+    expectEverywhere('own', null);
+    expect(useFriends.getState()).toMatchObject({ friends: [], userId: null, selectedId: null, activation: { status: 'idle' } });
+    expect(await hasFriendDb(BOB)).toBe(false);
+    expect(await hasFriendDb(CAROL)).toBe(false);
+    expect(await dumpOwn()).toEqual(ownBefore);
+  });
+
+  it('5. another account signing in: back to MY_LIQUE; nothing of the first account’s friends is inherited', async () => {
+    const { fake } = await world();
+    await activate(BOB);
+    act(() => fake.signInAs(DAVE, 'google')); // a different account's session appears (e.g. from another tab)
+    await settle();
+    await settle();
+    expectEverywhere('own', null);
+    expect(useFriends.getState().friends.map((f) => f.userId)).not.toContain(BOB);
+    expect(await hasFriendDb(BOB)).toBe(false);
+  });
+
+  it('a session that expires while a Friend Lique is shown returns to MY_LIQUE as well', async () => {
+    const { fake } = await world();
+    await activate(BOB);
+    act(() => fake.expireSession());
+    await settle();
+    await settle();
+    expectEverywhere('own', null);
+  });
+
+  it('logging out while an activation is still loading never leaves the Friend Lique active', async () => {
+    await world();
+    await act(async () => {
+      const activating = useFriends.getState().activate(BOB);
+      const loggingOut = useAccount.getState().signOut();
+      await Promise.all([activating, loggingOut]);
+    });
+    await settle();
+    expectEverywhere('own', null);
+    expect(await hasFriendDb(BOB)).toBe(false);
+  });
+
+  it('6. removing a friend while their activation is still loading: not active, local copy gone', async () => {
+    await world();
+    await act(async () => {
+      const activating = useFriends.getState().activate(BOB);
+      const removing = useFriends.getState().remove(BOB);
+      await Promise.all([activating, removing]);
+    });
+    expectEverywhere('own', null);
+    expect(await hasFriendDb(BOB)).toBe(false);
+    expect(useFriends.getState().friends.map((f) => f.userId)).not.toContain(BOB);
+  });
+
+  it('8. a local copy is only used offline by the account that fetched it', async () => {
+    const { directory } = await world();
+    await activate(BOB);
+    await returnHome();
+    const offline = { ...directory, readProfile: () => Promise.reject(accountError('offline')) };
+    await expect(prepareFriendLique(offline, BOB, ME)).resolves.toEqual({ source: 'cache' });
+    await expect(prepareFriendLique(offline, BOB, DAVE)).rejects.toMatchObject({ code: 'offline-unavailable' });
+  });
+
+  it('9. access revoked since the last visit: not activated, and the old local copy is deleted', async () => {
+    const { directory } = await world();
+    await activate(BOB);
+    await returnHome();
+    expect(await hasFriendDb(BOB)).toBe(true);
+    await directory.remove(BOB); // e.g. removed on another device; this list still shows Bob
+    await activate(BOB);
+    expect(useFriends.getState().activation).toMatchObject({ status: 'error', friendId: BOB, message: expect.stringContaining('isn’t shared with you') });
+    expectEverywhere('own', null);
+    expect(await hasFriendDb(BOB)).toBe(false);
+  });
+
+  it('10. more mutation paths of a Friend Lique are refused: reorder, remove item, duplicate, category order, media removal, playlist favourite', async () => {
+    await world();
+    await activate(BOB);
+    const friendBefore = await dumpFriend(BOB);
+    const ownBefore = await dumpOwn();
+    await expect(usePlaylists.getState().moveItem('bob-pl', 0, 1)).rejects.toBeInstanceOf(ProfileScopeError);
+    await expect(usePlaylists.getState().removeItem('bob-pl', 0)).rejects.toBeInstanceOf(ProfileScopeError);
+    await expect(usePlaylists.getState().remove('bob-pl')).rejects.toBeInstanceOf(ProfileScopeError);
+    await expect(useThemes.getState().duplicateTheme('bob-theme')).rejects.toBeInstanceOf(ProfileScopeError);
+    await expect(useThemes.getState().renameTheme('bob-theme', 'x')).rejects.toBeInstanceOf(ProfileScopeError);
+    await expect(useLibrary.getState().moveCategory('bob-cat', 1)).rejects.toBeInstanceOf(ProfileScopeError);
+    await expect(useLibrary.getState().setCategoryEnabled('bob-cat', false)).rejects.toBeInstanceOf(ProfileScopeError);
+    await expect(useLibrary.getState().removeMedia('bob-m1')).rejects.toBeInstanceOf(ProfileScopeError);
+    await expect(useFavorites.getState().togglePlaylist('bob-pl')).rejects.toBeInstanceOf(ProfileScopeError);
+    expect(await dumpFriend(BOB)).toEqual(friendBefore);
+    expect(await dumpOwn()).toEqual(ownBefore);
+    expect(shown()).toMatchObject({ playlists: ['bob-pl'], categories: ['bob-cat'], media: ['bob-m1'] });
+  });
+
+  it('the header shows FRIEND LIQUE ACTIVE @Bob · READ ONLY with the way back, only while one is active', async () => {
+    await world();
+    render(
+      <MemoryRouter>
+        <Header />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByText('FRIEND LIQUE ACTIVE')).toBeNull();
+    await activate(BOB);
+    const indicator = screen.getByRole('status', { name: 'Friend Lique active: @Bob, read only' });
+    expect(indicator.textContent).toContain('FRIEND LIQUE ACTIVE');
+    expect(indicator.textContent).toContain('@Bob');
+    expect(indicator.textContent).toContain('READ ONLY');
+    await act(async () => fireEvent.click(within(indicator).getByRole('button', { name: 'Return to My Lique' })));
+    await settle();
+    expectEverywhere('own', null);
+    expect(screen.queryByText('FRIEND LIQUE ACTIVE')).toBeNull();
   });
 });

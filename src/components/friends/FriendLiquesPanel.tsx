@@ -163,6 +163,7 @@ function FriendList({ onAdd }: { onAdd(): void }) {
 function ActiveLiqueBanner() {
   const active = useFriends((s) => s.active);
   const returning = useFriends((s) => s.activation.status === 'working' && s.activation.action === 'return');
+  const returnError = useFriends((s) => (s.activation.status === 'error' && s.activation.friendId === s.active?.userId ? s.activation.message : null));
   const returnToMyLique = useFriends((s) => s.returnToMyLique);
   if (!active) return null;
   return (
@@ -173,6 +174,11 @@ function ActiveLiqueBanner() {
       <button type="button" className="btn btn--primary" disabled={returning} onClick={() => void returnToMyLique()}>
         {returning ? 'Returning…' : 'Return to My Lique'}
       </button>
+      {returnError && (
+        <p className="form-error friend-lique-active__error" role="alert">
+          {returnError}
+        </p>
+      )}
     </div>
   );
 }

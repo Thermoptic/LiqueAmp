@@ -1697,3 +1697,38 @@ All locations use one implementation, `useItemActions()` in `src/components/acti
   - Media favourites match by id: a friend's stream the viewer already has under another id shows an empty heart.
   - Stream URLs of a Friend Lique are shown as the owner shared them; the owner's sharing review (D13) runs before upload.
   - No presence (D11) and no Block (D17) yet.
+
+---
+
+## Checkpoint 9 — Friend Lique lifecycle and polish (2026-09-26)
+
+**Status:** implemented on the checkpoint 8 architecture (no data-model, RLS, auth, presence or block changes).
+
+**Audit result:** already correct and left as they were:
+- the read-only guards on every mutation path, including Control Panel editors, drag/drop, context menus and shortcuts (which only drive playback and volume);
+- refresh always starting in MY_LIQUE;
+- offline activation from a validated copy;
+- no empty friend database;
+- the basic removal flow.
+
+**Fixed:**
+1. **One-step switches.** `reloadProfileStores()` let each store show its new data as soon as it had it, so a render could mix two profiles. Now every store's data is read first (`read…(scope)` in each store and `loadProfileState`), then every store, the active scope and the active-friend state change in one synchronous step (`applyProfileState` and `switchProfile`'s `applied`).
+2. **A failed switch changes nothing.** Before, a failure fell back to MY_LIQUE; now the Lique shown before stays fully shown, so a failed A → B keeps A. A failed return keeps the Friend Lique shown with an error, instead of a half-switched app.
+3. **Logout** ends a Friend Lique **before** the session is destroyed (`onBeforeSignOut` in the account store). Another account appearing or an expired session does it right after. An activation still loading re-checks the account (`stillWanted`) before it is shown.
+4. **Removal racing an activation of the same friend** no longer leaves them active. Both steps run in the switch queue.
+5. **Friend copies belong to one account.** Logout or an account change deletes the local copies of that account's friends. A copy records `cachedFor` (the viewer's user id), and only that account may use it offline.
+6. **Always-visible indicator.** The header shows `FRIEND LIQUE ACTIVE · @x · READ ONLY [↩ My Lique]` on every screen: Home, every mobile section and `/control`, which have neither the panel nor the status bar. On wide screens the clock steps aside while it is shown. The panel banner shows a failed return.
+
+**Lifecycle guarantees:** at any render all profile stores, the active scope and the active-friend state name the same profile. Only one Friend Lique is active. Logout, account change, removal of the active friend or loss of access always ends in MY_LIQUE; if MY_LIQUE cannot be read in that moment, the stores are emptied rather than keep showing the friend. A reload starts in MY_LIQUE.
+
+**Tests:** 13 new in `src/services/friends/activation.test.tsx`:
+- MY → A → B → A → MY with every store's scope checked at each step, and no contamination either way;
+- render-level check that no frame mixes profiles;
+- failed A → B; failed return;
+- logout (scope at sign-out, copies deleted, own data kept); account switch; session expiry; logout during activation;
+- removal during activation;
+- offline copy per account; revoked access;
+- more refused mutation paths;
+- the header indicator.
+
+The checkpoint 8 all-or-nothing test now injects the storage failure at the database level.

@@ -21,6 +21,18 @@ interface ThemeStore {
   duplicateTheme(id: string): Promise<LiqueAmpTheme>;
 }
 
+/** Built-in themes plus the themes stored in `scope` (what the store shows for it). */
+export async function readThemes(scope: ProfileScope): Promise<LiqueAmpTheme[]> {
+  const raw = await repositoriesFor(scope).themes.getAll();
+  const stored = raw.map(normalizeTheme);
+  // Version-1 themes (25 free colors) are migrated to a Base16 palette once —
+  // in the own profile only; a friend's cached profile is read-only (and
+  // already normalized when it was cached).
+  if (!isReadOnlyScope(scope)) await Promise.all(stored.filter((_, i) => raw[i]!.version !== 2).map((t) => repositoriesFor(scope).themes.put(t)));
+  const builtinIds = new Set(BUILTIN_THEMES.map((t) => t.id));
+  return [...BUILTIN_THEMES, ...stored.filter((t) => !builtinIds.has(t.id))];
+}
+
 /** Repositories of the profile this store holds — never simply the active one. */
 function repos() {
   return repositoriesFor(useThemes.getState().scope);
@@ -32,15 +44,9 @@ export const useThemes = create<ThemeStore>((set, get) => ({
 
   async hydrate() {
     const scope = getActiveScope();
-    const raw = await repositoriesFor(scope).themes.getAll();
+    const themes = await readThemes(scope);
     if (!isActiveScope(scope)) return; // the profile changed meanwhile; its own hydrate wins
-    const stored = raw.map(normalizeTheme);
-    // Version-1 themes (25 free colors) are migrated to a Base16 palette once —
-    // in the own profile only; a friend's cached profile is read-only (and
-    // already normalized when it was cached).
-    if (!isReadOnlyScope(scope)) await Promise.all(stored.filter((_, i) => raw[i]!.version !== 2).map((t) => repositoriesFor(scope).themes.put(t)));
-    const builtinIds = new Set(BUILTIN_THEMES.map((t) => t.id));
-    set({ scope, themes: [...BUILTIN_THEMES, ...stored.filter((t) => !builtinIds.has(t.id))] });
+    set({ scope, themes });
   },
 
   /** Unknown ids fall back to the default theme rather than failing. */

@@ -13,6 +13,8 @@ import type { ParsedProfile, ProfileMeta } from './profile';
 export interface ProfileCacheMeta extends ProfileMeta {
   /** When this copy was stored on this device. */
   cachedAt: string;
+  /** The signed-in account it was fetched for; only that account may use it offline (checkpoint 9). */
+  cachedFor?: string;
 }
 
 const META_KEY = 'meta';
@@ -28,7 +30,7 @@ export function friendScope(userId: string): ProfileScope {
  * if anything fails, the previous copy stays as it was. The own profile is
  * never involved — this only opens the friend's own database.
  */
-export async function writeFriendProfileCache(userId: string, profile: ParsedProfile): Promise<void> {
+export async function writeFriendProfileCache(userId: string, profile: ParsedProfile, { viewerId }: { viewerId?: string } = {}): Promise<void> {
   const { meta, content } = profile;
   if (meta.ownerUserId !== null && meta.ownerUserId !== userId) {
     throw new ProfileScopeError(`This profile belongs to ${meta.ownerUserId}, not ${userId}.`);
@@ -46,7 +48,7 @@ export async function writeFriendProfileCache(userId: string, profile: ParsedPro
     for (const f of content.favorites.items) ops.push(tx.objectStore('favorites').put(f));
     for (const s of content.stations.items) ops.push(tx.objectStore('stations').put(s));
     ops.push(tx.objectStore('kv').put(content.settings ? pickProfileSettings(content.settings) : {}, profileKvKey('settings')));
-    const cacheMeta: ProfileCacheMeta = { ...meta, ownerUserId: meta.ownerUserId ?? userId, cachedAt: new Date().toISOString() };
+    const cacheMeta: ProfileCacheMeta = { ...meta, ownerUserId: meta.ownerUserId ?? userId, cachedAt: new Date().toISOString(), ...(viewerId ? { cachedFor: viewerId } : {}) };
     ops.push(tx.objectStore('kv').put(cacheMeta, profileKvKey(META_KEY)));
     await Promise.all([...ops, tx.done]);
   } catch (err) {

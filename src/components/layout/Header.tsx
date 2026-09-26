@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import { usePlayback } from '../../stores/playbackStore';
 import { useSystem } from '../../stores/systemStore';
 import { Status } from '../ui/controls';
+import { ActiveLiqueIndicator } from '../friends/ActiveLiqueIndicator';
 
 const VERSION = 'v1.0';
 
@@ -20,6 +21,7 @@ export function Header() {
       <div className="app-header__rest">
         <Ticker />
         <div className="app-header__end">
+          <ActiveLiqueIndicator />
           <Clock />
           <LiveBlock />
           <FullscreenButton />

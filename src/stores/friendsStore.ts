@@ -7,10 +7,10 @@ import { create } from 'zustand';
 import { AccountError } from '../services/account/account';
 import { FRIEND_MESSAGES, FriendError, type Friend, type FriendDirectory } from '../services/friends/friends';
 import type { FriendLiqueSummary } from '../services/friends/friendSummary';
-import { FriendLiqueError, prepareFriendLique, switchProfile } from '../services/friends/activation';
+import { FriendLiqueError, prepareFriendLique, showEmptyOwnProfile, switchProfile } from '../services/friends/activation';
 import { deleteFriendProfileCache, friendScope } from '../services/profile/profileCache';
 import { getActiveScope, MY_LIQUE } from '../services/storage/scope';
-import { accountUser, useAccount } from './accountStore';
+import { accountUser, onBeforeSignOut, useAccount } from './accountStore';
 
 export type FriendPreview =
   | { status: 'idle' }
@@ -30,7 +30,7 @@ export interface ActiveFriendLique {
 
 export type ActivationState =
   | { status: 'idle' }
-  | { status: 'working'; friendId: string | null; action: 'activate' | 'return' }
+  | { status: 'working'; friendId: string; action: 'activate' | 'return' }
   | { status: 'error'; friendId: string; message: string };
 
 interface FriendsState {
@@ -84,16 +84,39 @@ function serially<T>(task: () => Promise<T>): Promise<T> {
 }
 
 export const useFriends = create<FriendsState>()((set, get) => {
-  async function backToOwn() {
+  /**
+   * Back to MY_LIQUE. `force` (logout, account change, removal): MY_LIQUE is
+   * shown whatever happens — if it cannot be read right now, the stores are
+   * emptied rather than keep showing the friend. Otherwise a failed return
+   * leaves the Friend Lique shown (and says so) instead of a half-switched app.
+   */
+  async function leave(force: boolean): Promise<void> {
     if (!get().active && getActiveScope().kind === 'own') return;
-    set({ activation: { status: 'working', friendId: get().active?.userId ?? null, action: 'return' } });
+    const friendId = get().active?.userId ?? '';
+    set({ activation: { status: 'working', friendId, action: 'return' } });
     try {
-      await switchProfile(MY_LIQUE);
-    } finally {
+      await switchProfile(MY_LIQUE, { applied: () => set({ active: null, activation: { status: 'idle' } }) });
+    } catch (err) {
+      if (!force) {
+        set({ activation: { status: 'error', friendId, message: friendErrorMessage(err) } });
+        return;
+      }
+      showEmptyOwnProfile();
       set({ active: null, activation: { status: 'idle' } });
     }
     // own changes made meanwhile (favourites) are uploaded now
     void useAccount.getState().syncNow();
+  }
+
+  /**
+   * The signed-in account ends (logout, another account): MY_LIQUE first, then
+   * the local copies of this account's friends go — the next account never
+   * inherits them. The own profile data is not touched.
+   */
+  async function endAccount(): Promise<void> {
+    await leave(true);
+    const known = new Set(get().friends.map((f) => f.userId));
+    for (const id of known) await deleteFriendProfileCache(id).catch(() => undefined);
   }
 
   return {
@@ -102,19 +125,19 @@ export const useFriends = create<FriendsState>()((set, get) => {
     active: null,
 
     setDirectory(directory) {
-      if (get().active) void get().returnToMyLique();
+      if (get().active) void serially(() => leave(true));
       set({ directory, ...empty() });
     },
 
     async load(userId) {
       const { directory } = get();
       if (!userId || !directory) {
-        if (get().active) await get().returnToMyLique(); // signed out: never stay in someone's Lique
+        await serially(endAccount); // signed out: never stay in someone's Lique
         set(empty());
         return;
       }
       const sameUser = get().userId === userId;
-      if (!sameUser && get().active) await get().returnToMyLique();
+      if (!sameUser && (get().userId || get().active)) await serially(endAccount); // another account
       set({ userId, status: 'loading', error: null, ...(sameUser ? {} : { friends: [], selectedId: null, preview: { status: 'idle' } }) });
       try {
         const friends = await directory.list();
@@ -122,7 +145,7 @@ export const useFriends = create<FriendsState>()((set, get) => {
         set({ friends, status: 'ready' });
         // removed elsewhere: their Lique is not mine to show any more
         const active = get().active;
-        if (active && !friends.some((f) => f.userId === active.userId)) await get().returnToMyLique();
+        if (active && !friends.some((f) => f.userId === active.userId)) await serially(() => leave(true));
       } catch (err) {
         if (get().userId !== userId) return;
         set({ status: 'error', error: friendErrorMessage(err) });
@@ -148,14 +171,19 @@ export const useFriends = create<FriendsState>()((set, get) => {
     async remove(friendId) {
       const { directory, userId } = get();
       if (!directory || !userId) throw new Error(FRIEND_MESSAGES['not-signed-in']);
-      if (get().active?.userId === friendId) await get().returnToMyLique(); // spec §27: back to My Lique first
+      // spec §27: back to My Lique first — after any switch already under way
+      const leaveIfActive = () => (get().active?.userId === friendId ? leave(true) : Promise.resolve());
+      await serially(leaveIfActive);
       try {
         await directory.remove(friendId);
       } catch (err) {
         throw new Error(friendErrorMessage(err));
       }
-      // their local copy goes too (spec §27)
-      await deleteFriendProfileCache(friendId).catch(() => undefined);
+      // their local copy goes too (spec §27), even if they were activated again meanwhile
+      await serially(async () => {
+        await leaveIfActive();
+        await deleteFriendProfileCache(friendId).catch(() => undefined);
+      });
       if (get().userId !== userId) return;
       const closing = get().selectedId === friendId;
       set({ friends: get().friends.filter((f) => f.userId !== friendId), ...(closing ? { selectedId: null, preview: { status: 'idle' } } : {}) });
@@ -188,28 +216,30 @@ export const useFriends = create<FriendsState>()((set, get) => {
         if (get().active?.userId === friendId) return;
         set({ activation: { status: 'working', friendId, action: 'activate' } });
         try {
-          const { source } = await prepareFriendLique(directory, friendId);
-          if (get().userId !== userId) throw new FriendLiqueError('not-signed-in'); // signed out meanwhile
-          await switchProfile(friendScope(friendId)); // all stores, or back to MY_LIQUE
-          set({ active: { userId: friendId, username: friend.username, source }, activation: { status: 'idle' } });
+          const { source } = await prepareFriendLique(directory, friendId, userId);
+          // All stores and the active-friend state change together, and only if
+          // the same account is still signed in and still has this friend.
+          await switchProfile(friendScope(friendId), {
+            stillWanted: () => get().userId === userId && get().friends.some((f) => f.userId === friendId),
+            applied: () => set({ active: { userId: friendId, username: friend.username, source }, activation: { status: 'idle' } }),
+          });
         } catch (err) {
-          // whatever failed, MY_LIQUE is what is shown
-          if (getActiveScope().kind !== 'own') await switchProfile(MY_LIQUE).catch(() => undefined);
-          set({ active: null });
-          fail(err);
+          fail(err); // nothing was switched: the Lique shown before is still shown, completely
         }
       });
     },
 
     returnToMyLique() {
-      return serially(backToOwn);
+      return serially(() => leave(false));
     },
   };
 });
 
-// Logging out (or another account logging in) returns to MY_LIQUE and
-// forgets the previous account's list, whether or not the Friend Liques panel
-// is on screen (load() does both).
+// Logging out ends a Friend Lique BEFORE the session goes (and forgets this
+// account's friends and their local copies); another account appearing or a
+// session expiring does the same right after (load() does both), whether or
+// not the Friend Liques panel is on screen.
+onBeforeSignOut(() => useFriends.getState().load(null));
 useAccount.subscribe((state, prev) => {
   const now = accountUser(state.state)?.userId ?? null;
   if (now !== (accountUser(prev.state)?.userId ?? null)) void useFriends.getState().load(now);

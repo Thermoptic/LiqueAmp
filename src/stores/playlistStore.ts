@@ -20,6 +20,12 @@ interface PlaylistStore {
   resolve(id: string): { items: MediaItem[]; missing: number };
 }
 
+/** The playlists stored in `scope` (what the store shows for it). */
+export async function readPlaylists(scope: ProfileScope): Promise<Playlist[]> {
+  const stored = await repositoriesFor(scope).playlists.getAll();
+  return stored.filter((p) => p && typeof p.id === 'string' && Array.isArray(p.items)).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
 function requireName(name: string): string {
   const trimmed = name.trim();
   if (!trimmed) throw new Error('Playlist name is required.');
@@ -49,14 +55,9 @@ export const usePlaylists = create<PlaylistStore>((set, get) => {
 
     async hydrate() {
       const scope = getActiveScope();
-      const stored = await repositoriesFor(scope).playlists.getAll();
+      const playlists = await readPlaylists(scope);
       if (!isActiveScope(scope)) return; // the profile changed meanwhile; its own hydrate wins
-      set({
-        scope,
-        playlists: stored
-          .filter((p) => p && typeof p.id === 'string' && Array.isArray(p.items))
-          .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
-      });
+      set({ scope, playlists });
     },
 
     async create(name, items = []) {
