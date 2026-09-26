@@ -20,6 +20,11 @@ export const PROFILE_SCHEMA_VERSION = 1;
  */
 export const MAX_PROFILE_BYTES = 5 * 1024 * 1024;
 
+/**
+ * Who can read a profile. PRIVATE: nobody else (a local profile, a backup).
+ * FRIENDS: the cloud copy — D12: anyone who knows the exact username may
+ * add its owner and then read it (read-only, one-way). PUBLIC: reserved.
+ */
 export const PROFILE_VISIBILITIES = ['PRIVATE', 'FRIENDS', 'PUBLIC'] as const;
 export type ProfileVisibility = (typeof PROFILE_VISIBILITIES)[number];
 

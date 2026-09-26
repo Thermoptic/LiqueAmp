@@ -229,4 +229,14 @@ describe('friend access (checkpoint 6)', () => {
     const stored = summarizeProfile(profile, 'Bob');
     expect(readStoredSummary(JSON.parse(JSON.stringify(stored)), { revision: 7, updatedAt: 'now' })).toMatchObject({ revision: 7, counts: stored.counts });
   });
+
+  it('checkpoint 10A: too many username lookups → a clear message; normal adding is unaffected', async () => {
+    const { as } = await world();
+    const a = as(A);
+    await a.friends.add('Bob'); // 1 lookup
+    for (let i = 0; i < 29; i++) await rejectsWith(a.friends.add('Nobody'), 'not-found'); // 30 lookups in 15 minutes
+    await rejectsWith(a.friends.add('Carol'), 'rate-limited');
+    expect((await a.friends.list()).map((f) => f.username)).toEqual(['Bob']); // nothing else changed
+    await expect(as(B).friends.add('Carol')).resolves.toMatchObject({ username: 'Carol' }); // per account
+  });
 });

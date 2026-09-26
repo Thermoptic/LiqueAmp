@@ -8,7 +8,7 @@ import { AccountError } from '../services/account/account';
 import { FRIEND_MESSAGES, FriendError, type Friend, type FriendDirectory } from '../services/friends/friends';
 import type { FriendLiqueSummary } from '../services/friends/friendSummary';
 import { FriendLiqueError, prepareFriendLique, showEmptyOwnProfile, switchProfile } from '../services/friends/activation';
-import { deleteFriendProfileCache, friendScope } from '../services/profile/profileCache';
+import { deleteAllFriendProfileCaches, deleteFriendProfileCache, friendScope } from '../services/profile/profileCache';
 import { getActiveScope, MY_LIQUE } from '../services/storage/scope';
 import { accountUser, onBeforeSignOut, useAccount } from './accountStore';
 
@@ -109,14 +109,15 @@ export const useFriends = create<FriendsState>()((set, get) => {
   }
 
   /**
-   * The signed-in account ends (logout, another account): MY_LIQUE first, then
-   * the local copies of this account's friends go — the next account never
-   * inherits them. The own profile data is not touched.
+   * The signed-in account ends (logout, another account, expired session):
+   * MY_LIQUE first, then every friend copy on this device goes — the next
+   * account never inherits one. Not when the app merely starts signed out:
+   * the copies of the account about to be restored are kept for offline use.
+   * The own profile data is never touched.
    */
-  async function endAccount(): Promise<void> {
+  async function endAccount(accountEnded: boolean): Promise<void> {
     await leave(true);
-    const known = new Set(get().friends.map((f) => f.userId));
-    for (const id of known) await deleteFriendProfileCache(id).catch(() => undefined);
+    if (accountEnded) await deleteAllFriendProfileCaches(get().friends.map((f) => f.userId));
   }
 
   return {
@@ -132,12 +133,13 @@ export const useFriends = create<FriendsState>()((set, get) => {
     async load(userId) {
       const { directory } = get();
       if (!userId || !directory) {
-        await serially(endAccount); // signed out: never stay in someone's Lique
+        const accountEnded = get().userId !== null;
+        await serially(() => endAccount(accountEnded)); // signed out: never stay in someone's Lique
         set(empty());
         return;
       }
       const sameUser = get().userId === userId;
-      if (!sameUser && (get().userId || get().active)) await serially(endAccount); // another account
+      if (!sameUser && (get().userId || get().active)) await serially(() => endAccount(true)); // another account
       set({ userId, status: 'loading', error: null, ...(sameUser ? {} : { friends: [], selectedId: null, preview: { status: 'idle' } }) });
       try {
         const friends = await directory.list();

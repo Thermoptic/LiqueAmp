@@ -201,7 +201,7 @@ describe('Supabase auth adapter (D5, D6)', () => {
     await provider.claimUsername('Johan');
     const text = (owner: string) => JSON.stringify({ format: 'liqueamp-profile', meta: { schemaVersion: 1, ownerUserId: owner, revision: 99, updatedAt: now, visibility: 'PUBLIC' }, data: {} });
     expect(await cloud.upload(A, { text: text(A), summary: {} as never, expectedRevision: 0 })).toMatchObject({ ok: true, revision: 1 });
-    expect(fake.tables.profiles[0]).toMatchObject({ revision: 1, visibility: 'PRIVATE' }); // client values ignored
+    expect(fake.tables.profiles[0]).toMatchObject({ revision: 1, visibility: 'FRIENDS' }); // client values ignored; FRIENDS = D12
     expect(await cloud.upload(A, { text: text(A), summary: {} as never, expectedRevision: 1 })).toMatchObject({ ok: true, revision: 2 });
     expect(await cloud.upload(A, { text: text(A), summary: {} as never, expectedRevision: 1 })).toEqual({ ok: false, reason: 'conflict', cloud: { revision: 2, updatedAt: expect.any(String) } });
     await expect(cloud.upload(A, { text: text(B), summary: {} as never, expectedRevision: 2 })).rejects.toMatchObject({ code: 'profile-rejected' });

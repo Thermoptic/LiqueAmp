@@ -1457,9 +1457,19 @@ See D16.
 
 ## D12 — Privacy: one-way access
 
+> **Clarified 2026-09-26 (checkpoint 10A), unchanged in substance:** the username is the address of a Lique. Anyone signed in who knows an exact username can add that user and read their shared Lique, read-only and one-way. There is no request, approval, reciprocity or notification. The stored label is therefore `visibility = 'FRIENDS'` ("the people who added me"), not `PRIVATE`. Settings › Account and the username dialog say so. Username lookups are rate-limited (30 per 15 minutes, 200 per 24 hours per account).
+
 **Decided (final, 2026-09-25): one-way access.** When user A adds user B, **A gains read-only access to B's Lique**; B does **not** automatically gain access to A's Lique. Example: Johan adds Alice → Johan can see and activate Alice's Lique; Alice cannot see Johan's unless she adds him. A Lique is private by default (nothing is public); Friend Liques never grant write access; Block (by B) removes A's access and overrides everything. No friend requests, no accept/decline (D17). No per-item privacy in the first implementation. (Checkpoint 5 RLS: users read only their own rows; the friend read policy is added in the Friend Liques checkpoint — done in checkpoint 6, §31.)
 
 ## D13 — Stream URLs before sharing
+
+> **Extended 2026-09-26 (checkpoint 10A).** Also detected:
+> - IPTV "Xtream" paths (`/live|movie|series/USER/PASS/ID.ext`, `/timeshift/USER/PASS/…/ID.ext`);
+> - `pass`, `pw` and a login name *with* a password (`user`/`username`/`login`/`u` together with `pass`/`password`/`passwd`/`pwd`/`pw`/`p`);
+> - nginx secure_link (`md5`/`st`/`hash` together with `expires`/`e`) and Wowza `wmsAuthSign`;
+> - URLs and JWTs written into media/station descriptions and media metadata.
+>
+> These are reported only: the text is never changed, and the user decides per item as before. Not detected: arbitrary secrets in free text, other path shapes, and category or playlist descriptions.
 
 **Decided / implemented (Checkpoint 4):** before a profile is uploaded or shared, `sanitizeForSharing()` detects credentials in every URL (user:password@, token/key/api_key/access_token/auth/sig/signature-style parameters, signed cloud-storage and CDN URLs such as X-Amz-*, JWTs). The local original is never modified. For each suspicious item the user chooses: exclude it from the cloud copy, keep/share it, or cancel the sync. The upload does not happen until every finding has a decision.
 
@@ -1732,3 +1742,35 @@ All locations use one implementation, `useItemActions()` in `src/components/acti
 - the header indicator.
 
 The checkpoint 8 all-or-nothing test now injects the storage failure at the database level.
+
+---
+
+## Checkpoint 10A — Privacy hardening and stream sharing (2026-09-26)
+
+**Status:** implemented. D12 is unchanged. No requests, approval, reciprocity, blocking, presence, snapshots or Packs.
+
+- **Migration `20260926130000_liqueamp_privacy_hardening.sql`** (applied with `supabase db push`):
+  - `profiles.visibility` is `'FRIENDS'` (default and trigger). Existing rows were relabelled with the trigger disabled, so there was no new revision and no resync.
+  - `lookup_username()` is now PL/pgSQL, volatile and SECURITY DEFINER, and still exact and case-insensitive with the same result columns. Each account may look up 30 usernames per 15 minutes and 200 per 24 hours. Beyond that it raises SQLSTATE `LQ429`, which the app shows as "Too many username lookups. Wait a few minutes and try again."
+    - The log is `private.username_lookups`. It is not reachable through the API, rows older than a day are removed on the next lookup, and it is deleted with the account.
+    - The limit is per account: someone with several accounts gets several quotas, and simultaneous requests can pass it by a few.
+  - `profiles_summary_size`: the summary is at most 16 KB (today's summaries are about 300 bytes).
+  - **Privileges:**
+    - revoked from `authenticated`: UPDATE, DELETE, TRUNCATE, REFERENCES and TRIGGER on `users`; TRUNCATE, REFERENCES and TRIGGER on `profiles`;
+    - retained: `users` SELECT/INSERT, `profiles` SELECT/INSERT/UPDATE/DELETE, `friendships` SELECT/INSERT/DELETE, EXECUTE on `lookup_username` and `delete_my_account` for `authenticated`;
+    - the trigger functions stay executable, which is harmless: they cannot be called directly;
+    - default privileges for future tables, sequences and functions in `public` grant nothing to `anon`/`authenticated`, so every migration grants explicitly.
+- **Friend count:** no limit was added. A relationship needs the other user's id, and ids come only from the rate-limited lookup, so the number of relationships an account can create is already bounded by the lookup limits. The rows are small.
+- **Client:**
+  - uploads say `visibility: 'FRIENDS'`;
+  - privacy note in Settings › Account and in the username dialog;
+  - D13 extended (see D13);
+  - favouriting a friend's station keeps MY_LIQUE's own record for the same station id;
+  - on logout, account change or expired session every `liqueamp-friend:*` database is deleted (`indexedDB.databases()`, or the known ids where the browser cannot list). `liqueamp` (MY_LIQUE) is never touched. Starting the app signed out deletes nothing.
+- **Tests:**
+  - `supabase/tests/privacy_hardening.test.sql`, 31 pgTAP tests: visibility, exact lookup, the 15-minute and daily limits, the private log, friend access, a non-friend, one-way access, summary size, privileges, account creation and deletion;
+  - `friends_rls.test.sql` 34/34;
+  - unit tests: D13 (29), rate-limit message, station ids, cache cleanup (listed and unlisted), startup, privacy note.
+- **Remaining:**
+  - a session that expired while the app was closed leaves the friend copies until the next logout (they stay bound to their account);
+  - anyone with an account can still look up usernames at the permitted rate — D12 by design.

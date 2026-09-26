@@ -93,7 +93,8 @@ export async function uploadOwnProfile({ userId, username, cloud, settings, deci
   const meta = await readOwnProfileMeta();
   assertLocalProfileOwner(meta, userId);
   const writesBefore = ownProfileWriteCount();
-  const profile = await createProfile(settings, { ownerUserId: userId, revision: meta.baseRevision, visibility: 'PRIVATE' });
+  // D12: the cloud copy is readable by everyone who adds this user by username
+  const profile = await createProfile(settings, { ownerUserId: userId, revision: meta.baseRevision, visibility: 'FRIENDS' });
   const { findings } = sanitizeForSharing(profile);
   const pending = undecided(findings, decisions);
   if (pending.length) return { status: 'needs-review', findings: pending };

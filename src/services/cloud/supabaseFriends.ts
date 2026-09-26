@@ -27,6 +27,7 @@ export function createSupabaseFriendDirectory(client: SupabaseLike): FriendDirec
       if (!check.ok) throw friendError('username-invalid');
       const userId = await me();
       const found = await backendCall(client.rpc('lookup_username', { p_username: check.username }));
+      if (found.error?.code === 'LQ429') throw friendError('rate-limited', found.error); // server-side limit on lookups
       if (found.error) throw toAccountError(found.error);
       const target = (Array.isArray(found.data) ? found.data[0] : null) as { user_id?: string; username?: string } | null;
       if (!target?.user_id) throw friendError('not-found');

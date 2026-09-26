@@ -788,3 +788,68 @@ describe('checkpoint 9 — lifecycle', () => {
     expect(screen.queryByText('FRIEND LIQUE ACTIVE')).toBeNull();
   });
 });
+
+// ---- checkpoint 10A: privacy hardening ------------------------------------------------------------------------
+
+describe('checkpoint 10A', () => {
+  it('favouriting a friend’s station never replaces MY_LIQUE’s own record with the same id', async () => {
+    await world();
+    const mine: RadioStation = { id: 'bob-st', name: 'My Bob Radio', streamUrl: 'https://mine.example/real.mp3', genre: ['jazz'], tags: [] };
+    await repositoriesFor(MY_LIQUE).stations.put(mine);
+    await activate(BOB); // Bob's record for the same id points somewhere else
+    expect(useFavorites.getState().stations['bob-st']?.streamUrl).toBe('https://bob.example/radio.mp3');
+    expect(await act(() => useFavorites.getState().toggleOwnStation(BOB_LIQUE.stations[0]!))).toBe(true);
+    expect(await repositoriesFor(MY_LIQUE).stations.get('bob-st')).toEqual(mine); // untouched
+    expect((await repositoriesFor(MY_LIQUE).favorites.getAll()).map((f) => f.id)).toContain('station:bob-st');
+    await returnHome();
+    expect(useFavorites.getState().stations['bob-st']).toEqual(mine);
+    // a station MY_LIQUE does not have yet is stored as the friend shared it
+    await activate(CAROL);
+    await act(() => useFavorites.getState().toggleOwnStation(CAROL_LIQUE.stations[0]!));
+    expect(await repositoriesFor(MY_LIQUE).stations.get('carol-st')).toEqual(CAROL_LIQUE.stations[0]);
+  });
+
+  it('logout removes every friend copy on the device — also ones not in the list — and never MY_LIQUE', async () => {
+    await world();
+    await activate(BOB);
+    await returnHome();
+    // a copy of someone not in this account's list (e.g. left behind by an older version)
+    const { parseProfile } = await import('../profile/profile');
+    const { writeFriendProfileCache } = await import('../profile/profileCache');
+    const parsed = parseProfile(profileText(DAVE, BOB_LIQUE));
+    if (!parsed.ok) throw new Error(parsed.error);
+    await writeFriendProfileCache(DAVE, parsed.profile);
+    const ownBefore = await dumpOwn();
+    await act(() => useAccount.getState().signOut());
+    await settle();
+    expect(await hasFriendDb(BOB)).toBe(false);
+    expect(await hasFriendDb(DAVE)).toBe(false);
+    expect((await indexedDB.databases()).map((d) => d.name)).toEqual(['liqueamp']);
+    expect(await dumpOwn()).toEqual(ownBefore);
+  });
+
+  it('where the browser cannot list databases, logout still works and removes the known copies', async () => {
+    await world();
+    await activate(BOB);
+    await returnHome();
+    const databases = indexedDB.databases;
+    Object.defineProperty(indexedDB, 'databases', { configurable: true, value: undefined });
+    try {
+      await act(() => useAccount.getState().signOut());
+      await settle();
+    } finally {
+      Object.defineProperty(indexedDB, 'databases', { configurable: true, value: databases });
+    }
+    expect(useAccount.getState().state).toEqual({ status: 'signed-out' });
+    expect(await hasFriendDb(BOB)).toBe(false);
+  });
+
+  it('starting the app signed out does not delete copies kept for offline use', async () => {
+    await world();
+    await activate(BOB);
+    await returnHome();
+    useFriends.setState({ userId: null, friends: [], active: null }); // a fresh start: nobody signed in yet
+    await act(() => useFriends.getState().load(null));
+    expect(await hasFriendDb(BOB)).toBe(true);
+  });
+});

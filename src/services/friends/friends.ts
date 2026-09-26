@@ -14,7 +14,7 @@ export interface Friend {
   addedAt: string;
 }
 
-export type FriendErrorCode = 'not-signed-in' | 'username-invalid' | 'not-found' | 'self' | 'already-added' | 'profile-invalid';
+export type FriendErrorCode = 'not-signed-in' | 'username-invalid' | 'not-found' | 'self' | 'already-added' | 'profile-invalid' | 'rate-limited';
 
 export const FRIEND_MESSAGES: Record<FriendErrorCode, string> = {
   'not-signed-in': 'Sign in to add friends.',
@@ -23,6 +23,7 @@ export const FRIEND_MESSAGES: Record<FriendErrorCode, string> = {
   self: 'That is your own username.',
   'already-added': 'You have already added them.',
   'profile-invalid': 'Their Lique could not be read.',
+  'rate-limited': 'Too many username lookups. Wait a few minutes and try again.',
 };
 
 /** A friend-specific outcome a LiqueAmp user can understand; the technical cause is kept for logs only. */

@@ -151,6 +151,16 @@ describe('Settings › Account and the username dialog', () => {
     expect(useAccount.getState().error).toBeNull(); // a deliberate log out is not an "expired session"
   });
 
+  it('checkpoint 10A: explains that the username is the address of the Lique, read-only, without technical terms', async () => {
+    await act(() => useAccount.getState().init(fake({ status: 'signed-in', session: { user: { userId: 'u-1', username: 'johan' }, authMethod: 'google' } })));
+    const { container } = render(<AccountSection />);
+    const note = container.querySelector('.account__sharing')!.textContent!;
+    expect(note).toContain('Your username is the address of your Lique');
+    expect(note).toContain('anyone who knows your exact username can add you and view your shared Lique');
+    expect(note).toContain('read-only');
+    expect(note).not.toMatch(/supabase|rls|uuid|database/i);
+  });
+
   it('a GitHub session says "Logged in with GitHub"', async () => {
     await act(() => useAccount.getState().init(fake({ status: 'signed-in', session: { user: { userId: 'u-1', username: 'johan' }, authMethod: 'github' } })));
     render(<AccountSection />);

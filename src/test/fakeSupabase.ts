@@ -7,7 +7,9 @@
 //   visibility forced PRIVATE, primary key (23505)
 // - friendships: own outgoing rows only (read/add/remove, no update), no
 //   duplicates (23505), not oneself (23514); adding B lets me READ B's users
-//   and profiles rows (one-way); lookup_username(): exact, case-insensitive
+//   and profiles rows (one-way); lookup_username(): exact, case-insensitive,
+//   at most 30 per 15 minutes per account (LQ429)
+// - profiles: visibility 'FRIENDS' (D12), summary at most 16 KB (23514)
 // - delete_my_account(): deletes the user and cascades
 // - email + password auth like the real project (checked 2026-09-26: email
 //   enabled, sign-up allowed, confirmation required): sign-up gives no session
@@ -43,6 +45,7 @@ export function createFakeSupabase({ confirmEmail = true }: { confirmEmail?: boo
   const emailAccounts = new Map<string, { userId: string; password: string; confirmed: boolean }>();
   const emailsSent: Array<{ kind: 'confirm' | 'reset'; email: string; redirectTo?: string }> = [];
   let rateLimited = false;
+  const lookups = new Map<string, number[]>(); // username lookups per account (rate limit)
   let nextEmailUser = 0;
 
   const uid = () => session?.user.id ?? null;
@@ -87,7 +90,7 @@ export function createFakeSupabase({ confirmEmail = true }: { confirmEmail?: boo
     const guard = guardProfile(values);
     if (guard) return { row: null, error: guard };
     if (tables.profiles!.some((p) => p.user_id === values.user_id)) return { row: null, error: { code: '23505', message: 'duplicate key' } };
-    const row = { ...values, revision: 1, visibility: 'PRIVATE', created_at: now(), updated_at: now() };
+    const row = { ...values, revision: 1, visibility: 'FRIENDS', created_at: now(), updated_at: now() };
     tables.profiles!.push(row);
     return { row, error: null };
   }
@@ -96,6 +99,7 @@ export function createFakeSupabase({ confirmEmail = true }: { confirmEmail?: boo
     const data = values.data as { format?: string; meta?: { ownerUserId?: string }; data?: unknown } | undefined;
     if (data?.format !== 'liqueamp-profile' || typeof data.meta !== 'object' || typeof data.data !== 'object') return { code: '22023', message: 'not a LiqueAmp profile' };
     if (data.meta?.ownerUserId !== values.user_id) return { code: '22023', message: 'profile owner does not match' };
+    if (values.summary != null && JSON.stringify(values.summary).length > 16384) return { code: '23514', message: 'violates check constraint "profiles_summary_size"' };
     return null;
   }
 
@@ -247,6 +251,9 @@ export function createFakeSupabase({ confirmEmail = true }: { confirmEmail?: boo
       await net(null);
       if (!uid()) return { data: null, error: { code: fn === 'lookup_username' ? '42501' : '28000', message: 'not authenticated' } };
       if (fn === 'lookup_username') {
+        const recent = (lookups.get(uid()!) ?? []).filter((t) => t > Date.now() - 15 * 60 * 1000);
+        if (recent.length >= 30) return { data: null, error: { code: 'LQ429', message: 'too many username lookups' } };
+        lookups.set(uid()!, [...recent, Date.now()]);
         // only id + username, never anything else
         const key = String(args?.p_username ?? '').trim().toLowerCase();
         return { data: tables.users.filter((u) => String(u.username).toLowerCase() === key).slice(0, 1).map((u) => ({ user_id: u.id, username: u.username })), error: null };

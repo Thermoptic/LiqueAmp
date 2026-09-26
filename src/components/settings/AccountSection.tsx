@@ -44,6 +44,10 @@ export function AccountSection() {
               Delete account
             </button>
           </div>
+          <p className="settings-group__note account__sharing">
+            Your username is the address of your Lique: anyone who knows your exact username can add you and view your shared Lique — read-only; they
+            can’t change anything. Your queue, history and device settings are never shared.
+          </p>
           <p className="settings-group__note">Logging out keeps everything on this device exactly as it is.</p>
           <DeleteAccountDialog open={deleting} username={user.username} onClose={() => setDeleting(false)} />
         </>
@@ -68,7 +72,7 @@ export function AccountSection() {
           {available && <EmailAuthDialog mode={emailMode} onClose={() => setEmailMode(null)} />}
           <p className="settings-group__note">
             {available
-              ? 'An account keeps your Lique in the cloud and lets friends add it. LiqueAmp keeps working without one.'
+              ? 'An account keeps your Lique in the cloud. Your username becomes its address: anyone who knows it can add you and view your Lique, read-only. LiqueAmp keeps working without one.'
               : (problem ?? 'Accounts are not available in this version yet. LiqueAmp works fully without one.')}
           </p>
         </>

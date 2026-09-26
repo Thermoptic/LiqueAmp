@@ -4,7 +4,7 @@
 // Everything else — every store and repository — can only read a friend
 // scope. Friend Lique activation (src/services/friends/activation.ts) fetches,
 // validates and stores a friend's profile here before showing it.
-import { deleteFriendDb, friendDbName, openFriendDb, PROFILE_STORES } from '../storage/db';
+import { deleteFriendDb, FRIEND_DB_PREFIX, friendDbName, openFriendDb, PROFILE_STORES } from '../storage/db';
 import { profileKvFor, profileKvKey } from '../storage/repository';
 import { getActiveScope, ProfileScopeError, type ProfileScope } from '../storage/scope';
 import { pickProfileSettings } from '../../types/settings';
@@ -77,4 +77,21 @@ export async function deleteFriendProfileCache(userId: string): Promise<void> {
     throw new ProfileScopeError('Return to your own profile before removing this cached profile.');
   }
   await deleteFriendDb(userId);
+}
+
+/**
+ * Removes every friend profile copy on this device (an account ended: logout,
+ * another account). The browser lists its databases where it can
+ * (`indexedDB.databases()`); where it cannot, the ids in `known` are removed.
+ * MY_LIQUE (`liqueamp`) is never touched, and nothing here can fail a logout.
+ */
+export async function deleteAllFriendProfileCaches(known: readonly string[] = []): Promise<void> {
+  let listed: string[] = [];
+  try {
+    const dbs = typeof indexedDB !== 'undefined' && typeof indexedDB.databases === 'function' ? await indexedDB.databases() : [];
+    listed = dbs.map((d) => d.name ?? '').filter((name) => name.startsWith(FRIEND_DB_PREFIX)).map((name) => name.slice(FRIEND_DB_PREFIX.length));
+  } catch {
+    // listing unavailable: the known ids below still go
+  }
+  for (const userId of new Set([...known, ...listed])) await deleteFriendProfileCache(userId).catch(() => undefined);
 }

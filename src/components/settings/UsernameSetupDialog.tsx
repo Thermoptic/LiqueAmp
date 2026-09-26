@@ -75,6 +75,10 @@ export function UsernameSetupDialog() {
         {shownError ?? 'Your username identifies your Lique. Letters and digits, 3–20 characters.'}
       </p>
       <p className="muted">Your current LiqueAmp becomes your account’s Lique — you don’t start over.</p>
+      <p className="muted">
+        Your username is the address of your Lique: anyone who knows it exactly can add you and view your Lique, read-only. Queue, history and device
+        settings are never shared.
+      </p>
     </Dialog>
   );
 }

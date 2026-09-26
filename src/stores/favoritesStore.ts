@@ -148,8 +148,12 @@ export const useFavorites = create<FavoritesStore>((set, get) => ({
       return false;
     }
     const fav: Favorite = { id, type: 'station', refId: station.id, addedAt: nowIso() };
-    set({ own: { favorites: [fav, ...own.favorites], stations: { ...own.stations, [station.id]: station } } });
-    await Promise.all([mine.favorites.put(fav), mine.stations.put(station)]);
+    // Station ids are shared (Radio Browser ids), so a friend's record may carry an id MY_LIQUE
+    // already has: my own record is kept, never replaced by the friend's version.
+    const existing = own.stations[station.id] ?? (await mine.stations.get(station.id));
+    const current = get().own ?? own;
+    set({ own: { favorites: [fav, ...current.favorites], stations: { ...current.stations, [station.id]: existing ?? station } } });
+    await Promise.all([mine.favorites.put(fav), existing ? Promise.resolve() : mine.stations.put(station)]);
     return true;
   },
 
