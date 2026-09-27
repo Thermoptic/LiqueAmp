@@ -82,7 +82,17 @@ export function AppearanceModule() {
   ).value;
 
   return (
-    <Module title="Appearance" area="area-appearance" icon={<Palette size={15} aria-hidden="true" />}>
+    <Module
+      title="Appearance"
+      area="area-appearance"
+      icon={<Palette size={15} aria-hidden="true" />}
+      action={
+        // the same shortcut as the Visualizer module's, to Control › Themes
+        <Link to="/control/themes" className="control-module__link control-module__action" aria-label="More theme settings" title="More theme settings">
+          <Settings2 size={14} aria-hidden="true" />
+        </Link>
+      }
+    >
       <Field label="Theme">
         {(id) => (
           <select id={id} className="select" value={activeThemeId} onChange={(e) => update({ activeThemeId: e.currentTarget.value })}>
