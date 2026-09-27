@@ -27,7 +27,7 @@ describe('main menu — Control Panel', () => {
   it('lists CONTROL PANEL directly below SETTINGS; the other items are unchanged', () => {
     renderMenu('/');
     const items = within(mainMenu()).getAllByRole('link').map((a) => a.textContent);
-    expect(items).toEqual(['Now Playing', 'Browse', 'Playlists', 'Favourites', 'History', 'Settings', 'Control Panel']);
+    expect(items).toEqual(['Now Playing', 'Browse', 'Playlists', 'Favourites', 'Retro', 'Settings', 'Control Panel']);
     const control = within(mainMenu()).getByRole('link', { name: 'Control Panel' });
     expect(control.className).toBe(within(mainMenu()).getByRole('link', { name: 'Settings' }).className.replace(' active', ''));
     expect(control.getAttribute('href')).toBe('/control');

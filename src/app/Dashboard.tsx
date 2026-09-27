@@ -12,6 +12,7 @@ import { BottomNav } from '../components/navigation/BottomNav';
 import { NowPlayingPanel } from '../components/player/NowPlayingPanel';
 import { MiniPlayer } from '../components/player/MiniPlayer';
 import { RadioBrowserPanel } from '../components/radio/RadioBrowserPanel';
+import { RetroBrowserPanel } from '../components/retro/RetroBrowserPanel';
 import { StationInfoPanel } from '../components/radio/StationInfoPanel';
 import { FriendLiquesPanel } from '../components/friends/FriendLiquesPanel';
 import { LibraryPanel } from '../components/library/LibraryPanel';
@@ -59,7 +60,8 @@ export function Dashboard() {
         <main id="main-content" className="dashboard__main">
           <h1 className="sr-only">LIQUEAMP player</h1>
           {section === 'settings' ? <SettingsPanel /> : <NowPlayingPanel />}
-          <RadioBrowserPanel focusSearch={section === 'browse'} />
+          {/* the Browse panel's slot: Retro systems in the Retro section, the radio directory otherwise */}
+          {section === 'retro' ? <RetroBrowserPanel /> : <RadioBrowserPanel focusSearch={section === 'browse'} />}
           {/* under the sidebar, same width as the Library column */}
           <AudioModule />
           {/* Library spans both lower rows; the settings modules sit under the other three panels.

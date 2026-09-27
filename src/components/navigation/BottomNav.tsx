@@ -6,7 +6,7 @@ const SHORT: Record<string, string> = {
   browse: 'Browse',
   playlists: 'Lists',
   favourites: 'Favs',
-  history: 'History',
+  retro: 'Retro',
   settings: 'Settings',
 };
 

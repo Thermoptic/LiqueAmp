@@ -1295,6 +1295,21 @@
   font-size: var(--la-text-sm);
 }
 
+/* Retro results: like a station row, with play · queue · favourite · ⋯ */
+.retro-row {
+  grid-template-columns: 26px minmax(0, 1fr) auto auto auto auto;
+}
+
+/* a multi-tune file's name above its tune list */
+.retro-browser__file {
+  flex-wrap: nowrap;
+}
+
+.retro-browser__file-text {
+  display: grid;
+  min-width: 0;
+}
+
 /* rows: hover marks with base0A, the selected station with base0E */
 :is(.station-row, .media-row, .queue-row):hover:not([aria-current='true'], [data-selected]) {
   background: var(--la-surface-2);

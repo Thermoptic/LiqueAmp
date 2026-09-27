@@ -273,11 +273,11 @@
   }
 
   /* on mobile the page scrolls, so the station list takes its natural height */
-  .app-frame[data-section='browse'] .radio-browser__view {
+  .app-frame:is([data-section='browse'], [data-section='retro']) .radio-browser__view {
     flex: 1 1 auto;
   }
 
-  .app-frame[data-section='browse'] .area-radio {
+  .app-frame:is([data-section='browse'], [data-section='retro']) .area-radio {
     display: flex;
     contain: none;
     height: auto;
