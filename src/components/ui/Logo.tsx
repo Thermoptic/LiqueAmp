@@ -10,7 +10,7 @@ const mask = (url: string): CSSProperties => ({ maskImage: `url(${url})`, Webkit
  * the active theme: the play triangle and drop in the text colour, the music
  * note in the theme's primary colour.
  */
-export function LogoMark({ size = 44 }: { size?: number }) {
+export function LogoMark({ size = 44 }: { size?: number | string }) {
   return (
     <span className="logo-mark" style={{ width: size, height: size }} aria-hidden="true">
       <span className="logo-mark__layer logo-mark__body" style={mask(bodyMask)} />

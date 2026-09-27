@@ -57,9 +57,9 @@ export function NowPlayingPanel() {
         {mode === 'embedded' && showArtwork ? (
           <EmbedSlot />
         ) : showArtwork ? (
-          <Artwork className="now-playing__art" src={item?.artwork} alt={item ? `Artwork for ${item.title}` : 'No artwork'} />
+          <Artwork className="now-playing__art" src={item?.artwork} alt={item ? `Artwork for ${item.title}` : 'No artwork'} placeholder="logo" />
         ) : (
-          <Artwork className="now-playing__art" src={null} alt="" />
+          <Artwork className="now-playing__art" src={null} alt="" placeholder="logo" />
         )}
 
         <div className="now-playing__info">

@@ -322,6 +322,20 @@
 #la-dots circle {
   fill: var(--la-border-strong);
 }
+/* Now Playing without artwork: the LIQUEAMP mark in the theme's colours, at
+   80 % of the rings' outer diameter (r 30 of 100 → 60 %): 48 % of the area
+   inside the padding. Transparent; the placeholder background shows through. */
+.artwork__logo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  width: calc((100% - 12px) * 0.48);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
 .artwork__fallback-ring {
   fill: none;
   stroke: var(--la-primary);

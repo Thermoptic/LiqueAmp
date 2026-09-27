@@ -1,16 +1,19 @@
 import { useId, useState } from 'react';
+import { LogoMark } from './Logo';
 
 interface ArtworkProps {
   src?: string | null;
   alt: string;
   className?: string;
+  /** Without artwork: the LIQUEAMP rings (default) or the LIQUEAMP logo mark (Now Playing). */
+  placeholder?: 'rings' | 'logo';
 }
 
 /**
  * Square artwork with a designed LIQUEAMP fallback — never a broken image
  * icon (DESIGN §66). External artwork is shown as-is, never recolored.
  */
-export function Artwork({ src, alt, className = '' }: ArtworkProps) {
+export function Artwork({ src, alt, className = '', placeholder = 'rings' }: ArtworkProps) {
   const [failed, setFailed] = useState<string | null>(null);
   const showImage = src && failed !== src;
   const patternId = `la-dots-${useId().replace(/:/g, '')}`;
@@ -31,10 +34,19 @@ export function Artwork({ src, alt, className = '' }: ArtworkProps) {
           </defs>
           <rect width="100" height="100" className="artwork__fallback-bg" />
           <rect width="100" height="100" fill={`url(#${patternId})`} className="artwork__fallback-dots" />
-          <circle cx="50" cy="50" r="30" className="artwork__fallback-ring" />
-          <circle cx="50" cy="50" r="18" className="artwork__fallback-ring artwork__fallback-ring--inner" />
-          <circle cx="50" cy="50" r="3" className="artwork__fallback-core" />
+          {placeholder === 'rings' && (
+            <>
+              <circle cx="50" cy="50" r="30" className="artwork__fallback-ring" />
+              <circle cx="50" cy="50" r="18" className="artwork__fallback-ring artwork__fallback-ring--inner" />
+              <circle cx="50" cy="50" r="3" className="artwork__fallback-core" />
+            </>
+          )}
         </svg>
+      )}
+      {!showImage && placeholder === 'logo' && (
+        <span className="artwork__logo">
+          <LogoMark size="100%" />
+        </span>
       )}
     </div>
   );
