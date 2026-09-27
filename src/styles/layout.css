@@ -38,6 +38,27 @@
   .dashboard {
     height: 100dvh;
   }
+
+  /* Settings replaces Now Playing in the main row. Its content must not set
+     that row's minimum height (minmax(min-content, 1fr) made the page taller
+     than the viewport and brought back the browser scrollbar): the row takes
+     the room left above the lower panels at their minimum height, as it
+     already did whenever Settings was open. The settings sections flow down
+     columns instead of across equal-height rows, so they fit that room; on a
+     screen too short even for that, the panel body scrolls, as every panel's
+     body does. */
+  .app-frame[data-section='settings'] .dashboard {
+    grid-template-rows: auto minmax(0, 1fr) 230px minmax(min-content, auto) auto;
+  }
+  .app-frame[data-section='settings'] .settings-panel__grid {
+    display: block;
+    columns: 240px;
+    column-gap: var(--la-space-3);
+  }
+  .app-frame[data-section='settings'] .settings-panel__grid > * {
+    break-inside: avoid;
+    margin-bottom: var(--la-space-3);
+  }
 }
 
 .app-header {
