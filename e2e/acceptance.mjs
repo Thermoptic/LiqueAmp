@@ -526,7 +526,7 @@ async function run(browser, ports) {
         hscroll: document.documentElement.scrollWidth > innerWidth,
       };`);
     if (!r.section) throw new Error('Settings has no Account section showing "Not logged in"');
-    if (r.label !== 'NOT LOGGED IN' || !r.rightOfStorage) throw new Error(`status label: ${JSON.stringify(r)}`);
+    if (r.label !== 'ACCOUNT: NOT LOGGED IN' || !r.rightOfStorage) throw new Error(`status label: ${JSON.stringify(r)}`);
     if (!r.csp || r.csp.includes("'unsafe-inline'")) throw new Error('no strict CSP meta tag');
     if (r.violations.length) throw new Error(`CSP violations: ${r.violations.join(', ')}`);
     if (r.hscroll) throw new Error('horizontal scroll on the settings page');

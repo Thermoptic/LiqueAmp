@@ -6,10 +6,17 @@ import { statusTone } from '../player/NowPlayingPanel';
 import { accountUser, useAccount } from '../../stores/accountStore';
 import { useFriends } from '../../stores/friendsStore';
 
-/** Next to STORAGE: the account this Lique belongs to, or that none is logged in. */
+/** Next to STORAGE, in the same form: the account this Lique belongs to (on), or that none is logged in (off). */
 function AccountLabel() {
   const user = useAccount((s) => accountUser(s.state));
-  return <span className="status-bar__account">{user ? `@${user.username}` : 'NOT LOGGED IN'}</span>;
+  return (
+    <>
+      <span className="status-bar__sep" aria-hidden="true" />
+      <Status tone={user ? 'ok' : 'idle'}>
+        <span className="truncate status-bar__account">ACCOUNT: {user ? `@${user.username}` : 'NOT LOGGED IN'}</span>
+      </Status>
+    </>
+  );
 }
 
 /** Always visible while a Friend Lique is shown instead of mine (spec §20). */
