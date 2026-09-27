@@ -188,9 +188,9 @@ describe('scheme to Base16 theme', () => {
 });
 
 describe('built-in themes', () => {
-  it('ships the two LIQUEAMP themes plus 20 Base16 schemes, all valid', () => {
-    expect(BUILTIN_THEMES).toHaveLength(22);
-    expect(new Set(BUILTIN_THEMES.map((t) => t.id)).size).toBe(22);
+  it('ships the two LIQUEAMP themes plus 30 Base16 schemes, all valid', () => {
+    expect(BUILTIN_THEMES).toHaveLength(32);
+    expect(new Set(BUILTIN_THEMES.map((t) => t.id)).size).toBe(32);
     for (const t of BUILTIN_THEMES) {
       expect(t.source).toBe('builtin');
       expect(validateTheme(t).filter((i) => i.level === 'error')).toEqual([]);
@@ -216,7 +216,7 @@ describe('built-in themes', () => {
     const groups = groupThemes([...BUILTIN_THEMES, buildTheme(parseScheme(GRUVBOX))]);
     expect(groups.map((g) => [g.label, g.themes.length])).toEqual([
       ['LiqueAmp', 2],
-      ['Base16 · dark', 15],
+      ['Base16 · dark', 25],
       ['Base16 · light', 5],
       ['Your themes', 1],
     ]);
@@ -289,7 +289,7 @@ describe('theme library operations', () => {
     expect(stored.colors.primary).toBe('#d08770');
   });
 
-  it('lists all 22 built-ins after hydrate', () => {
-    expect(useThemes.getState().themes.filter((t) => t.source === 'builtin')).toHaveLength(22);
+  it('lists all 32 built-ins after hydrate', () => {
+    expect(useThemes.getState().themes.filter((t) => t.source === 'builtin')).toHaveLength(32);
   });
 });

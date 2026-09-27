@@ -227,8 +227,8 @@ describe('migration of existing installations', () => {
 
     const builtinIds = BUILTIN_THEMES.map((t) => t.id);
     expect(builtinIds.slice(0, 2)).toEqual(['liqueamp-default', 'amber-night']);
-    expect(builtinIds).toHaveLength(22);
-    expect(builtinIds.filter((id) => id.startsWith('base16-'))).toHaveLength(20);
+    expect(builtinIds).toHaveLength(32);
+    expect(builtinIds.filter((id) => id.startsWith('base16-'))).toHaveLength(30);
     for (const t of BUILTIN_THEMES) expect(t.colors).toEqual(deriveColors(t.palette));
     // built-ins are never stored, so a migration cannot change them
     expect((await repositories.themes.getAll()).map((t) => t.id)).toEqual(['theme-mine']);

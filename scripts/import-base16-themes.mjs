@@ -12,7 +12,9 @@ import { parse } from 'yaml';
 
 const SOURCE = 'https://raw.githubusercontent.com/tinted-theming/schemes/spec-0.11/base16';
 
-// Widely used schemes: 15 dark, 5 light.
+// Widely used schemes: 15 dark, 5 light, then 10 more dark ones chosen for
+// variety (blue, purple, green, red, neutral, teal, warm, neon, muted, high
+// contrast). New schemes go at the end, so existing entries keep their order.
 const SLUGS = [
   'catppuccin-mocha',
   'dracula',
@@ -34,6 +36,16 @@ const SLUGS = [
   'solarized-light',
   'one-light',
   'rose-pine-dawn',
+  'oceanicnext',
+  'mellow-purple',
+  'bosque',
+  'caroline',
+  'oxocarbon-dark',
+  'sparky',
+  'brasa',
+  'outrun-dark',
+  'zenburn',
+  'irblack',
 ];
 
 const KEYS = Array.from({ length: 16 }, (_, i) => `base0${i.toString(16).toUpperCase()}`);
