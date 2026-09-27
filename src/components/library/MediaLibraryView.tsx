@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ListPlus, Trash2, X } from 'lucide-react';
+import { ListPlus, Trash2 } from 'lucide-react';
 import { getEngine } from '../../services/playback/engine';
 import { useLibrary } from '../../stores/libraryStore';
 import { useUi } from '../../stores/uiStore';
@@ -9,13 +9,23 @@ import { EmptyState } from '../ui/controls';
 import { MediaRow } from './MediaRow';
 import { RowList } from '../ui/RowList';
 
-/** Saved library media, all or one category (SPEC §16 library categories). */
+/**
+ * The Library category Collection shows: the one selected in the LIBRARY
+ * panel, or All media when that category no longer exists here (deleted, or
+ * a Friend Lique without it).
+ */
+export function useLibraryCategory(): string {
+  const view = useUi((s) => s.libraryView);
+  const exists = useLibrary((s) => view === 'all' || s.categories.some((c) => c.id === view));
+  return exists ? view : 'all';
+}
+
+/** Collection: saved library media, all or one category (SPEC §16 library categories). */
 export function MediaLibraryView({ view }: { view: string }) {
   const media = useLibrary((s) => s.media);
   const categories = useLibrary((s) => s.categories);
   const removeMedia = useLibrary((s) => s.removeMedia);
   const updateMedia = useLibrary((s) => s.updateMedia);
-  const showLibrary = useUi((s) => s.showLibrary);
   const toast = useUi((s) => s.toast);
   const [removing, setRemoving] = useState<MediaItem | null>(null);
 
@@ -28,9 +38,6 @@ export function MediaLibraryView({ view }: { view: string }) {
       <div className="library-toolbar">
         <h3 className="library-toolbar__title truncate">{title}</h3>
         <span className="muted">{items.length === 1 ? '1 item' : `${items.length} items`}</span>
-        <button type="button" className="btn btn--ghost btn--icon" aria-label="Close library view" onClick={() => showLibrary(null)}>
-          <X size={14} />
-        </button>
       </div>
       {items.length > 0 && (
         <div className="library-toolbar">

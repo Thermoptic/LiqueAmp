@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router';
+import { NavLink } from 'react-router';
 import { Download, Folder, Library, Plus } from 'lucide-react';
-import { CONTROL_PANEL_LINK, LIBRARY_SECTIONS, SECTIONS, sectionFromPath } from '../../app/sections';
+import { CONTROL_PANEL_LINK, SECTIONS } from '../../app/sections';
 import { useUi } from '../../stores/uiStore';
 import { ImportDialog } from '../import/ImportDialog';
 import { countByCategory, useLibrary } from '../../stores/libraryStore';
 import { LogoMark } from '../ui/Logo';
 import { CategoryDialog } from '../library/CategoryDialog';
+import { useLibraryCategory } from '../library/MediaLibraryView';
 
 export function Sidebar() {
   return (
@@ -41,17 +42,14 @@ export function LibraryCategories() {
   const [adding, setAdding] = useState(false);
   const [importing, setImporting] = useState(false);
   const visible = categories.filter((c) => c.enabled);
-  const libraryView = useUi((s) => s.libraryView);
+  const libraryView = useLibraryCategory();
   const showLibrary = useUi((s) => s.showLibrary);
-  const libraryTab = useUi((s) => s.libraryTab);
-  const navigate = useNavigate();
-  const { pathname } = useLocation();
 
-  // The Library panel shows the media list. On phones it is only visible on a
-  // library screen, so go there if needed.
+  // The category filters the Collection tab of the Library panel, which is on
+  // screen wherever these categories are (phones show both only on the
+  // library screens), so no navigation is needed.
   function open(view: string) {
     showLibrary(view);
-    if (!LIBRARY_SECTIONS.has(sectionFromPath(pathname))) navigate(`/${libraryTab}`);
   }
 
   return (

@@ -656,8 +656,28 @@
 }
 
 /* ---------- Lower panels ---------- */
+.library-panel {
+  container: library-panel / inline-size;
+}
+
 .library-panel .tabs {
   border-bottom: var(--la-border-width) solid var(--la-border-subtle);
+}
+
+/* COLLECTION | PLAYLISTS | FAVOURITES | HISTORY need ~390px in one row at the
+   tab type size; a narrower panel (1440px screens and below, phones) shows
+   them as two even rows instead of a row that scrolls sideways. */
+@container library-panel (max-width: 399px) {
+  .library-panel .tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .library-panel .tab:nth-child(2n) {
+    border-right: 0;
+  }
+  .library-panel .tab:nth-child(-n + 2) {
+    border-bottom: var(--la-border-width) solid var(--la-border-subtle);
+  }
 }
 
 /* ---------- Control strip ---------- */

@@ -10,7 +10,8 @@ export interface Toast {
   message: string;
 }
 
-export type LibraryTab = 'playlists' | 'favourites' | 'history';
+/** Collection is the Library's media (filtered by the selected category); the others are their own lists. */
+export type LibraryTab = 'collection' | 'playlists' | 'favourites' | 'history';
 
 /** The station shown in Station Info (selected in a station list). */
 export type Selection = { kind: 'station'; station: RadioStation } | null;
@@ -24,9 +25,10 @@ interface UiStore {
   /** Playlist shown in detail in the Playlists tab, or null for the list. */
   openPlaylistId: string | null;
   openPlaylist(id: string | null): void;
-  /** Library media shown in the Library panel: 'all', a category id, or null (tabs). */
-  libraryView: string | null;
-  showLibrary(view: string | null): void;
+  /** The Library category shown in Collection: 'all' or a category id. */
+  libraryView: string;
+  /** Selects a Library category and shows it in the Collection tab. */
+  showLibrary(view: string): void;
   toast(message: string, kind?: ToastKind): void;
   dismissToast(id: string): void;
   setLibraryTab(tab: LibraryTab): void;
@@ -34,13 +36,14 @@ interface UiStore {
 
 export const useUi = create<UiStore>((set, get) => ({
   toasts: [],
-  libraryTab: 'playlists',
+  // A page load always starts on Collection with All media (this store is never persisted).
+  libraryTab: 'collection',
   selection: null,
   openPlaylistId: null,
-  libraryView: null,
+  libraryView: 'all',
 
   showLibrary(libraryView) {
-    set({ libraryView });
+    set({ libraryView, libraryTab: 'collection' });
   },
 
   select(selection) {

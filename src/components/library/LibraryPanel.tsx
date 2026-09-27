@@ -3,10 +3,13 @@ import { useUi, type LibraryTab } from '../../stores/uiStore';
 import { FavouritesView } from './FavouritesView';
 import { HistoryView } from './HistoryView';
 import { PlaylistsView } from './PlaylistsView';
-import { MediaLibraryView } from './MediaLibraryView';
+import { MediaLibraryView, useLibraryCategory } from './MediaLibraryView';
 import { onTablistKeyDown } from '../ui/controls';
 
-const TABS: ReadonlyArray<{ id: LibraryTab; label: string; path: string }> = [
+// Collection has no route of its own: it is the Library, filtered by the
+// category selected in the LIBRARY panel.
+const TABS: ReadonlyArray<{ id: LibraryTab; label: string; path: string | null }> = [
+  { id: 'collection', label: 'Collection', path: null },
   { id: 'playlists', label: 'Playlists', path: '/playlists' },
   { id: 'favourites', label: 'Favourites', path: '/favourites' },
   { id: 'history', label: 'History', path: '/history' },
@@ -14,8 +17,8 @@ const TABS: ReadonlyArray<{ id: LibraryTab; label: string; path: string }> = [
 
 export function LibraryPanel() {
   const tab = useUi((s) => s.libraryTab);
-  const libraryView = useUi((s) => s.libraryView);
-  const showLibrary = useUi((s) => s.showLibrary);
+  const setLibraryTab = useUi((s) => s.setLibraryTab);
+  const category = useLibraryCategory();
   const navigate = useNavigate();
 
   return (
@@ -27,14 +30,13 @@ export function LibraryPanel() {
             type="button"
             role="tab"
             id={`lib-tab-${t.id}`}
-            aria-selected={!libraryView && tab === t.id}
-            // one Tab stop: the selected tab, or the first while a category view is open
-            tabIndex={(libraryView ? t.id === TABS[0]!.id : tab === t.id) ? 0 : -1}
+            aria-selected={tab === t.id}
+            tabIndex={tab === t.id ? 0 : -1}
             aria-controls="lib-tabpanel"
             className="tab"
             onClick={() => {
-              showLibrary(null);
-              navigate(t.path);
+              setLibraryTab(t.id);
+              if (t.path) navigate(t.path);
             }}
           >
             {t.label}
@@ -42,15 +44,10 @@ export function LibraryPanel() {
         ))}
       </div>
       <div className="panel__body panel__body--flush" id="lib-tabpanel" role="tabpanel" aria-labelledby={`lib-tab-${tab}`}>
-        {libraryView ? (
-          <MediaLibraryView view={libraryView} />
-        ) : (
-          <>
-            {tab === 'playlists' && <PlaylistsView />}
-            {tab === 'favourites' && <FavouritesView />}
-            {tab === 'history' && <HistoryView />}
-          </>
-        )}
+        {tab === 'collection' && <MediaLibraryView view={category} />}
+        {tab === 'playlists' && <PlaylistsView />}
+        {tab === 'favourites' && <FavouritesView />}
+        {tab === 'history' && <HistoryView />}
       </div>
     </section>
   );

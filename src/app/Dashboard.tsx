@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { takeAuthReturnPath, useAccount } from '../stores/accountStore';
 import { UsernameSetupDialog } from '../components/settings/UsernameSetupDialog';
@@ -27,7 +27,7 @@ import { SkipLink } from '../components/layout/SkipLink';
  * interrupts it.
  */
 export function Dashboard() {
-  const { pathname } = useLocation();
+  const { pathname, key } = useLocation();
   const section = sectionFromPath(pathname);
   const setLibraryTab = useUi((s) => s.setLibraryTab);
   const navigate = useNavigate();
@@ -39,9 +39,15 @@ export function Dashboard() {
     if (pathname === '/auth/callback' && !accountLoading) navigate(takeAuthReturnPath(), { replace: true });
   }, [pathname, accountLoading, navigate]);
 
+  // Navigating to /playlists, /favourites or /history opens that Library tab.
+  // The location the page was loaded with does not, so a reload always starts
+  // on Collection (the location key also changes on a re-navigation to the
+  // same path, e.g. the mobile bar's LISTS while Collection is open).
+  const loadedKey = useRef(key);
   useEffect(() => {
+    if (key === loadedKey.current) return;
     if (LIBRARY_SECTIONS.has(section)) setLibraryTab(section as LibraryTab);
-  }, [section, setLibraryTab]);
+  }, [section, key, setLibraryTab]);
 
   return (
     <div className="app-frame" data-section={section}>
