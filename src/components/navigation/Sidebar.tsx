@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router';
 import { Download, Folder, Library, Plus } from 'lucide-react';
-import { LIBRARY_SECTIONS, SECTIONS, sectionFromPath } from '../../app/sections';
+import { CONTROL_PANEL_LINK, LIBRARY_SECTIONS, SECTIONS, sectionFromPath } from '../../app/sections';
 import { useUi } from '../../stores/uiStore';
 import { ImportDialog } from '../import/ImportDialog';
 import { countByCategory, useLibrary } from '../../stores/libraryStore';
@@ -21,6 +21,12 @@ export function Sidebar() {
               </NavLink>
             </li>
           ))}
+          <li>
+            <NavLink to={CONTROL_PANEL_LINK.path} className="nav-item">
+              <CONTROL_PANEL_LINK.icon size={18} aria-hidden="true" />
+              <span>{CONTROL_PANEL_LINK.label}</span>
+            </NavLink>
+          </li>
         </ul>
       </nav>
       <LibraryCategories />
