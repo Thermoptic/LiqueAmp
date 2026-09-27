@@ -1826,6 +1826,44 @@
   accent-color: var(--la-primary);
 }
 
+/* listed by YouTube, not imported */
+.import__entry--unavailable {
+  color: var(--la-text-disabled);
+}
+
+/* YouTube's player while it lists a playlist (visible, as YouTube requires) */
+.import__probe:empty {
+  display: none;
+}
+
+.import__probe {
+  width: 200px;
+  height: 200px;
+}
+
+.import__playlist {
+  display: grid;
+  gap: var(--la-space-1);
+  padding-bottom: var(--la-space-2);
+  border-bottom: var(--la-border-width) solid var(--la-border-subtle);
+}
+
+.import__playlist-kind,
+.import__playlist-count {
+  color: var(--la-text-muted);
+  font-size: var(--la-text-xs);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.import__playlist-title {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--la-font-display);
+  font-size: var(--la-text-lg);
+  color: var(--la-heading);
+}
+
 .dialog--wide {
   width: min(720px, calc(100vw - 32px));
 }
@@ -1847,6 +1885,28 @@ button.category-item {
 button.category-item:hover {
   color: var(--la-hover-text);
   background: var(--la-surface-2);
+}
+
+/* an imported playlist: one Library entry, name over "PLAYLIST · N VIDEOS" */
+.category-item--playlist {
+  grid-template-columns: 16px minmax(0, 1fr);
+  min-height: 40px;
+}
+
+.category-item__name {
+  display: grid;
+  min-width: 0;
+}
+
+.category-item__meta {
+  color: var(--la-text-muted);
+  font-size: var(--la-text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+button.category-item[aria-pressed='true'] .category-item__meta {
+  color: inherit;
 }
 
 button.category-item[aria-pressed='true'] {

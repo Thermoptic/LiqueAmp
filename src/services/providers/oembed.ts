@@ -4,7 +4,7 @@
 
 import { createId, nowIso } from '../../lib/id';
 import type { MediaItem, PlaybackType, ProviderId } from '../../types/media';
-import type { Detection } from './detect';
+import { detectSource, type Detection } from './detect';
 import { ProviderError } from './errors';
 
 const ENDPOINT: Partial<Record<ProviderId, string>> = {
@@ -78,6 +78,74 @@ export function providerPlaybackType(detection: Detection): PlaybackType {
   const id = detection.providerItemId ?? '';
   if (detection.provider === 'youtube' || detection.provider === 'youtube-music') return id.includes(':video:') ? 'embed' : 'external';
   return 'embed';
+}
+
+/** A YouTube playlist, resolved video by video (in YouTube's order). */
+export interface YouTubePlaylist {
+  listId: string;
+  /** The playlist's page. */
+  url: string;
+  /** From YouTube's oEmbed; undefined when YouTube did not say. */
+  title?: string;
+  author?: string;
+  artwork?: string;
+  videos: YouTubePlaylistVideo[];
+}
+
+export type YouTubePlaylistVideo =
+  | { videoId: string; url: string; item: MediaItem }
+  /** Listed by YouTube but not playable here (removed, private, embedding off) or not reachable. */
+  | { videoId: string; url: string; unavailable: string };
+
+/** How the video ids are read (the IFrame Player API in the app; a stub in tests). */
+export type PlaylistIdReader = (listId: string) => Promise<string[]>;
+
+async function mapLimit<T, R>(items: readonly T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out = new Array<R>(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]!);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+
+/**
+ * Resolves a YouTube playlist (PROVIDERS §7, §31): its title from oEmbed, its
+ * video ids from `readIds`, and each video like a single-video import
+ * (oEmbed), four at a time. Videos oEmbed refuses are reported as
+ * unavailable, never dropped silently. Throws ProviderError when the list
+ * itself cannot be read.
+ */
+export async function resolveYouTubePlaylist(detection: Detection, readIds: PlaylistIdReader, fetchImpl: typeof fetch = fetch): Promise<YouTubePlaylist> {
+  const listId = detection.listId;
+  if (!listId || (detection.provider !== 'youtube' && detection.provider !== 'youtube-music')) {
+    throw new ProviderError('INVALID_URL', 'This link does not name a YouTube playlist.');
+  }
+  const music = detection.provider === 'youtube-music';
+  const url = `${music ? 'https://music.youtube.com' : 'https://www.youtube.com'}/playlist?list=${encodeURIComponent(listId)}`;
+  const [meta, ids] = await Promise.all([
+    // the title is welcome but not required (mixes and some lists have none)
+    fetchOEmbed({ provider: 'youtube', kind: 'provider', confidence: 'high', normalizedUrl: `https://www.youtube.com/playlist?list=${encodeURIComponent(listId)}` }, fetchImpl).catch(() => null),
+    readIds(listId).catch((err: unknown) => {
+      throw new ProviderError(
+        navigator.onLine ? 'UNKNOWN' : 'NETWORK_ERROR',
+        navigator.onLine ? `YouTube's player could not read this playlist (${(err as Error).message}).` : 'You are offline.',
+      );
+    }),
+  ]);
+  const videos = await mapLimit(ids, 4, async (videoId): Promise<YouTubePlaylistVideo> => {
+    const videoUrl = `${music ? 'https://music.youtube.com' : 'https://www.youtube.com'}/watch?v=${videoId}`;
+    try {
+      return { videoId, url: videoUrl, item: await resolveProvider(detectSource(videoUrl), fetchImpl) };
+    } catch (err) {
+      return { videoId, url: videoUrl, unavailable: err instanceof ProviderError ? err.message : 'Could not be resolved.' };
+    }
+  });
+  return { listId, url, title: meta?.title, author: meta?.artist, artwork: meta?.artwork, videos };
 }
 
 /** Resolves a provider link into a normalized MediaItem (PROVIDERS §7). */

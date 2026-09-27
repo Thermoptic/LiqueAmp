@@ -23,6 +23,12 @@ export interface Detection {
   normalizedUrl: string;
   /** Stable provider identity for duplicate detection, e.g. "spotify:track:…". */
   providerItemId?: string;
+  /**
+   * A YouTube playlist id (`list=`). Set whenever the link names a playlist,
+   * also when it names a video in it (watch?v=…&list=…); providerItemId still
+   * names the video, so everything that plays a single video is unchanged.
+   */
+  listId?: string;
   reason?: string;
 }
 
@@ -75,16 +81,17 @@ function detectYouTube(url: URL): Detection | null {
   if (host !== 'youtube.com' && host !== 'youtu.be' && host !== 'music.youtube.com') return null;
   const provider: ProviderId = host === 'music.youtube.com' ? 'youtube-music' : 'youtube';
   const id = youtubeId(url);
-  const list = url.searchParams.get('list');
+  const list = url.searchParams.get('list')?.trim() || null;
+  const listId = list && /^[\w-]+$/.test(list) ? list : undefined;
   if (id) {
     const canonical = new URL(provider === 'youtube-music' ? 'https://music.youtube.com/watch' : 'https://www.youtube.com/watch');
     canonical.searchParams.set('v', id);
-    return { provider, kind: 'provider', confidence: 'high', normalizedUrl: canonical.href, providerItemId: `${provider}:video:${id}` };
+    return { provider, kind: 'provider', confidence: 'high', normalizedUrl: canonical.href, providerItemId: `${provider}:video:${id}`, ...(listId ? { listId } : {}) };
   }
   if (list) {
     const canonical = new URL(provider === 'youtube-music' ? 'https://music.youtube.com/playlist' : 'https://www.youtube.com/playlist');
     canonical.searchParams.set('list', list);
-    return { provider, kind: 'provider', confidence: 'high', normalizedUrl: canonical.href, providerItemId: `${provider}:playlist:${list}` };
+    return { provider, kind: 'provider', confidence: 'high', normalizedUrl: canonical.href, providerItemId: `${provider}:playlist:${list}`, ...(listId ? { listId } : {}) };
   }
   return { provider, kind: 'provider', confidence: 'low', normalizedUrl: url.href, reason: 'No video or playlist id found in this YouTube URL.' };
 }

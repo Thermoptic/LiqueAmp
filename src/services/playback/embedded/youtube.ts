@@ -17,12 +17,19 @@ interface YTPlayer {
   getDuration(): number;
   cueVideoById(id: string): void;
   getVideoData?(): { title?: string; author?: string; isLive?: boolean };
+  getPlaylist?(): string[] | null;
+  destroy?(): void;
 }
 
 interface YTNamespace {
   Player: new (
-    el: HTMLIFrameElement,
-    opts: { events: { onReady?(): void; onStateChange?(e: { data: number }): void; onError?(e: { data: number }): void } },
+    el: HTMLElement,
+    opts: {
+      width?: number;
+      height?: number;
+      playerVars?: Record<string, string | number>;
+      events: { onReady?(): void; onStateChange?(e: { data: number }): void; onError?(e: { data: number }): void };
+    },
   ) => YTPlayer;
 }
 
@@ -45,6 +52,58 @@ async function loadYouTubeApi(): Promise<YTNamespace> {
   await loadScript('https://www.youtube.com/iframe_api');
   await ready;
   return window.YT!;
+}
+
+/**
+ * The video ids of a YouTube playlist, in YouTube's order, read through the
+ * official IFrame Player API (`listType: 'playlist'` + `getPlaylist()`): no
+ * API key, no scraping. The player is cued, never played, shown in `container`
+ * (visible, 200×200 as YouTube requires) and removed again. YouTube leaves
+ * out videos it cannot list and caps a player's playlist (about 200 videos).
+ */
+export async function readYouTubePlaylist(listId: string, container: HTMLElement, timeoutMs = 20000): Promise<string[]> {
+  const YT = await loadYouTubeApi();
+  const mount = document.createElement('div');
+  container.appendChild(mount);
+  let player: YTPlayer | null = null;
+  try {
+    return await new Promise<string[]>((resolve, reject) => {
+      // An error from the player is about its current video (e.g. one whose
+      // owner does not allow embedding), not about the list: the list is still
+      // read, and the error only explains a list that never arrives.
+      let playerError: string | null = null;
+      const timer = window.setTimeout(() => reject(new Error(playerError ?? 'YouTube did not return the playlist in time')), timeoutMs);
+      const done = (fn: () => void) => {
+        window.clearTimeout(timer);
+        fn();
+      };
+      const valid = (ids: readonly unknown[]) => ids.filter((id): id is string => typeof id === 'string' && /^[\w-]{6,}$/.test(id));
+      player = new YT.Player(mount, {
+        width: 200,
+        height: 200,
+        playerVars: { listType: 'playlist', list: listId, origin: location.origin, playsinline: 1, rel: 0 },
+        events: {
+          onReady: () => {
+            // the list arrives with the player, sometimes a moment after onReady
+            let tries = 0;
+            const poll = () => {
+              const ids = player?.getPlaylist?.();
+              if (ids?.length) done(() => resolve(valid(ids)));
+              else if (tries++ >= 20) done(() => (playerError ? reject(new Error(playerError)) : resolve([])));
+              else window.setTimeout(poll, 250);
+            };
+            poll();
+          },
+          onError: (e) => {
+            playerError = youtubeError(e.data).message;
+          },
+        },
+      });
+    });
+  } finally {
+    (player as YTPlayer | null)?.destroy?.();
+    container.replaceChildren();
+  }
 }
 
 /** Maps IFrame API error codes to explanations (documented codes). */

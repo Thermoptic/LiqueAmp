@@ -46,6 +46,14 @@ export interface MediaItem {
   /** Provider-specific data lives here, not in the common fields. */
   metadata?: Record<string, unknown>;
 
+  /**
+   * Saved only as part of an imported playlist (e.g. a YouTube playlist):
+   * the playlist is the Library entry, so Collection does not list the item
+   * while a playlist refers to it. Saving it to the library explicitly
+   * clears the flag.
+   */
+  playlistOnly?: boolean;
+
   createdAt: string;
   updatedAt: string;
 }
@@ -103,12 +111,23 @@ export interface PlaylistItem {
   addedAt: string;
 }
 
+/** Where an imported playlist came from. Its items are LIQUEAMP media like any other. */
+export interface PlaylistSource {
+  provider: 'youtube' | 'youtube-music';
+  /** The provider's playlist id (YouTube `list=`). */
+  listId: string;
+  /** The playlist's page, as resolved. */
+  url: string;
+}
+
 export interface Playlist {
   id: string;
   name: string;
   description?: string;
   artwork?: string;
   items: PlaylistItem[];
+  /** Set for playlists imported from a provider; these are also shown in the LIBRARY panel. */
+  source?: PlaylistSource;
   createdAt: string;
   updatedAt: string;
 }

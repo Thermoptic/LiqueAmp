@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { NavLink } from 'react-router';
-import { Download, Folder, Library, Plus } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router';
+import { Download, Folder, Library, ListMusic, Plus } from 'lucide-react';
 import { CONTROL_PANEL_LINK, SECTIONS } from '../../app/sections';
 import { useUi } from '../../stores/uiStore';
 import { ImportDialog } from '../import/ImportDialog';
-import { countByCategory, useLibrary } from '../../stores/libraryStore';
+import { collectionMedia, countByCategory, useLibrary } from '../../stores/libraryStore';
+import { usePlaylists } from '../../stores/playlistStore';
 import { LogoMark } from '../ui/Logo';
 import { CategoryDialog } from '../library/CategoryDialog';
 import { useLibraryCategory } from '../library/MediaLibraryView';
@@ -37,19 +38,34 @@ export function Sidebar() {
 
 export function LibraryCategories() {
   const categories = useLibrary((s) => s.categories);
-  const media = useLibrary((s) => s.media);
+  const allMedia = useLibrary((s) => s.media);
+  const playlists = usePlaylists((s) => s.playlists);
+  // what Collection lists: videos saved only for an imported playlist are counted under that playlist
+  const media = useMemo(() => collectionMedia(allMedia, playlists), [allMedia, playlists]);
   const counts = useMemo(() => countByCategory(media), [media]);
+  const imported = playlists.filter((p) => p.source);
   const [adding, setAdding] = useState(false);
   const [importing, setImporting] = useState(false);
   const visible = categories.filter((c) => c.enabled);
   const libraryView = useLibraryCategory();
+  const libraryTab = useUi((s) => s.libraryTab);
+  const openPlaylistId = useUi((s) => s.openPlaylistId);
   const showLibrary = useUi((s) => s.showLibrary);
+  const navigate = useNavigate();
 
   // The category filters the Collection tab of the Library panel, which is on
   // screen wherever these categories are (phones show both only on the
   // library screens), so no navigation is needed.
   function open(view: string) {
     showLibrary(view);
+  }
+
+  // An imported playlist is one Library entry: it opens in the Playlists tab
+  // (the same state and route as the tab itself); it does not start playing.
+  function openImported(id: string) {
+    useUi.getState().openPlaylist(id);
+    useUi.getState().setLibraryTab('playlists');
+    navigate('/playlists');
   }
 
   return (
@@ -70,7 +86,7 @@ export function LibraryCategories() {
       <div className="panel__body panel__body--flush">
         <ul className="category-list">
           <li>
-            <button type="button" className="category-item" aria-pressed={libraryView === 'all'} onClick={() => open('all')}>
+            <button type="button" className="category-item" aria-pressed={libraryTab === 'collection' && libraryView === 'all'} onClick={() => open('all')}>
               <Library size={14} aria-hidden="true" />
               <span className="truncate">All media</span>
               <span className="category-item__count" aria-label={`${media.length} items`}>
@@ -80,11 +96,27 @@ export function LibraryCategories() {
           </li>
           {visible.map((c) => (
             <li key={c.id}>
-              <button type="button" className="category-item" aria-pressed={libraryView === c.id} onClick={() => open(c.id)}>
+              <button type="button" className="category-item" aria-pressed={libraryTab === 'collection' && libraryView === c.id} onClick={() => open(c.id)}>
                 <Folder size={14} aria-hidden="true" />
                 <span className="truncate">{c.name}</span>
                 <span className="category-item__count" aria-label={`${counts.get(c.id) ?? 0} items`}>
                   {counts.get(c.id) ?? 0}
+                </span>
+              </button>
+            </li>
+          ))}
+          {imported.map((p) => (
+            <li key={p.id}>
+              <button
+                type="button"
+                className="category-item category-item--playlist"
+                aria-pressed={libraryTab === 'playlists' && openPlaylistId === p.id}
+                onClick={() => openImported(p.id)}
+              >
+                <ListMusic size={14} aria-hidden="true" />
+                <span className="category-item__name">
+                  <span className="truncate">{p.name}</span>
+                  <span className="category-item__meta">Playlist · {p.items.length === 1 ? '1 video' : `${p.items.length} videos`}</span>
                 </span>
               </button>
             </li>

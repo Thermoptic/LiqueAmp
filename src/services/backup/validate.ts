@@ -3,7 +3,7 @@
 // null. Addresses are limited to http(s) so an edited backup cannot inject
 // javascript: or data: links into the library.
 import { PROVIDER_IDS } from '../../types/advanced';
-import type { Category, Favorite, FavoriteType, HistoryEntry, MediaItem, PlaybackType, Playlist, PlaylistItem, ProviderId, RadioStation } from '../../types/media';
+import type { Category, Favorite, FavoriteType, HistoryEntry, MediaItem, PlaybackType, Playlist, PlaylistItem, PlaylistSource, ProviderId, RadioStation } from '../../types/media';
 import type { LiqueAmpTheme } from '../../types/theme';
 import { normalizeTheme, validateTheme } from '../themes/theme';
 
@@ -72,6 +72,7 @@ export function validMedia(v: unknown): MediaItem | null {
   if (tags.length) item.tags = tags;
   const enabled = bool(v.enabled);
   if (enabled !== undefined) item.enabled = enabled;
+  if (v.playlistOnly === true) item.playlistOnly = true;
   // Provider metadata is plain JSON from the provider (ids, formats); keep primitives only.
   if (isObj(v.metadata)) {
     const metadata: Record<string, unknown> = {};
@@ -114,7 +115,17 @@ export function validPlaylist(v: unknown): Playlist | null {
   if (description) p.description = description;
   const artwork = httpUrl(v.artwork);
   if (artwork) p.artwork = artwork;
+  const source = validPlaylistSource(v.source);
+  if (source) p.source = source;
   return p;
+}
+
+function validPlaylistSource(v: unknown): PlaylistSource | undefined {
+  if (!isObj(v)) return undefined;
+  const provider = v.provider === 'youtube' || v.provider === 'youtube-music' ? v.provider : undefined;
+  const listId = str(v.listId, 200);
+  const url = httpUrl(v.url);
+  return provider && listId && /^[\w-]+$/.test(listId) && url ? { provider, listId, url } : undefined;
 }
 
 export function validFavorite(v: unknown): Favorite | null {

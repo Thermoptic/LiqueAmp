@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ListPlus, Trash2 } from 'lucide-react';
 import { getEngine } from '../../services/playback/engine';
-import { useLibrary } from '../../stores/libraryStore';
+import { collectionMedia, useLibrary } from '../../stores/libraryStore';
+import { usePlaylists } from '../../stores/playlistStore';
 import { useUi } from '../../stores/uiStore';
 import type { MediaItem } from '../../types/media';
 import { Dialog } from '../ui/Dialog';
@@ -22,7 +23,10 @@ export function useLibraryCategory(): string {
 
 /** Collection: saved library media, all or one category (SPEC §16 library categories). */
 export function MediaLibraryView({ view }: { view: string }) {
-  const media = useLibrary((s) => s.media);
+  const allMedia = useLibrary((s) => s.media);
+  const playlists = usePlaylists((s) => s.playlists);
+  // videos saved only for an imported playlist are reached through that playlist
+  const media = useMemo(() => collectionMedia(allMedia, playlists), [allMedia, playlists]);
   const categories = useLibrary((s) => s.categories);
   const removeMedia = useLibrary((s) => s.removeMedia);
   const updateMedia = useLibrary((s) => s.updateMedia);

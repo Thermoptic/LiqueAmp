@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { createId, nowIso } from '../lib/id';
 import { repositoriesFor } from '../services/storage/repository';
 import { assertWritableScope, getActiveScope, isActiveScope, MY_LIQUE, type ProfileScope } from '../services/storage/scope';
-import type { MediaItem, Playlist } from '../types/media';
+import type { MediaItem, Playlist, PlaylistSource } from '../types/media';
 import { useLibrary } from './libraryStore';
 
 interface PlaylistStore {
@@ -10,7 +10,12 @@ interface PlaylistStore {
   scope: ProfileScope;
   playlists: Playlist[];
   hydrate(): Promise<void>;
-  create(name: string, items?: MediaItem[]): Promise<Playlist>;
+  /**
+   * A new playlist with `items` in order. With a `source` it is an imported
+   * playlist: its new media are saved as playlist-only (not listed in
+   * Collection; the playlist is their Library entry). Existing media are reused.
+   */
+  create(name: string, items?: MediaItem[], options?: { source?: PlaylistSource }): Promise<Playlist>;
   rename(id: string, name: string): Promise<void>;
   remove(id: string): Promise<void>;
   addItems(id: string, items: MediaItem[]): Promise<number>;
@@ -60,16 +65,18 @@ export const usePlaylists = create<PlaylistStore>((set, get) => {
       set({ scope, playlists });
     },
 
-    async create(name, items = []) {
+    async create(name, items = [], options = {}) {
       assertWritableScope(get().scope); // a Friend Lique is read-only: refused before anything changes
       const now = nowIso();
-      const saved = items.length ? await useLibrary.getState().addMedia(items) : [];
+      const playlistName = requireName(name); // before anything is saved
+      const saved = items.length ? await useLibrary.getState().addMedia(items, { playlistOnly: !!options.source }) : [];
       const playlist: Playlist = {
         id: createId('pl'),
-        name: requireName(name),
+        name: playlistName,
         items: saved.map((m) => ({ mediaId: m.id, addedAt: now })),
         createdAt: now,
         updatedAt: now,
+        ...(options.source ? { source: options.source } : {}),
       };
       set({ playlists: [...get().playlists, playlist] });
       await repos().playlists.put(playlist);

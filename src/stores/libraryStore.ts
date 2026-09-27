@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { createId } from '../lib/id';
 import { repositoriesFor } from '../services/storage/repository';
 import { assertWritableScope, getActiveScope, isActiveScope, MY_LIQUE, type ProfileScope } from '../services/storage/scope';
-import type { Category, MediaItem } from '../types/media';
+import type { Category, MediaItem, Playlist } from '../types/media';
 
 interface LibraryStore {
   /** The profile scope this store was hydrated from; all its writes go there (never to another profile). */
@@ -18,15 +18,17 @@ interface LibraryStore {
   /**
    * Saves items to the library and returns the stored versions. An item whose
    * id or source already exists is not duplicated; the existing one is returned.
+   * `playlistOnly` marks the newly added items as part of an imported playlist
+   * (existing items are reused as they are).
    */
-  addMedia(items: MediaItem[]): Promise<MediaItem[]>;
+  addMedia(items: MediaItem[], options?: { playlistOnly?: boolean }): Promise<MediaItem[]>;
   removeMedia(id: string): Promise<void>;
   updateMedia(id: string, patch: MediaPatch): Promise<void>;
   getMedia(id: string): MediaItem | undefined;
 }
 
 /** Fields editable in the library and /control › Media (SPEC §35). Sources and ids never change. */
-export type MediaPatch = Partial<Pick<MediaItem, 'title' | 'artist' | 'album' | 'artwork' | 'description' | 'categoryId' | 'tags' | 'enabled'>>;
+export type MediaPatch = Partial<Pick<MediaItem, 'title' | 'artist' | 'album' | 'artwork' | 'description' | 'categoryId' | 'tags' | 'enabled' | 'playlistOnly'>>;
 
 /** Identity used to detect the same source imported twice (PROVIDERS §61). */
 export function mediaIdentity(item: MediaItem): string {
@@ -101,7 +103,7 @@ export const useLibrary = create<LibraryStore>((set, get) => ({
     await repos().categories.putMany(reordered);
   },
 
-  async addMedia(items) {
+  async addMedia(items, options = {}) {
     assertWritableScope(get().scope); // a Friend Lique is read-only: refused before anything changes
     const existing = get().media;
     const byId = new Map(existing.map((m) => [m.id, m]));
@@ -110,7 +112,8 @@ export const useLibrary = create<LibraryStore>((set, get) => ({
     const result = items.map((item) => {
       const found = byId.get(item.id) ?? byIdentity.get(mediaIdentity(item));
       if (found) return found;
-      const saved = { ...item };
+      const { playlistOnly: _ignored, ...rest } = item;
+      const saved: MediaItem = options.playlistOnly ? { ...rest, playlistOnly: true } : rest;
       byId.set(saved.id, saved);
       byIdentity.set(mediaIdentity(saved), saved);
       added.push(saved);
@@ -165,6 +168,17 @@ async function updateCategory(id: string, patch: Partial<Category>) {
   const next = { ...current, ...patch };
   useLibrary.setState({ categories: categories.map((c) => (c.id === id ? next : c)) });
   await repos().categories.put(next);
+}
+
+/**
+ * The media Collection lists: everything except items saved only as part of
+ * an imported playlist, while a playlist still refers to them (an item no
+ * playlist uses any more is listed again, so nothing becomes unreachable).
+ */
+export function collectionMedia(media: MediaItem[], playlists: readonly Playlist[]): MediaItem[] {
+  if (!media.some((m) => m.playlistOnly)) return media;
+  const inPlaylists = new Set(playlists.flatMap((p) => p.items.map((i) => i.mediaId)));
+  return media.filter((m) => !(m.playlistOnly && inPlaylists.has(m.id)));
 }
 
 /** Real item counts per category, derived from library data (DESIGN §21). */
