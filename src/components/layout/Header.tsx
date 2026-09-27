@@ -5,6 +5,7 @@ import { usePlayback } from '../../stores/playbackStore';
 import { useSystem } from '../../stores/systemStore';
 import { Status } from '../ui/controls';
 import { ActiveLiqueIndicator } from '../friends/ActiveLiqueIndicator';
+import { sessionSlogan } from '../../content/slogans';
 
 const VERSION = 'v1.0';
 
@@ -36,7 +37,7 @@ function Ticker() {
   const status = usePlayback((s) => s.status);
   const text = item
     ? `${status.toUpperCase()}  ${item.artist ? `${item.artist} — ` : ''}${item.title}`
-    : 'MUSIC  PEOPLE  PLACES  ALWAYS ON';
+    : sessionSlogan(); // picked once per page load (src/content/slogans.ts)
   return (
     <div className="app-header__ticker">
       <span className="app-header__prompt" aria-hidden="true">
