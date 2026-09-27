@@ -38,26 +38,48 @@
   .dashboard {
     height: 100dvh;
   }
+}
 
-  /* Settings replaces Now Playing in the main row. Its content must not set
-     that row's minimum height (minmax(min-content, 1fr) made the page taller
-     than the viewport and brought back the browser scrollbar): the row takes
-     the room left above the lower panels at their minimum height, as it
-     already did whenever Settings was open. The settings sections flow down
-     columns instead of across equal-height rows, so they fit that room; on a
-     screen too short even for that, the panel body scrolls, as every panel's
-     body does. */
+/* Settings is a page of its own (tablet and desktop): the menu, the settings
+   cards and the status bar only. The player regions stay mounted but hidden,
+   so leaving Settings finds them as they were. The page fills the window; a
+   window too short for the cards scrolls the whole page, like the dashboard,
+   so no inner scrollbar narrows the cards off the header's edges. */
+@media (min-width: 768px) {
   .app-frame[data-section='settings'] .dashboard {
-    grid-template-rows: auto minmax(0, 1fr) 230px minmax(min-content, auto) auto;
+    height: auto;
+    min-height: 100dvh;
+    grid-template-rows: auto minmax(min-content, 1fr) auto;
+    grid-template-areas:
+      'header header header'
+      'side main main'
+      'status status status';
   }
-  .app-frame[data-section='settings'] .settings-panel__grid {
-    display: block;
-    columns: 240px;
-    column-gap: var(--la-space-3);
+
+  .app-frame[data-section='settings'] :is(.area-radio, .area-audio, .area-lower, .sidebar__library) {
+    display: none;
   }
-  .app-frame[data-section='settings'] .settings-panel__grid > * {
-    break-inside: avoid;
-    margin-bottom: var(--la-space-3);
+
+  /* the menu runs down to the status bar */
+  .app-frame[data-section='settings'] .sidebar__nav {
+    flex: 1 1 auto;
+  }
+}
+
+/* Desktop: the cards sit on the header's columns — Account, Equalizer,
+   Keyboard and Install under the ticker, Interface under the clock and
+   status, Data across both — with --la-gap between all of them. */
+@media (min-width: 1200px) {
+  .app-frame[data-section='settings'] .settings-panel {
+    grid-template-columns: subgrid;
+    grid-template-rows: minmax(min-content, 1fr) auto;
+  }
+  .settings-panel__interface {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .settings-panel__data {
+    grid-column: 1 / -1;
   }
 }
 
@@ -185,6 +207,13 @@
       'status status';
   }
 
+  .app-frame[data-section='settings'] .dashboard {
+    grid-template-areas:
+      'header header'
+      'side main'
+      'status status';
+  }
+
   .area-main,
   .area-settings {
     min-height: 420px;
@@ -268,9 +297,25 @@
     display: none;
   }
 
-  .app-frame[data-section='settings'] .area-settings,
   .app-frame[data-section='settings'] .area-status {
     display: flex;
+  }
+
+  .app-frame[data-section='settings'] .area-settings {
+    display: grid;
+  }
+
+  .app-frame .settings-panel__main {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+  }
+
+  .app-frame .settings-panel__mini:has(.mini-player) {
+    display: flex;
+  }
+
+  .app-frame .settings-card--keys .shortcut-list {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .app-frame[data-section='settings'] .area-controls {

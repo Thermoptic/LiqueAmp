@@ -802,11 +802,59 @@
 }
 
 /* ---------- Settings ---------- */
-.settings-panel__grid {
+/* One card per group; the placement on the dashboard's columns is in layout.css. */
+.settings-panel {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
-  gap: var(--la-space-3);
+  gap: var(--la-gap);
+  min-width: 0;
+}
+
+.settings-panel__main {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(min-content, 1fr));
+  gap: var(--la-gap);
+  min-width: 0;
+}
+
+/* phones only (layout.css), and only while something is loaded */
+.settings-panel__mini {
+  display: none;
+}
+
+.settings-card {
+  padding: var(--la-space-1);
+}
+
+/* the card is the frame: the groups inside lose their own border */
+.settings-card .settings-group {
+  border: 0;
+}
+
+.settings-card__title {
+  margin: 0;
+  padding: var(--la-space-3) var(--la-space-3) 0;
+  font-family: var(--la-font-display);
+  font-size: var(--la-text-md);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--la-accent-bright);
+}
+
+.settings-panel__interface .settings-group + .settings-group {
+  border-top: var(--la-border-width) dashed var(--la-border-subtle);
+}
+
+.settings-panel__interface .settings-group__title {
+  color: var(--la-text-secondary);
+}
+
+.settings-card--keys .shortcut-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--la-space-4);
 }
 
 .settings-group {

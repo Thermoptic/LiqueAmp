@@ -68,3 +68,20 @@ describe('Home with FRIEND LIQUES (checkpoint 7)', () => {
     expect(within(queue).getByText('QUEUE EMPTY')).toBeTruthy();
   });
 });
+
+describe('Settings as a page of its own', () => {
+  it('shows each group as its own card; the player regions stay mounted (CSS hides them)', () => {
+    const { container } = render(
+      <MemoryRouter initialEntries={['/settings']}>
+        <Dashboard />
+      </MemoryRouter>,
+    );
+    const settings = screen.getByRole('region', { name: 'Settings' });
+    const cards = Array.from(settings.querySelectorAll('.settings-card')).map((c) => c.querySelector('h3')?.textContent);
+    expect(cards).toEqual(['Account', 'Equalizer', 'Keyboard', 'Install / PWA', 'Interface', 'Data']);
+    const iface = screen.getByRole('region', { name: 'Interface' });
+    for (const name of ['Accessibility', 'Now Playing']) expect(within(iface).getByRole('heading', { level: 4, name })).toBeTruthy();
+    expect(container.querySelector('.area-main')).toBeNull(); // Settings replaces Now Playing
+    for (const area of ['.area-radio', '.area-audio', '.area-lower', '.sidebar__library']) expect(container.querySelector(area)).toBeTruthy();
+  });
+});
