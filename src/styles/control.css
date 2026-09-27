@@ -3,7 +3,8 @@
   grid-template-rows: auto minmax(0, 1fr);
   gap: var(--la-gap);
   min-height: 100dvh;
-  max-width: 1600px;
+  /* the same canvas as the player (.dashboard in layout.css) */
+  max-width: 1920px;
   margin: 0 auto;
   padding: var(--la-gap) max(var(--la-gap), env(safe-area-inset-right)) var(--la-gap) max(var(--la-gap), env(safe-area-inset-left));
 }
@@ -16,7 +17,6 @@
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
   gap: var(--la-gap);
-  align-items: start;
   min-height: 0;
 }
 
@@ -56,6 +56,42 @@
 
 /* header and body share two columns, so the brand block and the section
    nav have one edge (same approach as the dashboard, layout.css) */
+/* Like the player, the control page is exactly the viewport: the section nav
+   and the section fill the height, and a section taller than the room scrolls
+   inside the page — the document never does. (On phones the page scrolls, as
+   the player's does.) */
+@media (min-width: 768px) {
+  .control-page {
+    height: 100dvh;
+  }
+  /* one row that is exactly the room below the header (an auto row would grow with the section) */
+  .control-page__body {
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .control-page__nav {
+    overflow: auto;
+  }
+  .control-page__main {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: auto;
+  }
+  /* one panel (Categories, Themes …): fills the height; a long list scrolls in its body */
+  .control-page__main > .panel {
+    flex: 1 1 auto;
+  }
+  /* several panels: the stack fills the height, its last panel takes the rest */
+  .control-page__main > .control-stack {
+    display: flex;
+    flex-direction: column;
+    flex: 1 0 auto;
+  }
+  .control-page__main > .control-stack > :last-child {
+    flex: 1 0 auto;
+  }
+}
+
 @media (min-width: 768px) {
   .control-page {
     grid-template-columns: minmax(auto, 220px) minmax(0, 1fr);
