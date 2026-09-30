@@ -4,6 +4,7 @@ import type { AnalysisAvailability, StreamInfo } from '../../stores/playbackStor
 import { DEFAULT_FFT_SIZE, DEFAULT_SMOOTHING } from '../analysis/analysis';
 import type { StreamFormat } from '../providers/direct';
 import type { AudioBackend, BackendListener } from './backend';
+import { ChipStream, type ChipRenderer } from './chipStream';
 import { fromMediaError, fromPlayRejection, playbackError, PlaybackFailure } from './errors';
 
 const PROBE_TIMEOUT_MS = 5000;
@@ -86,6 +87,11 @@ export class NativeAudioBackend implements AudioBackend {
   // Graph: source → bass → mid → treble → destination, with an analyser tap
   // after the EQ so visualizers see what is actually heard.
   private eqNodes: { bass: BiquadFilterNode; mid: BiquadFilterNode; treble: BiquadFilterNode } | null = null;
+  /** The EQ chain's input: the analysed element and the retro emulators both feed it. */
+  private graphInput: GainNode | null = null;
+  /** Retro music rendered in the page (NSF), instead of an <audio> element. */
+  private chip: ChipStream | null = null;
+  private volume = { volume: 1, muted: false };
   private analyser: AnalyserNode | null = null;
   private eqGains = { bass: 0, mid: 0, treble: 0 };
   private url = '';
@@ -107,17 +113,18 @@ export class NativeAudioBackend implements AudioBackend {
   }
 
   get currentTime(): number {
-    return this.active?.currentTime ?? 0;
+    return this.chip ? this.chip.position : (this.active?.currentTime ?? 0);
   }
 
   /** The Web Audio graph input for the current source, when analysis is possible. */
   getAnalysisSource(): { context: AudioContext; node: AudioNode } | null {
+    if (this.chip && this.ctx && this.graphInput) return { context: this.ctx, node: this.graphInput };
     return this.active === this.analysed && this.ctx && this.source ? { context: this.ctx, node: this.source } : null;
   }
 
   /** The analyser for the current source, only while real samples flow through Web Audio. */
   getAnalyser(): AnalyserNode | null {
-    return this.active === this.analysed && this.analyser && this.ctx?.state === 'running' ? this.analyser : null;
+    return (this.active === this.analysed || this.chip) && this.analyser && this.ctx?.state === 'running' ? this.analyser : null;
   }
 
   /** Sets EQ gains in dB. They only affect sources routed through Web Audio. */
@@ -182,6 +189,11 @@ export class NativeAudioBackend implements AudioBackend {
     this.listener?.onStatus('loading');
     this.listener?.onStreamInfo(null);
 
+    if (format === 'nsf') {
+      await this.loadNsf(target, token);
+      return;
+    }
+
     if (format === 'hls' && !this.plain.canPlayType('application/vnd.apple.mpegurl')) {
       await this.loadWithHlsJs(token);
       return;
@@ -201,6 +213,14 @@ export class NativeAudioBackend implements AudioBackend {
   }
 
   async play(): Promise<void> {
+    if (this.chip) {
+      if (!(await this.ensureGraph())) {
+        this.listener?.onError(playbackError('PLAYBACK_BLOCKED', 'The browser has not allowed audio to start yet. Press play again.'));
+        return;
+      }
+      this.chip.play();
+      return;
+    }
     const el = this.active;
     if (!el) return;
     this.wantsPlay = true;
@@ -222,6 +242,7 @@ export class NativeAudioBackend implements AudioBackend {
 
   pause(): void {
     this.wantsPlay = false;
+    this.chip?.pause();
     this.active?.pause();
   }
 
@@ -232,12 +253,18 @@ export class NativeAudioBackend implements AudioBackend {
   }
 
   seek(seconds: number): void {
+    if (this.chip) {
+      this.chip.seek(seconds);
+      return;
+    }
     const el = this.active;
     if (!el || !Number.isFinite(el.duration)) return;
     el.currentTime = Math.max(0, Math.min(el.duration, seconds));
   }
 
   setVolume(volume: number, muted: boolean): void {
+    this.volume = { volume, muted };
+    this.chip?.setVolume(volume, muted);
     for (const el of [this.analysed, this.plain]) {
       el.volume = Math.max(0, Math.min(1, volume));
       el.muted = muted;
@@ -282,6 +309,8 @@ export class NativeAudioBackend implements AudioBackend {
   /** Detaches the source from both elements without firing UI events. */
   private release(): void {
     this.wantsPlay = false;
+    this.chip?.dispose();
+    this.chip = null;
     this.active = null;
     this.hls?.destroy();
     this.hls = null;
@@ -428,11 +457,28 @@ export class NativeAudioBackend implements AudioBackend {
    */
   private async ensureGraphRunning(): Promise<boolean> {
     try {
+      if (!(await this.ensureGraph())) return false;
+      if (!this.source) {
+        this.source = this.ctx!.createMediaElementSource(this.analysed);
+        this.source.connect(this.graphInput!);
+      }
+      return this.ctx!.state === 'running';
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * The EQ + analyser chain (created once): input → bass → mid → treble →
+   * destination, with the analyser after the EQ. Resumes the context.
+   */
+  private async ensureGraph(): Promise<boolean> {
+    try {
       this.prime();
       if (!this.ctx) return false;
-      if (!this.source) {
+      if (!this.graphInput) {
         const ctx = this.ctx;
-        this.source = ctx.createMediaElementSource(this.analysed);
+        const input = new GainNode(ctx);
         const bass = new BiquadFilterNode(ctx, { type: 'lowshelf', frequency: 200 });
         const mid = new BiquadFilterNode(ctx, { type: 'peaking', frequency: 1000, Q: 0.8 });
         const treble = new BiquadFilterNode(ctx, { type: 'highshelf', frequency: 4000 });
@@ -440,8 +486,9 @@ export class NativeAudioBackend implements AudioBackend {
           fftSize: this.analyserConfig.fftSize,
           smoothingTimeConstant: this.analyserConfig.smoothing,
         });
-        this.source.connect(bass).connect(mid).connect(treble).connect(ctx.destination);
+        input.connect(bass).connect(mid).connect(treble).connect(ctx.destination);
         treble.connect(analyser);
+        this.graphInput = input;
         this.eqNodes = { bass, mid, treble };
         this.analyser = analyser;
         this.setEq(this.eqGains);
@@ -451,5 +498,77 @@ export class NativeAudioBackend implements AudioBackend {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * NES music: fetches the NSF file, and plays the tune named by the URL's
+   * #song= through LIQUEAMP's NES emulator into the EQ/analyser chain, so
+   * transport, volume, EQ and visualizers work as for any stream.
+   */
+  private async loadNsf(target: URL, token: number): Promise<void> {
+    const song = Number(new URLSearchParams(target.hash.slice(1)).get('song')) || 1;
+    const fileUrl = new URL(target.href);
+    fileUrl.hash = '';
+    if (!this.webAudioAvailable()) {
+      throw new PlaybackFailure(playbackError('MEDIA_FORMAT_NOT_SUPPORTED', 'Retro music needs Web Audio, which this browser does not provide.', false));
+    }
+    let bytes: ArrayBuffer;
+    try {
+      const res = await fetch(fileUrl.href, { referrerPolicy: 'no-referrer', credentials: 'omit' });
+      if (!res.ok) {
+        throw new PlaybackFailure(
+          playbackError('STREAM_UNAVAILABLE', res.status === 404 ? 'The archive no longer has this file.' : `The archive answered HTTP ${res.status}.`, res.status !== 404),
+        );
+      }
+      bytes = await res.arrayBuffer();
+    } catch (err) {
+      if (err instanceof PlaybackFailure) throw err;
+      throw new PlaybackFailure(playbackError('NETWORK_ERROR', navigator.onLine ? 'The music file could not be fetched.' : 'You are offline. Retro music is fetched from the archive when played.'));
+    }
+    if (token !== this.loadToken) return;
+    const { NsfPlayer, NSF_TRACK_SECONDS, parseNsf } = await import('../retro/nes/nsf');
+    let player: InstanceType<typeof NsfPlayer>;
+    try {
+      player = new NsfPlayer(parseNsf(bytes), this.ctxSampleRate());
+    } catch (err) {
+      throw new PlaybackFailure(playbackError('INVALID_SOURCE', `This is not a playable NSF file (${(err as Error).message}).`, false));
+    }
+    if (!(await this.ensureGraph()) || token !== this.loadToken) {
+      if (token !== this.loadToken) return;
+      throw new PlaybackFailure(playbackError('PLAYBACK_BLOCKED', 'The browser has not allowed audio to start yet. Press play again.'));
+    }
+    const listener = () => this.listener;
+    const nsf = player.nsf;
+    // fork: a second player of the same tune, for the background snapshot scan
+    const renderer = (p: InstanceType<typeof NsfPlayer>): ChipRenderer => ({
+      sampleRate: p.sampleRate,
+      restart: () => p.start(song),
+      render: (out) => p.render(out),
+      skip: (samples) => p.skip(samples),
+      snapshot: () => p.snapshot(),
+      restore: (state) => p.restore(state),
+      fork: () => renderer(new NsfPlayer(nsf, p.sampleRate)),
+      level: () => p.level,
+    });
+    this.chip = new ChipStream(
+      this.ctx!,
+      this.graphInput!,
+      renderer(player),
+      NSF_TRACK_SECONDS,
+      {
+        onStatus: (s) => listener()?.onStatus(s),
+        onClock: (t, d, b) => listener()?.onClock(t, d, b),
+        onDuration: (d) => listener()?.onMeta({ duration: d, isLive: false, canSeek: true }),
+        onEnded: () => listener()?.onEnded(),
+      },
+    );
+    this.chip.setVolume(this.volume.volume, this.volume.muted);
+    this.listener?.onMeta({ duration: NSF_TRACK_SECONDS, isLive: false, canSeek: true });
+    this.setAnalysis('available');
+  }
+
+  private ctxSampleRate(): number {
+    this.prime();
+    return this.ctx?.sampleRate ?? 48000;
   }
 }

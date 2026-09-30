@@ -52,6 +52,13 @@ const FACTS: Record<ProviderId, { name: string; playback: string; analysis: stri
     account: 'Managed by Spotify’s own player — LIQUEAMP never sees or stores a login',
     script: 'https://open.spotify.com/embed/iframe-api/v1',
   },
+  retro: {
+    name: 'Retro',
+    playback: 'NES music (NSF) played by LIQUEAMP’s own NES emulator in the browser; C64 and Mega Drive follow',
+    analysis: 'Available — the emulator’s audio goes through the same EQ and analyser as native audio',
+    metadata: 'Modland archive index (allmods.zip, cached on this device) and the NSF file header',
+    account: 'Not needed',
+  },
   soundcloud: {
     name: 'SoundCloud',
     playback: 'Official SoundCloud widget (Widget API)',

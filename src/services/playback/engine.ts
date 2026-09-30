@@ -39,6 +39,7 @@ const PROVIDER_NAME: Partial<Record<ProviderId, string>> = {
   'youtube-music': 'YouTube Music',
   spotify: 'Spotify',
   soundcloud: 'SoundCloud',
+  retro: 'Retro',
 };
 
 /** False only for items explicitly disabled in /control › Media. */

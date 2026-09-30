@@ -7,7 +7,9 @@ export type ProviderId =
   | 'youtube'
   | 'youtube-music'
   | 'spotify'
-  | 'soundcloud';
+  | 'soundcloud'
+  /** Retro game music (NSF, …) played by LIQUEAMP's own emulators. */
+  | 'retro';
 
 /** How an item is stored/classified (PROVIDERS §7, MASTER §15). */
 export type PlaybackType = 'direct' | 'radio' | 'embed' | 'external';

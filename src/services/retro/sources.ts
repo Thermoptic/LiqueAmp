@@ -1,7 +1,7 @@
 // Retro music sources behind the Retro panel. The panel only talks to this
 // interface; each system gets its own adapter (NES/NSF, C64/HVSC,
-// Mega Drive/VGM, …). No source is connected yet: the music, its online
-// sources and the in-browser decoders are added in a later step.
+// Mega Drive/VGM, …). NES is connected (./nesSource, registered in
+// ./defaultSources); the other systems follow.
 
 import type { MediaItem } from '../../types/media';
 
@@ -20,6 +20,10 @@ export interface RetroTrack {
   subtune?: number;
   /** For a whole file: how many subtunes it has; more than one opens the file's tune list. */
   subtuneCount?: number;
+  /** A whole file whose tunes are read from the file itself (count unknown until then); opens its tune list. */
+  hasTunes?: boolean;
+  /** A short caveat shown on the row, e.g. expansion audio that is not emulated. */
+  note?: string;
   /** Seconds, when the source knows it. */
   duration?: number;
   artwork?: string;

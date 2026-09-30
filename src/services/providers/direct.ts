@@ -8,7 +8,8 @@ import { detectSource, type Detection } from './detect';
 import { ProviderError } from './errors';
 import { parsePlaylist, PlaylistParseError, sniffPlaylist, type PlaylistEntry, type PlaylistFormat } from './playlists';
 
-export type StreamFormat = 'audio' | 'hls';
+/** 'nsf': an NES music file, played by LIQUEAMP's own emulator (the URL's #song= picks the tune). */
+export type StreamFormat = 'audio' | 'hls' | 'nsf';
 
 /** One URL the engine may try; several exist when a playlist lists mirrors. */
 export interface PlaybackCandidate {
@@ -181,6 +182,8 @@ function expand(detection: Detection, text: string, notes: string[]): DirectReso
  */
 export async function planDirectPlayback(item: MediaItem, fetchImpl: typeof fetch = fetch): Promise<PlaybackCandidate[]> {
   const url = item.streamUrl || item.sourceUrl;
+  // retro music: the file is rendered by an emulator, not decoded by <audio>
+  if (item.provider === 'retro' && item.metadata?.format === 'nsf') return [{ url, format: 'nsf' }];
   const declared = item.metadata?.format as DirectFormat | undefined;
   let format: DirectFormat = declared ?? 'stream';
   if (!declared) {

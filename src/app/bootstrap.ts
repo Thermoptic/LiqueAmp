@@ -21,6 +21,7 @@ import { createCloudServices } from '../services/cloud';
 import { useFriends } from '../stores/friendsStore';
 import { startReadOnlyNotices } from '../services/friends/readOnlyNotice';
 import { startDirtyTracking } from '../services/sync/ownProfileMeta';
+import { registerDefaultRetroSources } from '../services/retro/defaultSources';
 
 /** Applies the active theme, glow level and motion preference to <html>. */
 function syncAppearance() {
@@ -49,6 +50,8 @@ export async function bootstrap(): Promise<void> {
   startReadOnlyNotices();
   // own-profile changes mark the profile as changed since the last sync (profile.meta.dirty)
   startDirtyTracking();
+  // Retro music sources (NES); the index is only fetched when Retro is searched
+  registerDefaultRetroSources();
   // Accounts are optional (D16): Supabase when this build is configured for it,
   // otherwise none. Never awaited — the player starts without the network.
   void createCloudServices().then(({ provider, cloud, friends, problem }) => {

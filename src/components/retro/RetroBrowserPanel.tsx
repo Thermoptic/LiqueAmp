@@ -6,7 +6,9 @@ import { getEngine } from '../../services/playback/engine';
 import { isItemFavorite, myFavorites, useFavorites } from '../../stores/favoritesStore';
 import { usePlayback } from '../../stores/playbackStore';
 import { useRetro } from '../../stores/retroStore';
+import { useSettings } from '../../stores/settingsStore';
 import { useUi } from '../../stores/uiStore';
+import { Link } from 'react-router';
 import { ItemActionsMenu } from '../actions/ItemActions';
 import { EmptyState, onTablistKeyDown, Status } from '../ui/controls';
 import { RowList } from '../ui/RowList';
@@ -21,6 +23,20 @@ export function RetroBrowserPanel() {
   const systemId = useRetro((s) => s.systemId);
   const selectSystem = useRetro((s) => s.selectSystem);
   const system = retroSystem(systemId);
+  const enabled = useSettings((s) => s.providers.retro?.enabled !== false);
+
+  if (!enabled) {
+    // Switched off in /control: no archive requests at all.
+    return (
+      <section className="panel radio-browser retro-browser area-radio" aria-label="Retro browser">
+        <div className="panel__body">
+          <EmptyState title="RETRO DISABLED">
+            Retro music is switched off in <Link to="/control/providers">/control › Providers</Link>.
+          </EmptyState>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="panel radio-browser retro-browser area-radio" aria-label="Retro browser">
@@ -146,12 +162,14 @@ function SearchResults({ state, source, system }: { state: SearchState; source: 
   );
 }
 
-const isMultiTune = (t: RetroTrack) => t.subtune === undefined && (t.subtuneCount ?? 1) > 1;
+const isMultiTune = (t: RetroTrack) => t.subtune === undefined && (t.hasTunes === true || (t.subtuneCount ?? 1) > 1);
+const tunesLabel = (t: RetroTrack) => (t.subtuneCount ? `${t.subtuneCount} tunes` : 'tunes');
 
 /** A file's subtunes, each its own playable track. */
 function TuneList({ source, file }: { source: RetroSource; file: RetroTrack }) {
   const openTunes = useRetro((s) => s.openTunes);
   const [tunes, setTunes] = useState<RetroTrack[] | null>(null);
+  const note = tunes?.find((t) => t.note)?.note;
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -170,8 +188,12 @@ function TuneList({ source, file }: { source: RetroSource; file: RetroTrack }) {
           <ArrowLeft size={14} aria-hidden="true" /> Results
         </button>
         <span className="retro-browser__file-text">
-          <span className="library-toolbar__title truncate">{file.game ?? file.title}</span>
-          <span className="station-row__meta truncate">{[file.composer, `${system(file)} · ${file.format}`].filter(Boolean).join(' · ')}</span>
+          <span className="library-toolbar__title truncate">{tunes?.[0]?.game ?? file.game ?? file.title}</span>
+          <span className="station-row__meta truncate">
+            {[tunes?.[0]?.composer ?? file.composer, `${system(file)} · ${file.format}`, tunes ? `${tunes.length} ${tunes.length === 1 ? 'tune' : 'tunes'}` : undefined]
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
         </span>
       </div>
       {error ? (
@@ -184,11 +206,14 @@ function TuneList({ source, file }: { source: RetroSource; file: RetroTrack }) {
       ) : tunes.length === 0 ? (
         <EmptyState title="NO TUNES">This file lists no playable tunes.</EmptyState>
       ) : (
+        <>
+        {note && <p className="notice retro-browser__note">{note}: those parts are silent.</p>}
         <RowList aria-label={`${file.game ?? file.title} tunes`}>
           {tunes.map((t, i) => (
             <RetroTrackRow key={t.id} track={t} index={i} source={source} />
           ))}
         </RowList>
+        </>
       )}
     </>
   );
@@ -199,7 +224,7 @@ const system = (t: RetroTrack) => retroSystem(t.systemId)?.name ?? t.systemId;
 /** Game · composer · SYSTEM FORMAT, like a station's genre · country · codec. */
 export function retroTrackMeta(t: RetroTrack): string {
   const parts = [t.game && t.game !== t.title ? t.game : undefined, t.composer, `${system(t)} · ${t.format}`];
-  if (isMultiTune(t)) parts.push(`${t.subtuneCount} tunes`);
+  if (isMultiTune(t) && t.subtuneCount) parts.push(tunesLabel(t));
   return parts.filter(Boolean).join(' · ');
 }
 
@@ -225,7 +250,7 @@ export function RetroTrackRow({ track, index, source, onOpen }: { track: RetroTr
         className="station-row__main"
         onClick={onOpen ?? (() => void getEngine().playList([item]))}
         // named like a station row's main button ("…. Select for details"), distinct from ▶
-        aria-label={onOpen ? `${track.title}: show its ${track.subtuneCount} tunes` : `${track.title}${isPlaying ? ', now playing' : ''}. Play`}
+        aria-label={onOpen ? `${track.title}: show its ${tunesLabel(track)}` : `${track.title}${isPlaying ? ', now playing' : ''}. Play`}
       >
         <span className="station-row__text">
           <span className="station-row__name truncate">{track.title}</span>
@@ -233,9 +258,14 @@ export function RetroTrackRow({ track, index, source, onOpen }: { track: RetroTr
         </span>
       </button>
       {onOpen ? (
-        <span className="station-row__flag">{track.subtuneCount} TUNES</span>
+        <span className="station-row__flag">{tunesLabel(track).toUpperCase()}</span>
       ) : (
         <>
+          {track.note && (
+            <span className="station-row__flag" title={track.note}>
+              PARTIAL
+            </span>
+          )}
           <button type="button" className="btn btn--ghost btn--icon" aria-label={`Play ${track.title}`} onClick={() => void getEngine().playList([item])}>
             <Play size={14} />
           </button>

@@ -23,6 +23,7 @@ export const PROVIDER_LABEL: Record<string, string> = {
   'youtube-music': 'YTM',
   spotify: 'Spotify',
   soundcloud: 'SoundCloud',
+  retro: 'Retro',
 };
 
 const NEXT_REPEAT: Record<RepeatMode, RepeatMode> = { off: 'all', all: 'one', one: 'off' };

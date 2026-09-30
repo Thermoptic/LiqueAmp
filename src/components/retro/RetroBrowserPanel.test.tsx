@@ -155,8 +155,8 @@ describe('Retro panel', () => {
     expect(search.disabled).toBe(true);
     expect(within(retroPanel()).getByText('SOURCE NOT CONNECTED')).toBeTruthy();
     expect(within(retroPanel()).getByText(/Commodore 64 · SID · no source connected/)).toBeTruthy();
-    // no source is registered in the app yet
-    for (const s of RETRO_SYSTEMS) expect(retroSourceFor(s.id)).toBeUndefined();
+    // C64 and Mega Drive have no source yet (NES is connected at start-up, see defaultSources)
+    for (const id of ['c64', 'megadrive']) expect(retroSourceFor(id)).toBeUndefined();
   });
 
   it('searches only the chosen system’s source and shows compact results', async () => {

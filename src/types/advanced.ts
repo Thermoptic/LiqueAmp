@@ -2,7 +2,7 @@
 // Kept out of the user-facing settings UI.
 import type { ProviderId } from './media';
 
-export const PROVIDER_IDS: readonly ProviderId[] = ['direct', 'radio', 'youtube', 'youtube-music', 'spotify', 'soundcloud'];
+export const PROVIDER_IDS: readonly ProviderId[] = ['direct', 'radio', 'youtube', 'youtube-music', 'spotify', 'soundcloud', 'retro'];
 
 /** Per-provider configuration, separate from provider code (PROVIDERS §44). No secrets are stored. */
 export interface ProviderConfig {
@@ -18,6 +18,7 @@ export const DEFAULT_PROVIDERS: ProviderConfigs = {
   'youtube-music': { enabled: true },
   spotify: { enabled: true },
   soundcloud: { enabled: true },
+  retro: { enabled: true },
 };
 
 export const FFT_SIZES = [512, 1024, 2048, 4096, 8192] as const;
