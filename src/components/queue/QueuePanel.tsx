@@ -19,7 +19,7 @@ export function QueuePanel() {
     const entry = entries[from];
     if (entry) moveEntry(entry.entryId, to);
   };
-  const { rowProps } = useDragReorder(move);
+  const { rowProps, handleProps } = useDragReorder(move);
   const currentIndex = entries.findIndex((e) => e.entryId === currentId);
   const upcoming = currentIndex >= 0 ? entries.length - currentIndex - 1 : entries.length;
 
@@ -48,7 +48,7 @@ export function QueuePanel() {
               const { item } = entry;
               return (
                 <li key={entry.entryId} className="row queue-row" aria-current={isCurrent ? 'true' : undefined} {...rowProps(i)}>
-                  <DragHandle />
+                  <DragHandle {...handleProps(i)} />
                   <span className="row__index">{String(i + 1).padStart(2, '0')}</span>
                   <button
                     type="button"

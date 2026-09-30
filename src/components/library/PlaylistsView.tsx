@@ -101,7 +101,7 @@ function PlaylistDetail({ playlist }: { playlist: Playlist }) {
   const [renaming, setRenaming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const move = (from: number, to: number) => void moveItem(playlist.id, from, to);
-  const { rowProps } = useDragReorder(move);
+  const { rowProps, handleProps } = useDragReorder(move);
 
   // Each row keeps its position in the playlist, so edits target the right entry
   // even when some referenced media no longer exists.
@@ -157,7 +157,7 @@ function PlaylistDetail({ playlist }: { playlist: Playlist }) {
               key={`${item.id}-${position}`}
               item={item}
               index={i}
-              leading={readOnly ? undefined : <DragHandle />}
+              leading={readOnly ? undefined : <DragHandle {...handleProps(position)} />}
               rowProps={readOnly ? undefined : rowProps(position)}
               onActivate={() => void getEngine().playList(items, i)}
               actions={
