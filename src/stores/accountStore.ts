@@ -91,6 +91,47 @@ export function accountUser(state: AccountState): AccountUser | null {
   return state.status === 'signed-in' ? state.session.user : null;
 }
 
+/**
+ * When syncing has stopped and needs the user (or failed): a short label for
+ * the status bar and menus, and a sentence saying what to do. Null while the
+ * Lique is syncing normally. The choices themselves are in Settings › Account.
+ */
+export function syncAttention(sync: SyncView): { label: string; message: string; tone: 'warn' | 'error' } | null {
+  switch (sync.state) {
+    case 'resolve-local':
+      return {
+        label: 'CHOOSE PROFILE',
+        message: 'Your account has a Lique and this device has its own. Choose which one to keep in Settings › Account — nothing is saved to your account until then.',
+        tone: 'warn',
+      };
+    case 'conflict':
+      return {
+        label: 'CHOOSE PROFILE',
+        message: 'Your Lique changed both on this device and in your account. Choose which one to keep in Settings › Account — nothing is saved to your account until then.',
+        tone: 'warn',
+      };
+    case 'needs-review':
+      return {
+        label: 'SYNC PAUSED',
+        message: 'Saving to your account is paused: some stream addresses may contain a password or key. Decide in Settings › Account.',
+        tone: 'warn',
+      };
+    case 'blocked-other-account':
+      return { label: 'NOT SYNCED', message: 'The LiqueAmp on this device belongs to another account, so it is not saved to this one.', tone: 'warn' };
+    case 'error':
+      return { label: 'SYNC ERROR', message: `Your Lique could not be saved to your account: ${sync.message}`, tone: 'error' };
+    default:
+      return null;
+  }
+}
+
+/** The account's sync needs the user (for the menus' marker). */
+export function useSyncAttention() {
+  // the selector returns the stored (stable) sync view; the attention is derived outside it
+  const sync = useAccount((s) => (accountUser(s.state) ? s.sync : null));
+  return sync ? syncAttention(sync) : null;
+}
+
 export function accountAuthMethod(state: AccountState): AuthMethod | null {
   return state.status === 'signed-in' ? state.session.authMethod : state.status === 'needs-username' ? state.authMethod : null;
 }

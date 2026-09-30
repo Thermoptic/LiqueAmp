@@ -20,6 +20,7 @@ import { QueuePanel } from '../components/queue/QueuePanel';
 import { AppearanceModule, AudioModule, PlayerModule, VisualizerModule } from '../components/settings/ControlModules';
 import { SettingsPanel } from '../components/settings/SettingsPanel';
 import { SkipLink } from '../components/layout/SkipLink';
+import { SyncAttentionNotice } from '../components/settings/SyncAttentionNotice';
 
 /**
  * One layout for every screen size (ARCH §37). The route only chooses which
@@ -84,6 +85,7 @@ export function Dashboard() {
         </div>
       )}
       <BottomNav />
+      <SyncAttentionNotice />
       <UsernameSetupDialog />
       <SetNewPasswordDialog />
     </div>

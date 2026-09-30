@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router';
 import { Download, Folder, Library, ListMusic, Plus } from 'lucide-react';
 import { CONTROL_PANEL_LINK, SECTIONS } from '../../app/sections';
+import { useSyncAttention } from '../../stores/accountStore';
 import { useUi } from '../../stores/uiStore';
 import { ImportDialog } from '../import/ImportDialog';
 import { collectionMedia, countByCategory, useLibrary } from '../../stores/libraryStore';
@@ -11,15 +12,17 @@ import { CategoryDialog } from '../library/CategoryDialog';
 import { useLibraryCategory } from '../library/MediaLibraryView';
 
 export function Sidebar() {
+  const attention = useSyncAttention();
   return (
     <aside className="sidebar area-side">
       <nav className="panel sidebar__nav" aria-label="Main">
         <ul className="nav-list">
           {SECTIONS.map(({ id, label, path, icon: Icon }) => (
             <li key={id}>
-              <NavLink to={path} end={path === '/'} className="nav-item">
+              <NavLink to={path} end={path === '/'} className="nav-item" title={id === 'settings' && attention ? attention.message : undefined}>
                 <Icon size={18} aria-hidden="true" />
                 <span>{label}</span>
+                {id === 'settings' && attention && <SyncMarker />}
               </NavLink>
             </li>
           ))}
@@ -33,6 +36,15 @@ export function Sidebar() {
       </nav>
       <LibraryCategories />
     </aside>
+  );
+}
+
+/** On Settings while the account's sync needs the user; the words are for screen readers. */
+export function SyncMarker() {
+  return (
+    <span className="sync-marker">
+      <span className="sr-only">, sync needs you</span>
+    </span>
   );
 }
 

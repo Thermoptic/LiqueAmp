@@ -3,17 +3,30 @@ import { usePlayback, usePlaybackClock, type AnalysisAvailability, type AudioEng
 import { useSystem } from '../../stores/systemStore';
 import { Status, type StatusTone } from '../ui/controls';
 import { statusTone } from '../player/NowPlayingPanel';
-import { accountUser, useAccount } from '../../stores/accountStore';
+import { accountUser, syncAttention, useAccount } from '../../stores/accountStore';
 import { useFriends } from '../../stores/friendsStore';
 
-/** Next to STORAGE, in the same form: the account this Lique belongs to (on), or that none is logged in (off). */
+/**
+ * Next to STORAGE, in the same form: the account this Lique belongs to (on),
+ * or that none is logged in (off). When syncing has stopped and needs the
+ * user, it says so and links to the choice in Settings › Account.
+ */
 function AccountLabel() {
   const user = useAccount((s) => accountUser(s.state));
+  const sync = useAccount((s) => s.sync);
+  const attention = user ? syncAttention(sync) : null;
+  const text = `ACCOUNT: ${user ? `@${user.username}` : 'NOT LOGGED IN'}${attention ? ` · ${attention.label}` : user && sync.state === 'syncing' ? ' · SYNCING…' : ''}`;
   return (
     <>
       <span className="status-bar__sep" aria-hidden="true" />
-      <Status tone={user ? 'ok' : 'idle'}>
-        <span className="truncate status-bar__account">ACCOUNT: {user ? `@${user.username}` : 'NOT LOGGED IN'}</span>
+      <Status tone={attention ? attention.tone : user ? 'ok' : 'idle'}>
+        {attention ? (
+          <Link to="/settings" className="truncate status-bar__account status-bar__account--attention" title={attention.message}>
+            {text}
+          </Link>
+        ) : (
+          <span className="truncate status-bar__account">{text}</span>
+        )}
       </Status>
     </>
   );

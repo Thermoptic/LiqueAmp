@@ -733,6 +733,39 @@
   white-space: nowrap;
 }
 
+/* sync needs the user: the label links to Settings › Account */
+.status-bar__account--attention {
+  color: var(--la-warning);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.status-bar__account--attention:hover {
+  color: var(--la-hover-text);
+}
+
+/* the marker on Settings (sidebar and mobile bar) while sync needs the user */
+.sync-marker {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  margin-left: auto;
+  border-radius: 50%;
+  background: var(--la-warning);
+  box-shadow: 0 0 6px var(--la-warning);
+}
+
+.bottom-nav__icon {
+  position: relative;
+  display: grid;
+}
+
+.bottom-nav__icon .sync-marker {
+  position: absolute;
+  top: -2px;
+  right: -5px;
+}
+
 /* Settings › Account */
 .account__status {
   margin: 0;
